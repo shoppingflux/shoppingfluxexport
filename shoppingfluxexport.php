@@ -123,10 +123,10 @@ class ShoppingFluxExport extends Module
 	public function uninstall()
 	{
 		if (!Configuration::deleteByName('SHOPPING_FLUX_TOKEN') ||
-                        !Configuration::deleteByName('SHOPPING_FLUX_CANCELED') ||
-                        !Configuration::deleteByName('SHOPPING_FLUX_SHIPPED') ||
-                        !Configuration::deleteByName('SHOPPING_FLUX_IMAGE') ||
-                        !Configuration::deleteByName('SHOPPING_FLUX_TRACKING') ||
+						!Configuration::deleteByName('SHOPPING_FLUX_CANCELED') ||
+						!Configuration::deleteByName('SHOPPING_FLUX_SHIPPED') ||
+						!Configuration::deleteByName('SHOPPING_FLUX_IMAGE') ||
+						!Configuration::deleteByName('SHOPPING_FLUX_TRACKING') ||
 			!Configuration::deleteByName('SHOPPING_FLUX_BUYLINE') ||
 			!Configuration::deleteByName('SHOPPING_FLUX_ORDERS') ||
 			!Configuration::deleteByName('SHOPPING_FLUX_STATUS_SHIPPED') ||
@@ -134,7 +134,7 @@ class ShoppingFluxExport extends Module
 			!Configuration::deleteByName('SHOPPING_FLUX_LOGIN') ||
 			!Configuration::deleteByName('SHOPPING_FLUX_INDEX') ||
 			!Configuration::deleteByName('SHOPPING_FLUX_STOCKS') ||
-                        !Configuration::deleteByName('SHOPPING_FLUX_SHIPPING_MATCHING') ||
+						!Configuration::deleteByName('SHOPPING_FLUX_SHIPPING_MATCHING') ||
 			!parent::uninstall())
 			return false;
 
@@ -253,7 +253,7 @@ class ShoppingFluxExport extends Module
 	private function _clientView()
 	{
 		$this->_treatForm();
-                
+				
 		$configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TOKEN','SHOPPING_FLUX_TRACKING','SHOPPING_FLUX_BUYLINE',
 			'SHOPPING_FLUX_ORDERS', 'SHOPPING_FLUX_STATUS_SHIPPED', 'SHOPPING_FLUX_STATUS_CANCELED', 'SHOPPING_FLUX_LOGIN',
 						'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_INDEX','PS_LANG_DEFAULT', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
@@ -261,7 +261,7 @@ class ShoppingFluxExport extends Module
 
 		$html = $this->_getFeedContent();
 		$html .= $this->_getParametersContent($configuration);
-                $html .= $this->_getAdvancedParametersContent($configuration);
+				$html .= $this->_getAdvancedParametersContent($configuration);
 
 		return $html;
 
@@ -289,51 +289,48 @@ class ShoppingFluxExport extends Module
 					</fieldset>
 				</form>';
 	}
-        
-        private function _getAdvancedParametersContent($configuration)
-        {
-            if (!in_array('curl', get_loaded_extensions()))
-                return;
-            
-            $sf_carriers_xml = $this->_callWebService('GetCarriers');
-            
-            if (!isset($sf_carriers_xml->Response->Carriers->Carrier[0]))
-                return;
-            
-            $sf_carriers = array();
-            
-            foreach ($sf_carriers_xml->Response->Carriers->Carrier as $carrier){
-                $sf_carriers[] = (string)$carrier;
-            }
-            
-            $html = '<h3>'.$this->l('Paramètres avancés').'</h3>
-            <form method="post" action="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'">
-                <fieldset>
-                    <legend>'.$this->l('Matching transporteurs').'</legend>
-                    <p>'.$this->l('Nous récupérons ci-dessous tous les transporteurs fournis par les places de marché. Associez les à vos transporteurs Prestashop').'</p>';
-            
-            $actual_configuration = unserialize($configuration['SHOPPING_FLUX_SHIPPING_MATCHING']);
-            
-            
-            foreach ($sf_carriers as $sf_carrier){
-                
-                $actual_value = isset($actual_configuration[base64_encode(Tools::safeOutput($sf_carrier))]) ? $actual_configuration[base64_encode(Tools::safeOutput($sf_carrier))] : $configuration['SHOPPING_FLUX_CARRIER'];
-                
-                $html .= '<p><label>'.Tools::safeOutput($sf_carrier).' : </label>'.$this->_getCarriersSelect($configuration, $actual_value, 'MATCHING['.base64_encode(Tools::safeOutput($sf_carrier)).']').'</p>';
-                
-            }
-            
-            $html .= '<p style="margin-top:20px"><input type="submit" value="'.$this->l('Valider').'" name="rec_shipping_config" class="button"/></p>
-                </fieldset>
-            </form>';
-            
-            return $html;
-        }
+		
+		private function _getAdvancedParametersContent($configuration)
+		{
+			if (!in_array('curl', get_loaded_extensions()))
+				return;
+			
+			$sf_carriers_xml = $this->_callWebService('GetCarriers');
+			
+			if (!isset($sf_carriers_xml->Response->Carriers->Carrier[0]))
+				return;
+			
+			$sf_carriers = array();
+			
+			foreach ($sf_carriers_xml->Response->Carriers->Carrier as $carrier)
+				$sf_carriers[] = (string)$carrier;
+			
+			$html = '<h3>'.$this->l('Paramètres avancés').'</h3>
+			<form method="post" action="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'">
+				<fieldset>
+					<legend>'.$this->l('Matching transporteurs').'</legend>
+					<p>'.$this->l('Nous récupérons ci-dessous tous les transporteurs fournis par les places de marché. Associez les à vos transporteurs Prestashop').'</p>';
+			
+			$actual_configuration = unserialize($configuration['SHOPPING_FLUX_SHIPPING_MATCHING']);
+			
+			
+			foreach ($sf_carriers as $sf_carrier)
+			{
+				$actual_value = isset($actual_configuration[base64_encode(Tools::safeOutput($sf_carrier))]) ? $actual_configuration[base64_encode(Tools::safeOutput($sf_carrier))] : $configuration['SHOPPING_FLUX_CARRIER'];
+				$html .= '<p><label>'.Tools::safeOutput($sf_carrier).' : </label>'.$this->_getCarriersSelect($configuration, $actual_value, 'MATCHING['.base64_encode(Tools::safeOutput($sf_carrier)).']').'</p>';
+			}
+			
+			$html .= '<p style="margin-top:20px"><input type="submit" value="'.$this->l('Valider').'" name="rec_shipping_config" class="button"/></p>
+				</fieldset>
+			</form>';
+			
+			return $html;
+		}
 
 	private function _getCarriersSelect($configuration, $actual_value, $name = 'SHOPPING_FLUX_CARRIER')
 	{
 		$html = '<select name="'.Tools::safeOutput($name).'">';
-                
+				
 		foreach (Carrier::getCarriers($configuration['PS_LANG_DEFAULT'], true, false, false, null, 5) as $carrier)
 		{
 			$selected = (int)$actual_value === (int)$carrier['id_reference'] ? 'selected = "selected"' : '';
@@ -402,9 +399,8 @@ class ShoppingFluxExport extends Module
 		else
 			$base_uri = 'http://'.Tools::getHttpHost().__PS_BASE_URI__;
 
-				$uri = $base_uri.'modules/shoppingfluxexport/flux.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
-
-				$logo = Context::getContext()->country->iso_code == 'US' ? 'us' : 'fr';
+		$uri = $base_uri.'modules/shoppingfluxexport/flux.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
+		$logo = Context::getContext()->country->iso_code == 'US' ? 'us' : 'fr';
 
 		return '
 		<img style="margin:10px" src="'.Tools::safeOutput($base_uri).'modules/shoppingfluxexport/logo_'.$logo.'.jpg" />
@@ -422,26 +418,25 @@ class ShoppingFluxExport extends Module
 	/* Form record */
 	private function _treatForm()
 	{
-                $rec_config = Tools::getValue('rec_config');
-                $rec_shipping_config = Tools::getValue('rec_shipping_config');
-                
-		if ((isset($rec_config) && $rec_config != null)){
-            
-                    $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TRACKING','SHOPPING_FLUX_BUYLINE',
-                            'SHOPPING_FLUX_ORDERS', 'SHOPPING_FLUX_STATUS_SHIPPED', 'SHOPPING_FLUX_STATUS_CANCELED',
-                            'SHOPPING_FLUX_LOGIN', 'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
-                            'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPED'));
+		$rec_config = Tools::getValue('rec_config');
+		$rec_shipping_config = Tools::getValue('rec_shipping_config');
+				
+		if ((isset($rec_config) && $rec_config != null))
+		{
+			$configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TRACKING','SHOPPING_FLUX_BUYLINE',
+				'SHOPPING_FLUX_ORDERS', 'SHOPPING_FLUX_STATUS_SHIPPED', 'SHOPPING_FLUX_STATUS_CANCELED',
+				'SHOPPING_FLUX_LOGIN', 'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
+				'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPED'));
 
-                    foreach ($configuration as $key => $val)
-                    {
-                            $value = Tools::getValue($key, '');
-                            Configuration::updateValue($key, $value == 'on' ? 'checked' :  $value);
-                    }
-                
-                }
-                elseif(isset($rec_shipping_config) && $rec_shipping_config != null){
-                    Configuration::updateValue('SHOPPING_FLUX_SHIPPING_MATCHING', serialize(Tools::getValue('MATCHING')));
-                }
+			foreach ($configuration as $key => $val)
+			{
+				$value = Tools::getValue($key, '');
+				Configuration::updateValue($key, $value == 'on' ? 'checked' :  $value);
+			}
+		
+		}
+		elseif(isset($rec_shipping_config) && $rec_shipping_config != null)
+			Configuration::updateValue('SHOPPING_FLUX_SHIPPING_MATCHING', serialize(Tools::getValue('MATCHING')));
 	}
 
 	/* Send mail to PS and Shopping Flux */
@@ -529,6 +524,7 @@ class ShoppingFluxExport extends Module
 				FROM `'._DB_PREFIX_.'product` p
 				WHERE p.`active`= 1 AND p.`available_for_order`= 1';
 		}
+
 		return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
 	}
 
@@ -542,10 +538,10 @@ class ShoppingFluxExport extends Module
 
 		$lang = Tools::getValue('lang');
 		$configuration['PS_LANG_DEFAULT'] = !empty($lang) ? Language::getIdByIso($lang) : $configuration['PS_LANG_DEFAULT'];
-        $carrier = Carrier::getCarrierByReference((int)Configuration::get('SHOPPING_FLUX_CARRIER'));
-        
-        //manage case PS_CARRIER_DEFAULT is deleted
-        $carrier = is_object($carrier) ? $carrier : new Carrier((int)Configuration::get('SHOPPING_FLUX_CARRIER'));
+		$carrier = Carrier::getCarrierByReference((int)Configuration::get('SHOPPING_FLUX_CARRIER'));
+		
+		//manage case PS_CARRIER_DEFAULT is deleted
+		$carrier = is_object($carrier) ? $carrier : new Carrier((int)Configuration::get('SHOPPING_FLUX_CARRIER'));
 		$products = $this->getSimpleProducts($configuration['PS_LANG_DEFAULT']);
 
 		echo '<?xml version="1.0" encoding="utf-8"?>';
@@ -576,6 +572,7 @@ class ShoppingFluxExport extends Module
 				echo '<from/>';
 				echo '<to/>';
 			}
+
 			echo '<url-fournisseur><![CDATA['.$link->getSupplierLink($product->id_supplier, null, $configuration['PS_LANG_DEFAULT']).']]></url-fournisseur>';
 			echo '<url-fabricant><![CDATA['.$link->getManufacturerLink($product->id_manufacturer, null, $configuration['PS_LANG_DEFAULT']).']]></url-fabricant>';
 			echo '<solde>'.(int)$product->on_sale.'</solde>';
@@ -618,8 +615,8 @@ class ShoppingFluxExport extends Module
 		$configuration['PS_LANG_DEFAULT'] = !empty($lang) ? Language::getIdByIso($lang) : $configuration['PS_LANG_DEFAULT'];
 		$carrier = Carrier::getCarrierByReference((int)Configuration::get('SHOPPING_FLUX_CARRIER'));
 		
-        //manage case PS_CARRIER_DEFAULT is deleted
-        $carrier = is_object($carrier) ? $carrier : new Carrier((int)Configuration::get('SHOPPING_FLUX_CARRIER'));
+		//manage case PS_CARRIER_DEFAULT is deleted
+		$carrier = is_object($carrier) ? $carrier : new Carrier((int)Configuration::get('SHOPPING_FLUX_CARRIER'));
 		$products = $this->getSimpleProducts($configuration['PS_LANG_DEFAULT'], $current);
 
 		$str = '';
@@ -638,6 +635,7 @@ class ShoppingFluxExport extends Module
 			$str .= $this->_getFilAriane($product, $configuration);
 			$str .= '<manufacturer><![CDATA['.$product->manufacturer_name.']]></manufacturer>';
 			$str .= '<supplier><![CDATA['.$product->supplier_name.']]></supplier>';
+
 			if (is_array($product->specificPrice))
 			{
 				$str .= '<from><![CDATA['.$product->specificPrice['from'].']]></from>';
@@ -648,6 +646,7 @@ class ShoppingFluxExport extends Module
 				$str .= '<from/>';
 				$str .= '<to/>';
 			}
+
 			$str .= '<url-fournisseur><![CDATA['.$link->getSupplierLink($product->id_supplier, null, $configuration['PS_LANG_DEFAULT']).']]></url-fournisseur>';
 			$str .= '<url-fabricant><![CDATA['.$link->getManufacturerLink($product->id_manufacturer, null, $configuration['PS_LANG_DEFAULT']).']]></url-fabricant>';
 			$str .= '<solde>'.(int)$product->on_sale.'</solde>';
@@ -775,11 +774,11 @@ class ShoppingFluxExport extends Module
 	private function getImages($id_product, $id_lang)
 	{
 		return Db::getInstance()->ExecuteS('
-		SELECT i.`cover`, i.`id_image`, il.`legend`, i.`position`
-		FROM `'._DB_PREFIX_.'image` i
-		LEFT JOIN `'._DB_PREFIX_.'image_lang` il ON (i.`id_image` = il.`id_image` AND il.`id_lang` = '.(int)($id_lang).')
-		WHERE i.`id_product` = '.(int)($id_product).'
-		ORDER BY i.cover DESC, i.`position` ASC ');
+			SELECT i.`cover`, i.`id_image`, il.`legend`, i.`position`
+			FROM `'._DB_PREFIX_.'image` i
+			LEFT JOIN `'._DB_PREFIX_.'image_lang` il ON (i.`id_image` = il.`id_image` AND il.`id_lang` = '.(int)($id_lang).')
+			WHERE i.`id_product` = '.(int)($id_product).'
+			ORDER BY i.cover DESC, i.`position` ASC ');
 	}
 
 	private function _getImages($product, $configuration, $link)
@@ -859,6 +858,7 @@ class ShoppingFluxExport extends Module
 
 		foreach ($data as $row)
 			$combinationImages[] = (int)($row['id_image']);
+
 		return $combinationImages;
 	}
 
@@ -884,13 +884,14 @@ class ShoppingFluxExport extends Module
 			$ret .= '<ean><![CDATA['.$combination['ean13'].']]></ean>';
 			$ret .= '<upc><![CDATA['.$combination['upc'].']]></upc>';
 			$ret .= '<quantite><![CDATA['.$combination['quantity'].']]></quantite>';
-                        $ret .= '<weight><![CDATA['.$combination['weight'].']]></weight>';
+						$ret .= '<weight><![CDATA['.$combination['weight'].']]></weight>';
 			$ret .= '<prix><![CDATA['.$product->getPrice(true, $id, 2, null, false, true, 1).']]></prix>';
 			$ret .= '<prix-barre><![CDATA['.$product->getPrice(true, $id, 2, null, false, false, 1).']]></prix-barre>';
 			$ret .= '<frais-de-port><![CDATA['.$this->_getShipping($product, $configuration, $carrier, $id, $combination['weight']).']]></frais-de-port>';
 			$ret .= '<images>';
 
 			$image_child = true;
+
 			foreach ($this->_getAttributeImageAssociations($id) as $image)
 			{
 				if (empty($image))
@@ -1377,7 +1378,7 @@ class ShoppingFluxExport extends Module
 		$address->postcode = pSQL($addressNode->PostalCode);
 		$address->city = pSQL($addressNode->Town);
 		$address->phone = Tools::substr(pSQL($addressNode->Phone), 0, 16);
-                $address->phone_mobile = Tools::substr(pSQL($addressNode->PhoneMobile), 0, 16);
+				$address->phone_mobile = Tools::substr(pSQL($addressNode->PhoneMobile), 0, 16);
 
 		if ($id_address)
 			$address->update();
@@ -1443,18 +1444,18 @@ class ShoppingFluxExport extends Module
 			Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail_tax', $updateOrderDetailTax, 'UPDATE', '`id_order_detail` = '.(int)$id_order_detail);
 
 		}
-        
-                $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
-                
-                $carrier_to_load = isset($actual_configuration[base64_encode(Tools::safeOutput((string)$order->ShippingMethod))]) ? 
-                    (int)$actual_configuration[base64_encode(Tools::safeOutput((string)$order->ShippingMethod))] : 
-                    (int)Configuration::get('SHOPPING_FLUX_CARRIER');
-                
-                $carrier = Carrier::getCarrierByReference($carrier_to_load);
+		
+		$actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
+		
+		$carrier_to_load = isset($actual_configuration[base64_encode(Tools::safeOutput((string)$order->ShippingMethod))]) ? 
+			(int)$actual_configuration[base64_encode(Tools::safeOutput((string)$order->ShippingMethod))] : 
+			(int)Configuration::get('SHOPPING_FLUX_CARRIER');
+		
+		$carrier = Carrier::getCarrierByReference($carrier_to_load);
 
-                //manage case PS_CARRIER_DEFAULT is deleted
-                $carrier = is_object($carrier) ? $carrier : new Carrier($carrier_to_load);
-                
+		//manage case PS_CARRIER_DEFAULT is deleted
+		$carrier = is_object($carrier) ? $carrier : new Carrier($carrier_to_load);
+				
 		$updateOrder = array(
 			'total_paid' => (float)($order->TotalAmount),
 			'total_paid_tax_incl' => (float)($order->TotalAmount),
@@ -1523,24 +1524,25 @@ class ShoppingFluxExport extends Module
 		$cart->recyclable = 0;
 		$cart->secure_key = md5(uniqid(rand(), true));
 		
-                $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
-                
-                $carrier_to_load = isset($actual_configuration[base64_encode(Tools::safeOutput($shipping_method))]) ? 
-                    (int)$actual_configuration[base64_encode(Tools::safeOutput($shipping_method))] : 
-                    (int)Configuration::get('SHOPPING_FLUX_CARRIER');
-                
-                $carrier = Carrier::getCarrierByReference($carrier_to_load);
+		$actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
+		
+		$carrier_to_load = isset($actual_configuration[base64_encode(Tools::safeOutput($shipping_method))]) ? 
+			(int)$actual_configuration[base64_encode(Tools::safeOutput($shipping_method))] : 
+			(int)Configuration::get('SHOPPING_FLUX_CARRIER');
+		
+		$carrier = Carrier::getCarrierByReference($carrier_to_load);
 
-                //manage case PS_CARRIER_DEFAULT is deleted
-                $carrier = is_object($carrier) ? $carrier : new Carrier($carrier_to_load);
-                       
+		//manage case PS_CARRIER_DEFAULT is deleted
+		$carrier = is_object($carrier) ? $carrier : new Carrier($carrier_to_load);
+					   
 		$cart->id_carrier = $carrier->id;
 		$cart->add();
 
 		foreach ($productsNode->Product as $product)
 		{
 			$skus = explode ('_', $product->SKU);
-                        $added = $cart->updateQty((int)($product->Quantity), (int)($skus[0]), ((isset($skus[1])) ? $skus[1] : null));
+						$added = $cart->updateQty((int)($product->Quantity), (int)($skus[0]), ((isset($skus[1])) ? $skus[1] : null));
+
 			if ($added < 0 || $added === false)
 				return false;
 		}
@@ -1620,7 +1622,7 @@ class ShoppingFluxExport extends Module
 			'PriceMinister',
 			'RueDuCommerce',
 			'Rueducommerceean',
-                        'Spartoo',
+			'Spartoo',
 			'ToutAPorter'
 		);
 	}
