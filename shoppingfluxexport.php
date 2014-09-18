@@ -36,7 +36,7 @@ class ShoppingFluxExport extends Module
 	{
 		$this->name = 'shoppingfluxexport';
 		$this->tab = 'smart_shopping';
-		$this->version = '3.9.7';
+		$this->version = '3.9.8';
 		$this->author = 'PrestaShop';
 		$this->limited_countries = array('fr', 'us');
 
@@ -252,7 +252,7 @@ class ShoppingFluxExport extends Module
 			
 			$html .= '<div style="width:50%; float:left"><fieldset>
 			<legend>'.$this->l('Information(s)').'</legend>
-			<p style="text-align:center; margin:10px 0 30px 0; font-weight: bold" ><a style="padding:10px 20px; font-size:1.5em" target="_blank" href="https://register.shopping-feed.com/sign/prestashop?email='.Tools::safeOutput(Configuration::get('PS_SHOP_EMAIL')).'&feed='.Tools::safeOutput($uri).'&lang='.strtolower($this->default_country->iso_code).'" onclick="" value="'.$this->l('Envoyer la demande').'" class="button">'.$this->l('Register Now!').'</a></p>
+			<p style="text-align:center; margin:10px 0 30px 0; font-weight: bold" ><a style="padding:10px 20px; font-size:1.5em" target="_blank" href="https://register.shopping-feed.com/sign/prestashop?phone='.urlencode(Tools::safeOutput(Configuration::get('PS_SHOP_PHONE'))).'&email='.Tools::safeOutput(Configuration::get('PS_SHOP_EMAIL')).'&feed='.Tools::safeOutput($uri).'&lang='.strtolower($this->default_country->iso_code).'" onclick="" value="'.$this->l('Envoyer la demande').'" class="button">'.$this->l('Register Now!').'</a></p>
 			<h2><b>'.$this->l('Shopping Feed exports your products to the largest marketplaces in the world, all from a single intuitive platform.').'</b> '.$this->l('Through our free setup and expert support, we help thousands of storefronts increase their sales and visibility.').'</h2>
 			<br/><p style="line-height:2em;">
 			<b>'.$this->l('Put your feeds to work:').' </b>'.$this->l('A single platform to manage your products and sales on the world\'s marketplaces.').'<br />
@@ -906,6 +906,8 @@ class ShoppingFluxExport extends Module
 		$ret .= '<depth><![CDATA['.$product->depth.']]></depth>';
 		$ret .= '<height><![CDATA['.$product->height.']]></height>';
 
+		$ret .= '<state><![CDATA['.$product->condition.']]></height>';
+		
 		$ret .= '</caracteristiques>';
 		return $ret;
 	}
@@ -1072,7 +1074,7 @@ class ShoppingFluxExport extends Module
 				{
 
 					$orderExists = Db::getInstance()->getRow('SELECT m.id_message  FROM '._DB_PREFIX_.'message m
-						WHERE m.message LIKE "%'.pSQL($order->IdOrder).'%"');
+						WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
 
 					if (isset($orderExists['id_message']))
 					{
