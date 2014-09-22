@@ -1415,6 +1415,7 @@ class ShoppingFluxExport extends Module
 		$address->address1 = pSQL($street1);
 		$address->address2 = pSQL($street2);
 		$address->company = pSQL($addressNode->Company);
+		$address->other = Tools::substr(pSQL($addressNode->Other), 0, 300);
 		$address->postcode = pSQL($addressNode->PostalCode);
 		$address->city = pSQL($addressNode->Town);
 		$address->phone = Tools::substr(pSQL($addressNode->Phone), 0, 16);
