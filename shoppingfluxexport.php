@@ -907,6 +907,7 @@ class ShoppingFluxExport extends Module
 		$ret .= '<height><![CDATA['.$product->height.']]></height>';
 
 		$ret .= '<state><![CDATA['.$product->condition.']]></state>';
+		$ret .= '<available_for_order><![CDATA['.$product->available_for_order.']]></available_for_order>';
 		
 		$ret .= '</caracteristiques>';
 		return $ret;
