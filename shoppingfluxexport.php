@@ -1208,12 +1208,14 @@ class ShoppingFluxExport extends Module
 			{
 				$message = $order->getFirstMessage();
 				$id_order_marketplace = explode(':', $message);
+				$id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
 
 				$xml = '<?xml version="1.0" encoding="UTF-8"?>';
 				$xml .= '<UpdateOrders>';
 				$xml .= '<Order>';
 				$xml .= '<IdOrder>'.$id_order_marketplace[1].'</IdOrder>';
 				$xml .= '<Marketplace>'.$order->payment.'</Marketplace>';
+				$xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
 				$xml .= '<Status>Shipped</Status>';
 
 				if (isset($shipping[0]))
@@ -1247,12 +1249,14 @@ class ShoppingFluxExport extends Module
 			{
 				$message = $order->getFirstMessage();
 				$id_order_marketplace = explode(':', $message);
+				$id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
 
 				$xml = '<?xml version="1.0" encoding="UTF-8"?>';
 				$xml .= '<UpdateOrders>';
 				$xml .= '<Order>';
 				$xml .= '<IdOrder>'.$id_order_marketplace[1].'</IdOrder>';
 				$xml .= '<Marketplace>'.$order->payment.'</Marketplace>';
+				$xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
 				$xml .= '<Status>Canceled</Status>';
 				$xml .= '</Order>';
 				$xml .= '</UpdateOrders>';
