@@ -36,7 +36,7 @@ class ShoppingFluxExport extends Module
 	{
 		$this->name = 'shoppingfluxexport';
 		$this->tab = 'smart_shopping';
-		$this->version = '3.9.8';
+		$this->version = '3.9.8.1';
 		$this->author = 'PrestaShop';
 		$this->limited_countries = array('fr', 'us');
 
@@ -655,7 +655,7 @@ class ShoppingFluxExport extends Module
 						array(
 							'PS_TAX_ADDRESS_TYPE', 'PS_CARRIER_DEFAULT', 'PS_COUNTRY_DEFAULT',
 							'PS_LANG_DEFAULT', 'PS_SHIPPING_FREE_PRICE', 'PS_SHIPPING_HANDLING',
-							'PS_SHIPPING_METHOD', 'PS_SHIPPING_FREE_WEIGHT'
+							'PS_SHIPPING_METHOD', 'PS_SHIPPING_FREE_WEIGHT', 'SHOPPING_FLUX_IMAGE'
 						)
 		);
 
