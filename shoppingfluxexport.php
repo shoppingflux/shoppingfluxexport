@@ -36,7 +36,7 @@ class ShoppingFluxExport extends Module
 	{
 		$this->name = 'shoppingfluxexport';
 		$this->tab = 'smart_shopping';
-		$this->version = '3.9.8.1';
+		$this->version = '3.9.9';
 		$this->author = 'PrestaShop';
 		$this->limited_countries = array('fr', 'us');
 
