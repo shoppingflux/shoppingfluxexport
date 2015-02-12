@@ -36,7 +36,7 @@ class ShoppingFluxExport extends Module
 	{
 		$this->name = 'shoppingfluxexport';
 		$this->tab = 'smart_shopping';
-		$this->version = '4.0.0';
+		$this->version = '4.0.1';
 		$this->author = 'PrestaShop';
 		$this->limited_countries = array('fr', 'us');
 
@@ -1617,33 +1617,48 @@ class ShoppingFluxExport extends Module
 	private function _getMarketplaces()
 	{
 		return array(
-			'Amazon',
-			'Babyssima',
-			'Brandalley',
-			'CDiscount',
-			'Decofinder',
-			'Docteurdiscount',
-			'eBay',
-			'Ecitizen',
-			'Fnac',
-			'Galerieslafayette',
-			'Glamour',
-			'GreenRepublic',
-			'Gstk',
-			'Holosfind',
-			'Jardinermalin',
-			'Laredoute',
-			'Localismarket',
-			'Mistergooddeal',
-			'Monechelle',
-			'Nutspark',
-			'Pixmania',
-			'PriceMinister',
-			'RueDuCommerce',
-			'Rueducommerceean',
-			'Sears',
-			'Spartoo',
-			'ToutAPorter'
+			'amazon',
+			'boulanger',
+			'brandalley',
+			'cdiscount',
+			'commentseruiner',
+			'darty',
+			'decofinder',
+			'docteurdiscount',
+			'ebay',
+			'elevenmain',
+			'etsy',
+			'fnac',
+			'fnaces',
+			'galerieslafayette',
+			'glamour',
+			'gosport',
+			'gstk',
+			'holosfind',
+			'jardimarket',
+			'jardinermalin',
+			'laredoute',
+			'lecomptoirsante',
+			'menlook',
+			'mistergooddeal',
+			'monechelle',
+			'moneden',
+			'natureetdecouvertes',
+			'pixmania',
+			'pixmaniait',
+			'placedumariage',
+			'priceminister',
+			'rakuten',
+			'rakutenes',
+			'rdc',
+			'ricardo',
+			'rueducommerce',
+			'sears',
+			'spartoo',
+			'tap',
+			'villatech',
+			'wizacha',
+			'yodetiendas',
 		);
 	}
 
