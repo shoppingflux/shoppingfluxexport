@@ -469,7 +469,7 @@ class ShoppingFluxExport extends Module
 				FROM `'._DB_PREFIX_.'product` p
 				'.Shop::addSqlAssociation('product', 'p').'
 				LEFT JOIN `'._DB_PREFIX_.'product_lang` pl ON (p.`id_product` = pl.`id_product` '.Shop::addSqlRestrictionOnLang('pl').')
-				WHERE pl.`id_lang` = '.(int)$id_lang.' AND p.`active`= 1 AND p.`available_for_order`= 1
+				WHERE pl.`id_lang` = '.(int)$id_lang.' AND product_shop.`active`= 1 AND product_shop.`available_for_order`= 1
 				'.($front ? ' AND product_shop.`visibility` IN ("both", "catalog")' : '').'
 				ORDER BY pl.`name`';
 
