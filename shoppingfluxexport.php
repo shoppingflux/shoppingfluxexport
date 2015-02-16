@@ -36,7 +36,7 @@ class ShoppingFluxExport extends Module
 	{
 		$this->name = 'shoppingfluxexport';
 		$this->tab = 'smart_shopping';
-		$this->version = '4.0.1';
+		$this->version = '4.0.2';
 		$this->author = 'PrestaShop';
 		$this->limited_countries = array('fr', 'us');
 
@@ -1495,7 +1495,7 @@ class ShoppingFluxExport extends Module
 		$cart->getDeliveryOptionList(null, true);
 		$cart->getDeliveryOption(null, false, false);
 
-		$payment->validateOrder((int)$cart->id, 2, (float)Tools::ps_round(Tools::convertPrice($cart->getOrderTotal(), new Currency($cart->id_currency)), 2), $marketplace, null, array(), $cart->id_currency, false, $cart->secure_key);
+		$payment->validateOrder((int)$cart->id, 2, (float)Tools::ps_round(Tools::convertPrice($cart->getOrderTotal(), new Currency($cart->id_currency)), 2), strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key);
 		return $payment;
 	}
 
