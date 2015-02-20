@@ -1495,7 +1495,7 @@ class ShoppingFluxExport extends Module
 		$cart->getDeliveryOptionList(null, true);
 		$cart->getDeliveryOption(null, false, false);
 
-		$payment->validateOrder((int)$cart->id, 2, (float)Tools::ps_round(Tools::convertPrice($cart->getOrderTotal(), new Currency($cart->id_currency)), 2), strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key);
+		$payment->validateOrder((int)$cart->id, 2, (float)Tools::ps_round(Tools::convertPrice($cart->getOrderTotal(), new Currency($cart->id_currency)), 2), Tools::strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key);
 		return $payment;
 	}
 
