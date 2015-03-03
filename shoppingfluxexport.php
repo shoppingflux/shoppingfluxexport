@@ -36,7 +36,7 @@ class ShoppingFluxExport extends Module
 	{
 		$this->name = 'shoppingfluxexport';
 		$this->tab = 'smart_shopping';
-		$this->version = '4.0.2';
+		$this->version = '4.0.3';
 		$this->author = 'PrestaShop';
 		$this->limited_countries = array('fr', 'us');
 
@@ -1486,8 +1486,8 @@ class ShoppingFluxExport extends Module
 
 	private function _validateOrder($cart, $marketplace)
 	{
-		$payment = new SFPayment();
-		$payment->name = 'SFPayment';
+		$payment = new sfpayment();
+		$payment->name = 'sfpayment';
 		$payment->active = true;
 
 		//we need to flush the cart because of cache problems
@@ -1699,7 +1699,7 @@ class ShoppingFluxExport extends Module
 	}
 }
 
-class SFPayment extends PaymentModule
+class sfpayment extends PaymentModule
 {
 
 }
