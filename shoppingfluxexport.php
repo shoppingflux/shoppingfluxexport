@@ -36,7 +36,7 @@ class ShoppingFluxExport extends Module
 	{
 		$this->name = 'shoppingfluxexport';
 		$this->tab = 'smart_shopping';
-		$this->version = '4.0.1';
+		$this->version = '4.0.3';
 		$this->author = 'PrestaShop';
 		$this->limited_countries = array('fr', 'us');
 
@@ -469,7 +469,7 @@ class ShoppingFluxExport extends Module
 				FROM `'._DB_PREFIX_.'product` p
 				'.Shop::addSqlAssociation('product', 'p').'
 				LEFT JOIN `'._DB_PREFIX_.'product_lang` pl ON (p.`id_product` = pl.`id_product` '.Shop::addSqlRestrictionOnLang('pl').')
-				WHERE pl.`id_lang` = '.(int)$id_lang.' AND p.`active`= 1 AND p.`available_for_order`= 1
+				WHERE pl.`id_lang` = '.(int)$id_lang.' AND product_shop.`active`= 1 AND product_shop.`available_for_order`= 1
 				'.($front ? ' AND product_shop.`visibility` IN ("both", "catalog")' : '').'
 				ORDER BY pl.`name`';
 
@@ -1486,8 +1486,8 @@ class ShoppingFluxExport extends Module
 
 	private function _validateOrder($cart, $marketplace)
 	{
-		$payment = new SFPayment();
-		$payment->name = 'SFPayment';
+		$payment = new sfpayment();
+		$payment->name = 'sfpayment';
 		$payment->active = true;
 
 		//we need to flush the cart because of cache problems
@@ -1495,7 +1495,7 @@ class ShoppingFluxExport extends Module
 		$cart->getDeliveryOptionList(null, true);
 		$cart->getDeliveryOption(null, false, false);
 
-		$payment->validateOrder((int)$cart->id, 2, (float)Tools::ps_round(Tools::convertPrice($cart->getOrderTotal(), new Currency($cart->id_currency)), 2), $marketplace, null, array(), $cart->id_currency, false, $cart->secure_key);
+		$payment->validateOrder((int)$cart->id, 2, (float)Tools::ps_round(Tools::convertPrice($cart->getOrderTotal(), new Currency($cart->id_currency)), 2), Tools::strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key);
 		return $payment;
 	}
 
@@ -1699,7 +1699,7 @@ class ShoppingFluxExport extends Module
 	}
 }
 
-class SFPayment extends PaymentModule
+class sfpayment extends PaymentModule
 {
 
 }
