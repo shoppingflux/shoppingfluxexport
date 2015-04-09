@@ -36,15 +36,15 @@ class ShoppingFluxExport extends Module
 	{
 		$this->name = 'shoppingfluxexport';
 		$this->tab = 'smart_shopping';
-		$this->version = '4.0.3';
+		$this->version = '4.0.4';
 		$this->author = 'PrestaShop';
 		$this->limited_countries = array('fr', 'us');
 
 		parent::__construct();
 
-		$this->displayName = $this->l('Export Shopping Flux');
-		$this->description = $this->l('Exportez vos produits vers plus de 100 comparateurs de prix et places de marché');
-		$this->confirmUninstall = $this->l('Êtes-vous sûr de vouloir supprimer ce module ?');
+		$this->displayName = $this->l('Shopping Feed Export');
+		$this->description = $this->l('Export all your products to Google Shopping, eBay, Amazon, Rakuten, etc...');
+		$this->confirmUninstall = $this->l('Delete this plugin ?');
 		
 		$id_default_country = Configuration::get('PS_COUNTRY_DEFAULT');
 		$this->default_country = new Country($id_default_country);
@@ -159,7 +159,7 @@ class ShoppingFluxExport extends Module
 				$this->_setShoppingFeedId();
 				break;
 			case 'Prospect':
-				$this->_html .= $this->displayConfirmation($this->l('Votre enregistrement Shopping Flux est effectif, vous serez contacté sous peu.'));
+				$this->_html .= $this->displayConfirmation($this->l('You are now registered for your free trial. Our team will contact you soon.'));
 				// No break, we want the code below to be executed
 			case 'New':
 			default:
@@ -168,8 +168,7 @@ class ShoppingFluxExport extends Module
 		}
 
 		if (!in_array('curl', get_loaded_extensions()))
-			$this->_html .= '<br/><strong>'.$this->l('Vous devez installer / activer l\'extension CURL
-				pour pouvoir bénéficier de la remontée des commandes. Contactez votre administrateur pour savoir comment procéder').'</strong>';
+			$this->_html .= '<br/><strong>'.$this->l('You have to install Curl extension to use this plugin. Please contact your IT team.').'</strong>';
 		else
 			Configuration::updateValue('SHOPPINGFLUXEXPORT_CONFIGURED', true); // SHOPPINGFLUXEXPORT_CONFIGURATION_OK
 
@@ -215,7 +214,7 @@ class ShoppingFluxExport extends Module
 		
 		$html .= '<div style="width:50%; float:left"><fieldset>
 		<legend>'.$this->l('Information(s)').'</legend>
-		<p style="text-align:center; margin:10px 0 30px 0; font-weight: bold" ><a style="padding:10px 20px; font-size:1.5em" target="_blank" href="https://register.shopping-feed.com/sign/prestashop?phone='.urlencode(Tools::safeOutput(Configuration::get('PS_SHOP_PHONE'))).'&email='.Tools::safeOutput(Configuration::get('PS_SHOP_EMAIL')).'&feed='.Tools::safeOutput($uri).'&lang='.strtolower($this->default_country->iso_code).'" onclick="" value="'.$this->l('Envoyer la demande').'" class="button">'.$this->l('Register Now!').'</a></p>
+		<p style="text-align:center; margin:10px 0 30px 0; font-weight: bold" ><a style="padding:10px 20px; font-size:1.5em" target="_blank" href="https://register.shopping-feed.com/sign/prestashop?phone='.urlencode(Tools::safeOutput(Configuration::get('PS_SHOP_PHONE'))).'&email='.Tools::safeOutput(Configuration::get('PS_SHOP_EMAIL')).'&feed='.Tools::safeOutput($uri).'&lang='.strtolower($this->default_country->iso_code).'" onclick="" value="'.$this->l('Send').'" class="button">'.$this->l('Register Now!').'</a></p>
 		<h2><b>'.$this->l('Shopping Feed exports your products to the largest marketplaces in the world, all from a single intuitive platform.').'</b> '.$this->l('Through our free setup and expert support, we help thousands of storefronts increase their sales and visibility.').'</h2>
 		<br/><p style="line-height:2em;">
 		<b>'.$this->l('Put your feeds to work:').' </b>'.$this->l('A single platform to manage your products and sales on the world\'s marketplaces.').'<br />
@@ -223,8 +222,8 @@ class ShoppingFluxExport extends Module
 		<b>'.$this->l('Try Before You Buy:'). '</b> '.$this->l('Expert Channel Setup is always free on Shopping Feed, giving you risk-free access to your brand new channel before becoming a member.').' <br />
 		</p><br/>
 		<ol style="line-height:2em; list-style-type:circle; padding: 0 0 0 20px">
-		<li>'.$this->l('Optimize your channels, and calculate realtime Return On Investment for all the leading comparison shopping engines like').' <b>'.$this->l('Google Shopping').'</b>, <b>'.$this->l('Ratuken').'</b>, <b>'.$this->l('shopping.com').'</b>, <b>'.$this->l('NextTag').'</b>, <b>'.$this->l('ShopZilla').'</b>, '.$this->l('and more.').'</li>
-		<li>'.$this->l('Connect your storefront to all the major marketplaces like').' <b>'.$this->l('eBay').'</b>, <b>'.$this->l('Amazon').'</b>, <b>'.$this->l('Sears').'</b> '.$this->l('and').' <b>'.$this->l('11 Main').'</b>, '.$this->l('while managing your pricing, inventory, and merchandising through a single, intuitive platform.').'</li>
+		<li>'.$this->l('Optimize your channels, and calculate realtime Return On Investment for all the leading comparison shopping engines like Google Shopping, Ratuken, shopping.com, NextTag, ShopZilla and more.').'</li>
+		<li>'.$this->l('Connect your storefront to all the major marketplaces like eBay, Amazon, Sears and 11 Main, while managing your pricing, inventory, and merchandising through a single, intuitive platform.').'</li>
 		<li>'.$this->l('Prepare for an evolving ecosystem: New features, tools, and integrations are being created every month, at no extra cost.').'</li>
 		<li>'.$this->l('Be seen: With over 50 different marketplaces and shopping engines under one roof, Shopping Feed helps you find your right audience.').'</li>
 		</ol><br/>
@@ -260,20 +259,20 @@ class ShoppingFluxExport extends Module
 	{
 		return '<form method="post" action="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'">
 					<fieldset>
-						<legend>'.$this->l('Vos paramètres').'</legend>
-						<p><label>Login '.$this->l('Shopping Flux').' : </label><input type="text" name="SHOPPING_FLUX_LOGIN" value="'.Tools::safeOutput($configuration['SHOPPING_FLUX_LOGIN']).'"/></p>
-						<p><label>Token '.$this->l('Shopping Flux').' : </label><input type="text" name="SHOPPING_FLUX_TOKEN" value="'.Tools::safeOutput($configuration['SHOPPING_FLUX_TOKEN']).'" style="width:auto"/></p>
-						<p><label>Buyline : </label><input type="checkbox" name="SHOPPING_FLUX_BUYLINE" '.Tools::safeOutput($configuration['SHOPPING_FLUX_BUYLINE']).'/> '.$this->l('les origines de toutes vos commandes seront trackées').'.</p>
-						<p><label>'.$this->l('Tracking ventes').' : </label><input type="checkbox" name="SHOPPING_FLUX_TRACKING" '.Tools::safeOutput($configuration['SHOPPING_FLUX_TRACKING']).'/> '.$this->l('les commandes venant des comparateurs seront trackées').'.</p>
-						<p><label>'.$this->l('Remontée commandes').' : </label><input type="checkbox" name="SHOPPING_FLUX_ORDERS" '.Tools::safeOutput($configuration['SHOPPING_FLUX_ORDERS']).'/> '.$this->l('les commandes venant des places de marché seront automatiquement importées').'.</p>
-						<p><label>'.$this->l('Expédition des commandes').' : </label><input type="checkbox" name="SHOPPING_FLUX_STATUS_SHIPPED" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STATUS_SHIPPED']).'/> '.$this->l('les commandes seront expédiées sur les places de marché').'.</p>
-						<p><label>'.$this->l('Annulation des commandes').' : </label><input type="checkbox" name="SHOPPING_FLUX_STATUS_CANCELED" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STATUS_CANCELED']).'/> '.$this->l('les commandes seront annulées sur les places de marché').'.</p>
-						<p><label>'.$this->l('Synchronisation des stocks et des prix').' : </label><input type="checkbox" name="SHOPPING_FLUX_STOCKS" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STOCKS']).'/> '.$this->l('chaque mouvement de stock ou de prix sera répercuté sur les places de marché').'.</p>
-						<p><label>'.$this->l('Transporteur par défaut').' : </label>'.$this->_getCarriersSelect($configuration, $configuration['SHOPPING_FLUX_CARRIER']).'</p>
-						<p><label>'.$this->l('Image par défaut').' : </label>'.$this->_getImageTypeSelect($configuration).'</p>
-						<p><label>'.$this->l('Notifier les places de marché de l\'expédition lors du passe à l\'état').' : </label>'.$this->_getOrderStateShippedSelect($configuration).'</p>
-						<p style="margin-top:20px"><label>'.$this->l('Notifier les places de marché de l\'annulation lors du passe à l\'état').' : </label>'.$this->_getOrderStateCanceledSelect($configuration).'</p>
-						<p style="margin-top:20px"><input type="submit" value="'.$this->l('Valider').'" name="rec_config" class="button"/></p>
+						<legend>'.$this->l('Parameters').'</legend>
+						<p><label>Login '.$this->l('Shopping Feed').' : </label><input type="text" name="SHOPPING_FLUX_LOGIN" value="'.Tools::safeOutput($configuration['SHOPPING_FLUX_LOGIN']).'"/></p>
+						<p><label>Token '.$this->l('Shopping Feed').' : </label><input type="text" name="SHOPPING_FLUX_TOKEN" value="'.Tools::safeOutput($configuration['SHOPPING_FLUX_TOKEN']).'" style="width:auto"/></p>
+						<p><label>Buyline : </label><input type="checkbox" name="SHOPPING_FLUX_BUYLINE" '.Tools::safeOutput($configuration['SHOPPING_FLUX_BUYLINE']).'/> '.$this->l('sources of your orders will be tracked').'.</p>
+						<p><label>'.$this->l('Order tracking').' : </label><input type="checkbox" name="SHOPPING_FLUX_TRACKING" '.Tools::safeOutput($configuration['SHOPPING_FLUX_TRACKING']).'/> '.$this->l('orders coming from shopbots will be tracked').'.</p>
+						<p><label>'.$this->l('Order importation').' : </label><input type="checkbox" name="SHOPPING_FLUX_ORDERS" '.Tools::safeOutput($configuration['SHOPPING_FLUX_ORDERS']).'/> '.$this->l('orders coming from marketplaces will be imported').'.</p>
+						<p><label>'.$this->l('Order shipment').' : </label><input type="checkbox" name="SHOPPING_FLUX_STATUS_SHIPPED" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STATUS_SHIPPED']).'/> '.$this->l('orders shipped on your Prestashop will be shipped on marketplaces').'.</p>
+						<p><label>'.$this->l('Order cancellation').' : </label><input type="checkbox" name="SHOPPING_FLUX_STATUS_CANCELED" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STATUS_CANCELED']).'/> '.$this->l('orders shipped on your Prestashop will be canceled on marketplaces').'.</p>
+						<p><label>'.$this->l('Sync stock and orders').' : </label><input type="checkbox" name="SHOPPING_FLUX_STOCKS" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STOCKS']).'/> '.$this->l('every stock and price movement will be transfered to marletplaces').'.</p>
+						<p><label>'.$this->l('Default carrier').' : </label>'.$this->_getCarriersSelect($configuration, $configuration['SHOPPING_FLUX_CARRIER']).'</p>
+						<p><label>'.$this->l('Default image type').' : </label>'.$this->_getImageTypeSelect($configuration).'</p>
+						<p><label>'.$this->l('Call marketplace for shipping when order state become').' : </label>'.$this->_getOrderStateShippedSelect($configuration).'</p>
+						<p style="margin-top:20px"><label>'.$this->l('Call marketplace for cancellation when order state become').' : </label>'.$this->_getOrderStateCanceledSelect($configuration).'</p>
+						<p style="margin-top:20px"><input type="submit" value="'.$this->l('Update').'" name="rec_config" class="button"/></p>
 					</fieldset>
 				</form>';
 	}
@@ -293,11 +292,11 @@ class ShoppingFluxExport extends Module
 		foreach ($sf_carriers_xml->Response->Carriers->Carrier as $carrier)
 			$sf_carriers[] = (string)$carrier;
 
-		$html = '<h3>'.$this->l('Paramètres avancés').'</h3>
+		$html = '<h3>'.$this->l('Advanced Parameters').'</h3>
 			<form method="post" action="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'">
 				<fieldset>
-					<legend>'.$this->l('Matching transporteurs').'</legend>
-					<p>'.$this->l('Nous récupérons ci-dessous tous les transporteurs fournis par les places de marché. Associez les à vos transporteurs Prestashop').'</p>';
+					<legend>'.$this->l('Carriers Matching').'</legend>
+					<p>'.$this->l('Please see below carriers coming from your markeplaces managed on Shopping Feed. You can match them to your Prestashop carriers').'</p>';
 
 		$actual_configuration = unserialize($configuration['SHOPPING_FLUX_SHIPPING_MATCHING']);
 
@@ -307,7 +306,7 @@ class ShoppingFluxExport extends Module
 			$html .= '<p><label>'.Tools::safeOutput($sf_carrier).' : </label>'.$this->_getCarriersSelect($configuration, $actual_value, 'MATCHING['.base64_encode(Tools::safeOutput($sf_carrier)).']').'</p>';
 		}
 
-		$html .= '<p style="margin-top:20px"><input type="submit" value="'.$this->l('Valider').'" name="rec_shipping_config" class="button"/></p>
+		$html .= '<p style="margin-top:20px"><input type="submit" value="'.$this->l('Update').'" name="rec_shipping_config" class="button"/></p>
 				</fieldset>
 			</form>';
 
@@ -392,7 +391,7 @@ class ShoppingFluxExport extends Module
 		return '
 		<img style="margin:10px; width:250px" src="'.Tools::safeOutput($base_uri).'modules/shoppingfluxexport/img/logo_'.$logo.'.jpg" />
 		<fieldset>
-			<legend>'.$this->l('Vos flux produits').'</legend>
+			<legend>'.$this->l('Your feeds').'</legend>
 			<p>
 				<a href="'.Tools::safeOutput($uri).'" target="_blank">
 					'.Tools::safeOutput($uri).'
@@ -428,7 +427,7 @@ class ShoppingFluxExport extends Module
 	/* Send mail to PS and Shopping Flux */
 	private function sendMail()
 	{
-		$this->_html .= $this->displayConfirmation($this->l('Votre enregistrement Shopping Flux est effectif, vous serez contacté sous peu.')).'
+		$this->_html .= $this->displayConfirmation($this->l('You are now registered for your free trial. Our team will contact you soon.')).'
 			<img src="http://www.prestashop.com/partner/shoppingflux/image.php?site='.Tools::safeOutput(Tools::getValue('site')).'&nom='.Tools::safeOutput(Tools::getValue('nom')).'&prenom='.Tools::safeOutput(Tools::getValue('prenom')).'&email='.Tools::safeOutput(Tools::getValue('email')).'&telephone='.Tools::safeOutput(Tools::getValue('telephone')).'&flux='.Tools::safeOutput(Tools::getValue('flux')).'" border="0" />';
 
 		$xml = '<?xml version="1.0" encoding="UTF-8"?>';
