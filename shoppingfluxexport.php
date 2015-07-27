@@ -498,11 +498,14 @@ class ShoppingFluxExport extends Module
 			else
 				$front = true;
 
+			$sql_association = Shop::addSqlAssociation('product', 'p');
+			$table = $sql_association ? 'product'.'_shop' : 'p';
+
 			$sql = 'SELECT COUNT(p.`id_product`)
 				FROM `'._DB_PREFIX_.'product` p
-				'.Shop::addSqlAssociation('product', 'p').'
-				WHERE p.`active`= 1 AND p.`available_for_order`= 1
-				'.($front ? ' AND product_shop.`visibility` IN ("both", "catalog")' : '');
+				'.$sql_association.'
+				WHERE '.$table.'.`active`= 1 AND '.$table.'.`available_for_order`= 1
+				'.($front ? ' AND '.$table.'.`visibility` IN ("both", "catalog")' : '');
 		}
 		else
 		{
