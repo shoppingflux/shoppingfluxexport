@@ -1239,7 +1239,7 @@ class ShoppingFluxExport extends Module
 
 	public function hookupdateProduct($params)
 	{
-		if (is_object($params['product']) && Configuration::get('SHOPPING_FLUX_STOCKS') != '')
+		if (isset($params['product']) && is_object($params['product']) && Configuration::get('SHOPPING_FLUX_STOCKS') != '')
 		{
 			$xml = '<?xml version="1.0" encoding="UTF-8"?>';
 			$xml .= '<UpdateProduct>';
