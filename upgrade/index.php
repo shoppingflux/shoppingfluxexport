@@ -24,29 +24,5 @@
 * International Registered Trademark & Property of PrestaShop SA
 */
 
-include(dirname(__FILE__).'/../../config/config.inc.php');
-include(dirname(__FILE__).'/../../init.php');
-
-include(dirname(__FILE__).'/shoppingfluxexport.php');
-
-ini_set('display_errors', 'off');
-
-if(Tools::getValue('fdg') != '') {
-    $f = new shoppingfluxexport();
-    $res = $f->setFDG();
-	
-    if($res == 'ok') {
-        echo 'Frais de gestion installé';
-    } elseif ($res == 'ko') {
-        echo 'Frais de gestion désinstallé';
-    } else {
-        echo 'Erreur';
-    }
-
-    exit;
-}
-
-header ('Content-Type:text/xml');
-
-$f = new ShoppingFluxExport();
-echo $f->generateFeed();
+header("Location: ../");
+exit;
