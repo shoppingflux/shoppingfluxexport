@@ -1080,6 +1080,12 @@ class ShoppingFluxExport extends Module
 
                             Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => $id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
                             $this->_updatePrices($id_order, $order, $reference_order);
+
+                            if(!in_array($order->Marketplace, unserialize(Configuration::get('SHOPPING_FLUX_MKP')))) {
+                                $t = unserialize(Configuration::get('SHOPPING_FLUX_MKP'));
+                                $t[] = $order->Marketplace;
+                                Configuration::updateValue('SHOPPING_FLUX_MKP', serialize($t));
+                            }
                         }
                     }
 
@@ -1171,11 +1177,11 @@ class ShoppingFluxExport extends Module
             $ip = Tools::getRemoteAddr();
         }
 
-        if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && !in_array($params['order']->payment, $this->_getMarketplaces())) {
+        if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && !in_array($params['order']->payment, $params['order']->module == 'sfpayment')) {
             Tools::file_get_contents('https://tag.shopping-flux.com/order/'.base64_encode(Configuration::get('SHOPPING_FLUX_ID').'|'.$params['order']->id.'|'.$params['order']->total_paid).'?ip='.$ip);
         }
         
-        if (Configuration::get('SHOPPING_FLUX_STOCKS') != '' && !in_array($params['order']->payment, $this->_getMarketplaces())) {
+        if (Configuration::get('SHOPPING_FLUX_STOCKS') != '' && !in_array($params['order']->payment, $params['order']->module == 'sfpayment')) {
             foreach ($params['cart']->getProducts() as $product) {
                 $id = (isset($product['id_product_attribute'])) ? (int)$product['id_product'].'_'.(int)$product['id_product_attribute'] : (int)$product['id_product'];
                 $qty = (int)$product['stock_quantity'] - (int)$product['quantity'];
@@ -1195,81 +1201,81 @@ class ShoppingFluxExport extends Module
 
     public function hookPostUpdateOrderStatus($params)
     {
+        $order = new Order((int)$params['id_order']);
+
         if ((Configuration::get('SHOPPING_FLUX_STATUS_SHIPPED') != '' &&
                 Configuration::get('SHOPPING_FLUX_SHIPPED') == '' &&
-                $this->_getOrderStates(Configuration::get('PS_LANG_DEFAULT'), 'shipped') == $params['newOrderStatus']->name) ||
+                $this->_getOrderStates(Configuration::get('PS_LANG_DEFAULT'), 'shipped') == $params['newOrderStatus']->name) &&
+                $order->module == 'sfpayment' ||
                 (Configuration::get('SHOPPING_FLUX_STATUS_SHIPPED') != '' &&
-                (int)Configuration::get('SHOPPING_FLUX_SHIPPED') == $params['newOrderStatus']->id)) {
+                (int)Configuration::get('SHOPPING_FLUX_SHIPPED') == $params['newOrderStatus']->id && $order->module == 'sfpayment')) {
 
-            $order = new Order((int)$params['id_order']);
+
             $shipping = $order->getShipping();
             $carrier = new Carrier((int)$order->id_carrier);
             $url = str_replace('http://http://', 'http://', $carrier->url);
             $url = str_replace('@', $order->shipping_number, $url);
 
-            if (in_array($order->payment, $this->_getMarketplaces())) {
-                $message = $order->getFirstMessage();
-                $id_order_marketplace = explode(':', $message);
-                $id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
 
-                $xml = '<?xml version="1.0" encoding="UTF-8"?>';
-                $xml .= '<UpdateOrders>';
-                $xml .= '<Order>';
-                $xml .= '<IdOrder>'.$id_order_marketplace[1].'</IdOrder>';
-                $xml .= '<Marketplace>'.$order->payment.'</Marketplace>';
-                $xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
-                $xml .= '<Status>Shipped</Status>';
+            $message = $order->getFirstMessage();
+            $id_order_marketplace = explode(':', $message);
+            $id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
 
-                if (isset($shipping[0])) {
-                    $xml .= '<TrackingNumber><![CDATA['.$shipping[0]['tracking_number'].']]></TrackingNumber>';
-                    $xml .= '<CarrierName><![CDATA['.$shipping[0]['state_name'].']]></CarrierName>';
-                    $xml .= '<TrackingUrl><![CDATA['.$url.']]></TrackingUrl>';
-                }
+            $xml = '<?xml version="1.0" encoding="UTF-8"?>';
+            $xml .= '<UpdateOrders>';
+            $xml .= '<Order>';
+            $xml .= '<IdOrder>'.$id_order_marketplace[1].'</IdOrder>';
+            $xml .= '<Marketplace>'.$order->payment.'</Marketplace>';
+            $xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
+            $xml .= '<Status>Shipped</Status>';
 
-                $xml .= '</Order>';
-                $xml .= '</UpdateOrders>';
+            if (isset($shipping[0])) {
+                $xml .= '<TrackingNumber><![CDATA['.$shipping[0]['tracking_number'].']]></TrackingNumber>';
+                $xml .= '<CarrierName><![CDATA['.$shipping[0]['state_name'].']]></CarrierName>';
+                $xml .= '<TrackingUrl><![CDATA['.$url.']]></TrackingUrl>';
+            }
 
-                $responseXML = $this->_callWebService('UpdateOrders', $xml);
+            $xml .= '</Order>';
+            $xml .= '</UpdateOrders>';
 
-                if (!$responseXML->Response->Error) {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                } else {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                }
+            $responseXML = $this->_callWebService('UpdateOrders', $xml);
+
+            if (!$responseXML->Response->Error) {
+                Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
+            } else {
+                Db::getInstance()->autoExecute(_DB_PREFIX_ . 'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur ' . pSQL((string)$order->payment) . ' : ' . pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
             }
         } elseif ((Configuration::get('SHOPPING_FLUX_STATUS_CANCELED') != '' &&
                 Configuration::get('SHOPPING_FLUX_CANCELED') == '' &&
-                $this->_getOrderStates(Configuration::get('PS_LANG_DEFAULT'), 'order_canceled') == $params['newOrderStatus']->name) ||
+                $this->_getOrderStates(Configuration::get('PS_LANG_DEFAULT'), 'order_canceled') == $params['newOrderStatus']->name) &&
+                $order->module == 'sfpayment' ||
                 (Configuration::get('SHOPPING_FLUX_STATUS_CANCELED') != '' &&
-                (int)Configuration::get('SHOPPING_FLUX_CANCELED') == $params['newOrderStatus']->id)) {
+                (int)Configuration::get('SHOPPING_FLUX_CANCELED') == $params['newOrderStatus']->id && $order->module == 'sfpayment')) {
 
             $order = new Order((int)$params['id_order']);
             $shipping = $order->getShipping();
 
-            if (in_array($order->payment, $this->_getMarketplaces())) {
-                $message = $order->getFirstMessage();
-                $id_order_marketplace = explode(':', $message);
-                $id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
+            $message = $order->getFirstMessage();
+            $id_order_marketplace = explode(':', $message);
+            $id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
 
-                $xml = '<?xml version="1.0" encoding="UTF-8"?>';
-                $xml .= '<UpdateOrders>';
-                $xml .= '<Order>';
-                $xml .= '<IdOrder>'.$id_order_marketplace[1].'</IdOrder>';
-                $xml .= '<Marketplace>'.$order->payment.'</Marketplace>';
-                $xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
-                $xml .= '<Status>Canceled</Status>';
-                $xml .= '</Order>';
-                $xml .= '</UpdateOrders>';
+            $xml = '<?xml version="1.0" encoding="UTF-8"?>';
+            $xml .= '<UpdateOrders>';
+            $xml .= '<Order>';
+            $xml .= '<IdOrder>'.$id_order_marketplace[1].'</IdOrder>';
+            $xml .= '<Marketplace>'.$order->payment.'</Marketplace>';
+            $xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
+            $xml .= '<Status>Canceled</Status>';
+            $xml .= '</Order>';
+            $xml .= '</UpdateOrders>';
 
-                $responseXML = $this->_callWebService('UpdateOrders', $xml);
+            $responseXML = $this->_callWebService('UpdateOrders', $xml);
 
-                if (!$responseXML->Response->Error) {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                } else {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => $order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                }
+            if (!$responseXML->Response->Error) {
+                Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
+            } else {
+                Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => $order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
             }
-
         }
     }
 
@@ -1739,71 +1745,6 @@ class ShoppingFluxExport extends Module
         }
 
         Configuration::updateValue('SHOPPING_FLUX_ID', (string)$getClientId->Response->ID);
-    }
-
-    /* Liste Marketplaces SF */
-    private function _getMarketplaces()
-    {
-        return array(
-            'amazon',
-            'atlasformen',
-            'aushopping',
-            'backMarket',
-            'boulanger',
-            'boutwik',
-            'brandalley',
-            'cdiscount',
-            'commentseruiner',
-            'darty',
-            'decofinder',
-            'delamaison',
-            'docteurdiscount',
-            'Doctipharma',
-            'ebay',
-            'elevenmain',
-            'etsy',
-            'fnac',
-            'fnaces',
-            'galerieslafayette',
-            'glamour',
-            'gosport',
-            'gstk',
-            'holosfind',
-            'houzz',
-            'jardimarket',
-            'jardinermalin',
-            'laredoute',
-            'lecomptoirsante',
-            'lequipe',
-            'manomano',
-            'menlook',
-            'mercadolibre',
-            'milleunepharmacies',
-            'mistergooddeal',
-            'monechelle',
-            'moneden',
-            'natureetdecouvertes',
-            'oclio',
-            'pixmania',
-            'pixmaniait',
-            'placedumariage',
-            'priceminister',
-            'privalia',
-            'rakuten',
-            'rakutenes',
-            'redoute',
-            'rdc',
-            'ricardo',
-            'rueducommerce',
-            'sears',
-            'spartoo',
-            'tap',
-            'thebeautyst',
-            'tootici',
-            'villatech',
-            'wizacha',
-            'yodetiendas',
-        );
     }
 
     private function _translateField($field)
