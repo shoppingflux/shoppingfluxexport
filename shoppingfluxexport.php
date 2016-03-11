@@ -573,6 +573,12 @@ class ShoppingFluxExport extends Module
         fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">');
         fclose($file);
 
+        if (Tools::getValue('debug') == true) {
+            $log = fopen(dirname(__FILE__).'/log.txt', 'w+');
+            fwrite($log, "Beginning of the creation of the feed\n");
+            fclose($log);
+        }
+
         $totalProducts = $this->countProducts();
         $this->writeFeed($totalProducts);
     }
@@ -588,6 +594,11 @@ class ShoppingFluxExport extends Module
         }
 
         $file = fopen(dirname(__FILE__).'/feed.xml', 'a+');
+
+        $debug = Tools::getValue('debug');
+        if (!empty($debug)) {
+            $log = fopen(dirname(__FILE__).'/log.txt', 'a+');
+        }
 
         $configuration = Configuration::getMultiple(
             array(
@@ -611,9 +622,13 @@ class ShoppingFluxExport extends Module
         $products = $this->getSimpleProducts($configuration['PS_LANG_DEFAULT'], $current, $configuration['PASSES']);
         $link = new Link();
 
-        $str = '';
-
         foreach ($products as $productArray) {
+            $str = '';
+
+            if (!empty($debug)) {
+                fwrite($log, "Writing product number : ".$productArray['id_product']."\n");
+            }
+
             $product = new Product((int)($productArray['id_product']), true, $configuration['PS_LANG_DEFAULT']);
 
             $str .= '<'.$this->_translateField('product').'>';
@@ -642,16 +657,21 @@ class ShoppingFluxExport extends Module
             $str .= '<'.$this->_translateField('manufacturer_link').'><![CDATA['.$link->getManufacturerLink($product->id_manufacturer, null, $configuration['PS_LANG_DEFAULT']).']]></'.$this->_translateField('manufacturer_link').'>';
             $str .= '<'.$this->_translateField('on_sale').'>'.(int)$product->on_sale.'</'.$this->_translateField('on_sale').'>';
             $str .= '</'.$this->_translateField('product').'>';
+
+            fwrite($file, $str);
         }
 
-        fwrite($file, $str);
         fclose($file);
+
+        if (!empty($debug)) {
+            fclose($log);
+        }
 
         if ($current + $configuration['PASSES'] >= $total) {
             $this->closeFeed();
         } else {
-            $next_uri = 'http://'.Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN').'&current='.($current + $configuration['PASSES']).'&total='.$total.'&passes='.$configuration['PASSES'].(!empty($no_breadcrumb) ? '&no_breadcrumb=true' : '');
-            Tools::redirect('Location:'.$next_uri);
+            $next_uri = 'http://'.Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN').'&current='.($current + $configuration['PASSES']).'&total='.$total.'&passes='.$configuration['PASSES'].(!empty($no_breadcrumb) ? '&no_breadcrumb=true' : '').(!empty($debug) ? '&debug=true' : '');
+            Tools::redirect($next_uri);
         }
     }
 
@@ -1230,7 +1250,7 @@ class ShoppingFluxExport extends Module
             if (!$responseXML->Response->Error) {
                 Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
             } else {
-                Db::getInstance()->autoExecute(_DB_PREFIX_ . 'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur ' . pSQL((string)$order->payment) . ' : ' . pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
+                Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
             }
         } elseif ((Configuration::get('SHOPPING_FLUX_STATUS_CANCELED') != '' &&
                 Configuration::get('SHOPPING_FLUX_CANCELED') == '' &&
