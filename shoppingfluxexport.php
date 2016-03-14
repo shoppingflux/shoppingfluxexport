@@ -636,8 +636,12 @@ class ShoppingFluxExport extends Module
             $str .= $this->_getImages($product, $configuration, $link);
             $str .= $this->_getUrlCategories($product, $configuration, $link);
             $str .= $this->_getFeatures($product, $configuration);
-            $str .= $this->_getCombinaisons($product, $configuration, $link, $carrier);
+            fwrite($file, $str);
 
+            // This function writes directly to the file to avoid performances issues
+            $this->_getCombinaisons($product, $configuration, $link, $carrier, $file);
+
+            $str = '';
             if (empty($no_breadcrumb)) {
                 $str .= $this->_getFilAriane($product, $configuration);
             }
@@ -909,28 +913,39 @@ class ShoppingFluxExport extends Module
         return $combinationImages;
     }
 
-    private function _getCombinaisons($product, $configuration, $link, $carrier)
+    private function _getCombinaisons($product, $configuration, $link, $carrier, $fileToWrite = 0)
     {
         $combinations = array();
 
         $ret = '<declinaisons>';
+
+        if ($fileToWrite) {
+            fwrite($fileToWrite, $ret);
+        }
 
         foreach ($product->getAttributeCombinaisons($configuration['PS_LANG_DEFAULT']) as $combinaison) {
             $combinations[$combinaison['id_product_attribute']]['attributes'][$combinaison['group_name']] = $combinaison['attribute_name'];
             $combinations[$combinaison['id_product_attribute']]['ean13'] = $combinaison['ean13'];
             $combinations[$combinaison['id_product_attribute']]['upc'] = $combinaison['upc'];
             $combinations[$combinaison['id_product_attribute']]['quantity'] = $combinaison['quantity'];
+            $combinations[$combinaison['id_product_attribute']]['poids'] = $combinaison['weight'] + $product->weight;
             $combinations[$combinaison['id_product_attribute']]['weight'] = $combinaison['weight'];
             $combinations[$combinaison['id_product_attribute']]['reference'] = $combinaison['reference'];
         }
 
         foreach ($combinations as $id => $combination) {
+
+            if ($fileToWrite) {
+                $ret = '';
+            }
+
             $ret .= '<declinaison>';
             $ret .= '<id><![CDATA['.$id.']]></id>';
             $ret .= '<ean><![CDATA['.$combination['ean13'].']]></ean>';
             $ret .= '<upc><![CDATA['.$combination['upc'].']]></upc>';
             $ret .= '<'.$this->_translateField('quantity').'><![CDATA['.$combination['quantity'].']]></'.$this->_translateField('quantity').'>';
             $ret .= '<'.$this->_translateField('weight').'><![CDATA['.$combination['weight'].']]></'.$this->_translateField('weight').'>';
+            $ret .= '<'.$this->_translateField('total_weight').'><![CDATA['.$combination['poids'].']]></'.$this->_translateField('total_weight').'>';
             $ret .= '<'.$this->_translateField('price').'><![CDATA['.$product->getPrice(true, $id, 2, null, false, true, 1).']]></'.$this->_translateField('price').'>';
             $ret .= '<'.$this->_translateField('old_price').'><![CDATA['.$product->getPrice(true, $id, 2, null, false, false, 1).']]></'.$this->_translateField('old_price').'>';
             $ret .= '<'.$this->_translateField('shipping_cost').'><![CDATA['.$this->_getShipping($product, $configuration, $carrier, $id, $combination['weight']).']]></'.$this->_translateField('shipping_cost').'>';
@@ -969,12 +984,22 @@ class ShoppingFluxExport extends Module
             $ret .= '<'.$this->_translateField('mpn').'><![CDATA['.$combination['reference'].']]></'.$this->_translateField('mpn').'>';
 
             $ret .= '</attributs>';
-            $ret .= '<url_declinaison><![CDATA['.$link->getProductLink($product).$product->getAnchor($id, true).']]></url_declinaison>';
+            $ret .= '<'.$this->_translateField('combination_link').'><![CDATA['.$link->getProductLink($product).$product->getAnchor($id, true).']]></'.$this->_translateField('combination_link').'>';
             $ret .= '</declinaison>';
+
+            if ($fileToWrite) {
+                fwrite($fileToWrite, $ret);
+            }
         }
 
-        $ret .= '</declinaisons>';
-        return $ret;
+        if ($fileToWrite) {
+            $ret = '</declinaisons>';
+            fwrite($fileToWrite, $ret);
+            return;
+        } else {
+            $ret .= '</declinaisons>';
+            return $ret;
+        }
     }
 
     /* Category tree XML */
@@ -1776,6 +1801,8 @@ class ShoppingFluxExport extends Module
                 'mpn' => 'ref-constructeur',
                 'supplier_reference' => 'ref-fournisseur',
                 'category_breadcrumb' => 'fil-ariane',
+                'combination_link' => 'url-declinaison',
+                'total_weight' => 'poids-total',
             )
         );
 
