@@ -149,13 +149,11 @@ class ShoppingFluxExport extends Module
 
     public function getContent()
     {
-
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
         $price = is_object($status_xml) ? (float)$status_xml->Response->Price : 0;
 
-        switch ($status)
-        {
+        switch ($status) {
             case 'Client':
                 $this->_html .= $this->_clientView();
                 //we do this here for retro compatibility
@@ -245,9 +243,9 @@ class ShoppingFluxExport extends Module
     {
         $this->_treatForm();
 
-        $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TOKEN','SHOPPING_FLUX_TRACKING',
+        $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TOKEN', 'SHOPPING_FLUX_TRACKING',
                     'SHOPPING_FLUX_ORDERS', 'SHOPPING_FLUX_STATUS_SHIPPED', 'SHOPPING_FLUX_STATUS_CANCELED', 'SHOPPING_FLUX_LOGIN',
-                    'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_INDEX','PS_LANG_DEFAULT', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
+                    'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_INDEX', 'PS_LANG_DEFAULT', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
                     'SHOPPING_FLUX_SHIPPED', 'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPING_MATCHING'));
 
         $html = $this->_getFeedContent();
@@ -518,7 +516,7 @@ class ShoppingFluxExport extends Module
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
 
-        $configuration = Configuration::getMultiple(array('PS_TAX_ADDRESS_TYPE', 'PS_CARRIER_DEFAULT','PS_COUNTRY_DEFAULT',
+        $configuration = Configuration::getMultiple(array('PS_TAX_ADDRESS_TYPE', 'PS_CARRIER_DEFAULT', 'PS_COUNTRY_DEFAULT',
                     'PS_LANG_DEFAULT', 'PS_SHIPPING_FREE_PRICE', 'PS_SHIPPING_HANDLING', 'PS_SHIPPING_METHOD', 'PS_SHIPPING_FREE_WEIGHT', 'SHOPPING_FLUX_IMAGE'));
 
         $no_breadcrumb = Tools::getValue('no_breadcrumb');
@@ -575,6 +573,12 @@ class ShoppingFluxExport extends Module
         fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">');
         fclose($file);
 
+        if (Tools::getValue('debug') == true) {
+            $log = fopen(dirname(__FILE__).'/log.txt', 'w+');
+            fwrite($log, "Beginning of the creation of the feed\n");
+            fclose($log);
+        }
+
         $totalProducts = $this->countProducts();
         $this->writeFeed($totalProducts);
     }
@@ -590,6 +594,11 @@ class ShoppingFluxExport extends Module
         }
 
         $file = fopen(dirname(__FILE__).'/feed.xml', 'a+');
+
+        $debug = Tools::getValue('debug');
+        if (!empty($debug)) {
+            $log = fopen(dirname(__FILE__).'/log.txt', 'a+');
+        }
 
         $configuration = Configuration::getMultiple(
             array(
@@ -613,9 +622,13 @@ class ShoppingFluxExport extends Module
         $products = $this->getSimpleProducts($configuration['PS_LANG_DEFAULT'], $current, $configuration['PASSES']);
         $link = new Link();
 
-        $str = '';
-
         foreach ($products as $productArray) {
+            $str = '';
+
+            if (!empty($debug)) {
+                fwrite($log, "Writing product number : ".$productArray['id_product']."\n");
+            }
+
             $product = new Product((int)($productArray['id_product']), true, $configuration['PS_LANG_DEFAULT']);
 
             $str .= '<'.$this->_translateField('product').'>';
@@ -623,8 +636,12 @@ class ShoppingFluxExport extends Module
             $str .= $this->_getImages($product, $configuration, $link);
             $str .= $this->_getUrlCategories($product, $configuration, $link);
             $str .= $this->_getFeatures($product, $configuration);
-            $str .= $this->_getCombinaisons($product, $configuration, $link, $carrier);
+            fwrite($file, $str);
 
+            // This function writes directly to the file to avoid performances issues
+            $this->_getCombinaisons($product, $configuration, $link, $carrier, $file);
+
+            $str = '';
             if (empty($no_breadcrumb)) {
                 $str .= $this->_getFilAriane($product, $configuration);
             }
@@ -644,16 +661,21 @@ class ShoppingFluxExport extends Module
             $str .= '<'.$this->_translateField('manufacturer_link').'><![CDATA['.$link->getManufacturerLink($product->id_manufacturer, null, $configuration['PS_LANG_DEFAULT']).']]></'.$this->_translateField('manufacturer_link').'>';
             $str .= '<'.$this->_translateField('on_sale').'>'.(int)$product->on_sale.'</'.$this->_translateField('on_sale').'>';
             $str .= '</'.$this->_translateField('product').'>';
+
+            fwrite($file, $str);
         }
 
-        fwrite($file, $str);
         fclose($file);
+
+        if (!empty($debug)) {
+            fclose($log);
+        }
 
         if ($current + $configuration['PASSES'] >= $total) {
             $this->closeFeed();
         } else {
-            $next_uri = 'http://'.Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN').'&current='.($current + $configuration['PASSES']).'&total='.$total.'&passes='.$configuration['PASSES'].(!empty($no_breadcrumb) ? '&no_breadcrumb=true' : '');
-            Tools::redirect('Location:'.$next_uri);
+            $next_uri = 'http://'.Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN').'&current='.($current + $configuration['PASSES']).'&total='.$total.'&passes='.$configuration['PASSES'].(!empty($no_breadcrumb) ? '&no_breadcrumb=true' : '').(!empty($debug) ? '&debug=true' : '');
+            Tools::redirect($next_uri);
         }
     }
 
@@ -891,28 +913,39 @@ class ShoppingFluxExport extends Module
         return $combinationImages;
     }
 
-    private function _getCombinaisons($product, $configuration, $link, $carrier)
+    private function _getCombinaisons($product, $configuration, $link, $carrier, $fileToWrite = 0)
     {
         $combinations = array();
 
         $ret = '<declinaisons>';
+
+        if ($fileToWrite) {
+            fwrite($fileToWrite, $ret);
+        }
 
         foreach ($product->getAttributeCombinaisons($configuration['PS_LANG_DEFAULT']) as $combinaison) {
             $combinations[$combinaison['id_product_attribute']]['attributes'][$combinaison['group_name']] = $combinaison['attribute_name'];
             $combinations[$combinaison['id_product_attribute']]['ean13'] = $combinaison['ean13'];
             $combinations[$combinaison['id_product_attribute']]['upc'] = $combinaison['upc'];
             $combinations[$combinaison['id_product_attribute']]['quantity'] = $combinaison['quantity'];
+            $combinations[$combinaison['id_product_attribute']]['poids'] = $combinaison['weight'] + $product->weight;
             $combinations[$combinaison['id_product_attribute']]['weight'] = $combinaison['weight'];
             $combinations[$combinaison['id_product_attribute']]['reference'] = $combinaison['reference'];
         }
 
         foreach ($combinations as $id => $combination) {
+
+            if ($fileToWrite) {
+                $ret = '';
+            }
+
             $ret .= '<declinaison>';
             $ret .= '<id><![CDATA['.$id.']]></id>';
             $ret .= '<ean><![CDATA['.$combination['ean13'].']]></ean>';
             $ret .= '<upc><![CDATA['.$combination['upc'].']]></upc>';
             $ret .= '<'.$this->_translateField('quantity').'><![CDATA['.$combination['quantity'].']]></'.$this->_translateField('quantity').'>';
             $ret .= '<'.$this->_translateField('weight').'><![CDATA['.$combination['weight'].']]></'.$this->_translateField('weight').'>';
+            $ret .= '<'.$this->_translateField('total_weight').'><![CDATA['.$combination['poids'].']]></'.$this->_translateField('total_weight').'>';
             $ret .= '<'.$this->_translateField('price').'><![CDATA['.$product->getPrice(true, $id, 2, null, false, true, 1).']]></'.$this->_translateField('price').'>';
             $ret .= '<'.$this->_translateField('old_price').'><![CDATA['.$product->getPrice(true, $id, 2, null, false, false, 1).']]></'.$this->_translateField('old_price').'>';
             $ret .= '<'.$this->_translateField('shipping_cost').'><![CDATA['.$this->_getShipping($product, $configuration, $carrier, $id, $combination['weight']).']]></'.$this->_translateField('shipping_cost').'>';
@@ -951,11 +984,22 @@ class ShoppingFluxExport extends Module
             $ret .= '<'.$this->_translateField('mpn').'><![CDATA['.$combination['reference'].']]></'.$this->_translateField('mpn').'>';
 
             $ret .= '</attributs>';
+            $ret .= '<'.$this->_translateField('combination_link').'><![CDATA['.$link->getProductLink($product).$product->getAnchor($id, true).']]></'.$this->_translateField('combination_link').'>';
             $ret .= '</declinaison>';
+
+            if ($fileToWrite) {
+                fwrite($fileToWrite, $ret);
+            }
         }
 
-        $ret .= '</declinaisons>';
-        return $ret;
+        if ($fileToWrite) {
+            $ret = '</declinaisons>';
+            fwrite($fileToWrite, $ret);
+            return;
+        } else {
+            $ret .= '</declinaisons>';
+            return $ret;
+        }
     }
 
     /* Category tree XML */
@@ -1110,12 +1154,9 @@ class ShoppingFluxExport extends Module
     //Check Data to avoid errors
     private function checkData($order)
     {
-
         foreach ($order->Products->Product as $product) {
-
             $ids = explode('_', $product->SKU);
             if (!$ids[1]) {
-                
                 $p = new Product($ids[0]);
                 if (empty($p->id)) {
                     return 'Product ID don\'t exist';
@@ -1132,7 +1173,6 @@ class ShoppingFluxExport extends Module
 
                 $minimalQuantity = $p->minimal_quantity;
             } else {
-
                 $exist = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow('
                 SELECT id_product_attribute
                 FROM '._DB_PREFIX_.'product_attribute
@@ -1171,11 +1211,11 @@ class ShoppingFluxExport extends Module
             $ip = Tools::getRemoteAddr();
         }
 
-        if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && !in_array($params['order']->payment, $this->_getMarketplaces())) {
+        if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && !in_array($params['order']->payment, $params['order']->module == 'sfpayment')) {
             Tools::file_get_contents('https://tag.shopping-flux.com/order/'.base64_encode(Configuration::get('SHOPPING_FLUX_ID').'|'.$params['order']->id.'|'.$params['order']->total_paid).'?ip='.$ip);
         }
         
-        if (Configuration::get('SHOPPING_FLUX_STOCKS') != '' && !in_array($params['order']->payment, $this->_getMarketplaces())) {
+        if (Configuration::get('SHOPPING_FLUX_STOCKS') != '' && !in_array($params['order']->payment, $params['order']->module == 'sfpayment')) {
             foreach ($params['cart']->getProducts() as $product) {
                 $id = (isset($product['id_product_attribute'])) ? (int)$product['id_product'].'_'.(int)$product['id_product_attribute'] : (int)$product['id_product'];
                 $qty = (int)$product['stock_quantity'] - (int)$product['quantity'];
@@ -1195,81 +1235,78 @@ class ShoppingFluxExport extends Module
 
     public function hookPostUpdateOrderStatus($params)
     {
+        $order = new Order((int)$params['id_order']);
+
         if ((Configuration::get('SHOPPING_FLUX_STATUS_SHIPPED') != '' &&
                 Configuration::get('SHOPPING_FLUX_SHIPPED') == '' &&
-                $this->_getOrderStates(Configuration::get('PS_LANG_DEFAULT'), 'shipped') == $params['newOrderStatus']->name) ||
+                $this->_getOrderStates(Configuration::get('PS_LANG_DEFAULT'), 'shipped') == $params['newOrderStatus']->name) &&
+                $order->module == 'sfpayment' ||
                 (Configuration::get('SHOPPING_FLUX_STATUS_SHIPPED') != '' &&
-                (int)Configuration::get('SHOPPING_FLUX_SHIPPED') == $params['newOrderStatus']->id)) {
-
-            $order = new Order((int)$params['id_order']);
+                (int)Configuration::get('SHOPPING_FLUX_SHIPPED') == $params['newOrderStatus']->id && $order->module == 'sfpayment')) {
             $shipping = $order->getShipping();
             $carrier = new Carrier((int)$order->id_carrier);
             $url = str_replace('http://http://', 'http://', $carrier->url);
             $url = str_replace('@', $order->shipping_number, $url);
 
-            if (in_array($order->payment, $this->_getMarketplaces())) {
-                $message = $order->getFirstMessage();
-                $id_order_marketplace = explode(':', $message);
-                $id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
 
-                $xml = '<?xml version="1.0" encoding="UTF-8"?>';
-                $xml .= '<UpdateOrders>';
-                $xml .= '<Order>';
-                $xml .= '<IdOrder>'.$id_order_marketplace[1].'</IdOrder>';
-                $xml .= '<Marketplace>'.$order->payment.'</Marketplace>';
-                $xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
-                $xml .= '<Status>Shipped</Status>';
+            $message = $order->getFirstMessage();
+            $id_order_marketplace = explode(':', $message);
+            $id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
 
-                if (isset($shipping[0])) {
-                    $xml .= '<TrackingNumber><![CDATA['.$shipping[0]['tracking_number'].']]></TrackingNumber>';
-                    $xml .= '<CarrierName><![CDATA['.$shipping[0]['state_name'].']]></CarrierName>';
-                    $xml .= '<TrackingUrl><![CDATA['.$url.']]></TrackingUrl>';
-                }
+            $xml = '<?xml version="1.0" encoding="UTF-8"?>';
+            $xml .= '<UpdateOrders>';
+            $xml .= '<Order>';
+            $xml .= '<IdOrder>'.$id_order_marketplace[1].'</IdOrder>';
+            $xml .= '<Marketplace>'.$order->payment.'</Marketplace>';
+            $xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
+            $xml .= '<Status>Shipped</Status>';
 
-                $xml .= '</Order>';
-                $xml .= '</UpdateOrders>';
+            if (isset($shipping[0])) {
+                $xml .= '<TrackingNumber><![CDATA['.$shipping[0]['tracking_number'].']]></TrackingNumber>';
+                $xml .= '<CarrierName><![CDATA['.$shipping[0]['state_name'].']]></CarrierName>';
+                $xml .= '<TrackingUrl><![CDATA['.$url.']]></TrackingUrl>';
+            }
 
-                $responseXML = $this->_callWebService('UpdateOrders', $xml);
+            $xml .= '</Order>';
+            $xml .= '</UpdateOrders>';
 
-                if (!$responseXML->Response->Error) {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                } else {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                }
+            $responseXML = $this->_callWebService('UpdateOrders', $xml);
+
+            if (!$responseXML->Response->Error) {
+                Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
+            } else {
+                Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
             }
         } elseif ((Configuration::get('SHOPPING_FLUX_STATUS_CANCELED') != '' &&
                 Configuration::get('SHOPPING_FLUX_CANCELED') == '' &&
-                $this->_getOrderStates(Configuration::get('PS_LANG_DEFAULT'), 'order_canceled') == $params['newOrderStatus']->name) ||
+                $this->_getOrderStates(Configuration::get('PS_LANG_DEFAULT'), 'order_canceled') == $params['newOrderStatus']->name) &&
+                $order->module == 'sfpayment' ||
                 (Configuration::get('SHOPPING_FLUX_STATUS_CANCELED') != '' &&
-                (int)Configuration::get('SHOPPING_FLUX_CANCELED') == $params['newOrderStatus']->id)) {
-
+                (int)Configuration::get('SHOPPING_FLUX_CANCELED') == $params['newOrderStatus']->id && $order->module == 'sfpayment')) {
             $order = new Order((int)$params['id_order']);
             $shipping = $order->getShipping();
 
-            if (in_array($order->payment, $this->_getMarketplaces())) {
-                $message = $order->getFirstMessage();
-                $id_order_marketplace = explode(':', $message);
-                $id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
+            $message = $order->getFirstMessage();
+            $id_order_marketplace = explode(':', $message);
+            $id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
 
-                $xml = '<?xml version="1.0" encoding="UTF-8"?>';
-                $xml .= '<UpdateOrders>';
-                $xml .= '<Order>';
-                $xml .= '<IdOrder>'.$id_order_marketplace[1].'</IdOrder>';
-                $xml .= '<Marketplace>'.$order->payment.'</Marketplace>';
-                $xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
-                $xml .= '<Status>Canceled</Status>';
-                $xml .= '</Order>';
-                $xml .= '</UpdateOrders>';
+            $xml = '<?xml version="1.0" encoding="UTF-8"?>';
+            $xml .= '<UpdateOrders>';
+            $xml .= '<Order>';
+            $xml .= '<IdOrder>'.$id_order_marketplace[1].'</IdOrder>';
+            $xml .= '<Marketplace>'.$order->payment.'</Marketplace>';
+            $xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
+            $xml .= '<Status>Canceled</Status>';
+            $xml .= '</Order>';
+            $xml .= '</UpdateOrders>';
 
-                $responseXML = $this->_callWebService('UpdateOrders', $xml);
+            $responseXML = $this->_callWebService('UpdateOrders', $xml);
 
-                if (!$responseXML->Response->Error) {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                } else {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => $order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                }
+            if (!$responseXML->Response->Error) {
+                Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
+            } else {
+                Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => $order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
             }
-
         }
     }
 
@@ -1500,7 +1537,6 @@ class ShoppingFluxExport extends Module
         }
 
         if ((float)$order->TotalFees > 0 && Configuration::get('SHOPPING_FLUX_FDG') != '') {
-        
             $row = Db::getInstance()->getRow('SELECT t.rate, od.id_order_detail  FROM '._DB_PREFIX_.'tax t
                 LEFT JOIN '._DB_PREFIX_.'order_detail_tax odt ON t.id_tax = odt.id_tax
                 LEFT JOIN '._DB_PREFIX_.'order_detail od ON odt.id_order_detail = od.id_order_detail
@@ -1741,71 +1777,6 @@ class ShoppingFluxExport extends Module
         Configuration::updateValue('SHOPPING_FLUX_ID', (string)$getClientId->Response->ID);
     }
 
-    /* Liste Marketplaces SF */
-    private function _getMarketplaces()
-    {
-        return array(
-            'amazon',
-            'atlasformen',
-            'aushopping',
-            'backMarket',
-            'boulanger',
-            'boutwik',
-            'brandalley',
-            'cdiscount',
-            'commentseruiner',
-            'darty',
-            'decofinder',
-            'delamaison',
-            'docteurdiscount',
-            'Doctipharma',
-            'ebay',
-            'elevenmain',
-            'etsy',
-            'fnac',
-            'fnaces',
-            'galerieslafayette',
-            'glamour',
-            'gosport',
-            'gstk',
-            'holosfind',
-            'houzz',
-            'jardimarket',
-            'jardinermalin',
-            'laredoute',
-            'lecomptoirsante',
-            'lequipe',
-            'manomano',
-            'menlook',
-            'mercadolibre',
-            'milleunepharmacies',
-            'mistergooddeal',
-            'monechelle',
-            'moneden',
-            'natureetdecouvertes',
-            'oclio',
-            'pixmania',
-            'pixmaniait',
-            'placedumariage',
-            'priceminister',
-            'privalia',
-            'rakuten',
-            'rakutenes',
-            'redoute',
-            'rdc',
-            'ricardo',
-            'rueducommerce',
-            'sears',
-            'spartoo',
-            'tap',
-            'thebeautyst',
-            'tootici',
-            'villatech',
-            'wizacha',
-            'yodetiendas',
-        );
-    }
-
     private function _translateField($field)
     {
         $translations = array(
@@ -1830,6 +1801,8 @@ class ShoppingFluxExport extends Module
                 'mpn' => 'ref-constructeur',
                 'supplier_reference' => 'ref-fournisseur',
                 'category_breadcrumb' => 'fil-ariane',
+                'combination_link' => 'url-declinaison',
+                'total_weight' => 'poids-total',
             )
         );
 
@@ -1840,11 +1813,9 @@ class ShoppingFluxExport extends Module
         }
 
         return $field;
-
     }
 }
 
 class sfpayment extends PaymentModule
 {
-
 }
