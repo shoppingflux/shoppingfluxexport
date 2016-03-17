@@ -1067,8 +1067,9 @@ class ShoppingFluxExport extends Module
 
             foreach ($ordersXML->Response->Orders->Order as $order) {
                 try {
-                    if (Tools::strtolower($order->Marketplace) == 'rdc' && strpos($order->ShippingMethod, 'Livraison rapide en point Mondial Relay') !== false) {
-                        $order->Other = trim(str_replace('Livraison rapide en point Mondial Relay', '', $order->ShippingMethod));
+                    if ((Tools::strtolower($order->Marketplace) == 'rdc' || Tools::strtolower($order->Marketplace) == 'rueducommerce') && strpos($order->ShippingMethod, 'Mondial Relay') !== false) {
+                        $num = explode(' ', $order->ShippingMethod);
+                        $order->Other = end($num);
                         $order->ShippingMethod = 'Mondial Relay';
                     }
 
@@ -1237,6 +1238,9 @@ class ShoppingFluxExport extends Module
     {
         $order = new Order((int)$params['id_order']);
 
+        //set the shop related to the order in the context to avoid empty configurations
+        $this->context->shop = new Shop((int)$order->id_shop);
+
         if ((Configuration::get('SHOPPING_FLUX_STATUS_SHIPPED') != '' &&
                 Configuration::get('SHOPPING_FLUX_SHIPPED') == '' &&
                 $this->_getOrderStates(Configuration::get('PS_LANG_DEFAULT'), 'shipped') == $params['newOrderStatus']->name) &&
@@ -1362,7 +1366,12 @@ class ShoppingFluxExport extends Module
     /* Clean XML strings */
     private function _clean($string)
     {
-        return preg_replace('/[^A-Za-z]/', '', $string);
+        try {
+            new DOMElement($string);
+        } catch (DOMException $e) {
+            return preg_replace('/[^A-Za-z]/', '', $string);
+        }
+        return $string;
     }
 
     /* Call Shopping Flux Webservices */
@@ -1463,7 +1472,7 @@ class ShoppingFluxExport extends Module
         }
         
         if (empty($addressNode->PhoneMobile)) {
-            $address->phone = Tools::substr(pSQL($addressNode->Phone), 0, 16);
+            $address->phone_mobile = Tools::substr(pSQL($addressNode->Phone), 0, 16);
         } else {
             $address->phone_mobile = Tools::substr(pSQL($addressNode->PhoneMobile), 0, 16);
         }
