@@ -464,7 +464,7 @@ class ShoppingFluxExport extends Module
 				FROM `'._DB_PREFIX_.'product` p
 				'.Shop::addSqlAssociation('product', 'p').'
 				LEFT JOIN `'._DB_PREFIX_.'product_lang` pl ON (p.`id_product` = pl.`id_product` '.Shop::addSqlRestrictionOnLang('pl').')
-				WHERE pl.`id_lang` = '.(int)$id_lang.' AND product_shop.`active`= 1 AND product_shop.`available_for_order`= 1
+				WHERE pl.`id_lang` = '.(int)$id_lang.' AND product_shop.`active`= 1 AND product_shop.`available_for_order`= 1 AND p.`cache_is_pack` = 0
 				'.($front ? ' AND product_shop.`visibility` IN ("both", "catalog")' : '').'
 				ORDER BY pl.`name`';
 
@@ -475,7 +475,7 @@ class ShoppingFluxExport extends Module
 			$sql = 'SELECT p.`id_product`, pl.`name`
 				FROM `'._DB_PREFIX_.'product` p
 				LEFT JOIN `'._DB_PREFIX_.'product_lang` pl ON (p.`id_product` = pl.`id_product`)
-				WHERE pl.`id_lang` = '.(int)($id_lang).' AND p.`active`= 1 AND p.`available_for_order`= 1
+				WHERE pl.`id_lang` = '.(int)($id_lang).' AND p.`active`= 1 AND p.`available_for_order`= 1 AND p.`cache_is_pack` = 0
 				ORDER BY pl.`name`';
 		}
 
@@ -499,12 +499,12 @@ class ShoppingFluxExport extends Module
 			$sql = 'SELECT COUNT(p.`id_product`)
 				FROM `'._DB_PREFIX_.'product` p
 				'.$sql_association.'
-				WHERE '.$table.'.`active`= 1 AND '.$table.'.`available_for_order`= 1
+				WHERE '.$table.'.`active`= 1 AND '.$table.'.`available_for_order`= 1 AND p.`cache_is_pack` = 0
 				'.($front ? ' AND '.$table.'.`visibility` IN ("both", "catalog")' : '');
 		} else {
 			$sql = 'SELECT COUNT(p.`id_product`)
 				FROM `'._DB_PREFIX_.'product` p
-				WHERE p.`active`= 1 AND p.`available_for_order`= 1';
+				WHERE p.`active`= 1 AND p.`available_for_order`= 1 AND p.`cache_is_pack` = 0';
 		}
 
 		return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
