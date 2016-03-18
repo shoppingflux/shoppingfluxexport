@@ -1,4 +1,5 @@
 <?xml version="1.0"?>
-<ruleset name="PHP_CodeSniffer">
- <rule ref="PSR2"/>
+<ruleset name="Prestashop">
+ <exclude-pattern>*/vendor/*</exclude-pattern>
+ <rule ref="vendor/shoppingflux/prestashop-norm-validator/Prestashop/"/>
 </ruleset>

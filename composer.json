@@ -1,6 +1,7 @@
 {
   "require-dev": {
     "squizlabs/php_codesniffer": "2.*",
-    "phing/phing": "2.*"
+    "phing/phing": "2.*",
+    "shoppingflux/prestashop-norm-validator": "dev-master"
   }
 }

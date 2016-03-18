@@ -3,6 +3,7 @@
         <phplint haltonfailure="true">
             <fileset dir=".">
                 <include name="**/*.php"/>
+                <exclude name="vendor/**.php"/>
             </fileset>
         </phplint>
     </target>
