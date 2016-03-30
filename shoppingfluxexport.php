@@ -1555,20 +1555,20 @@ class ShoppingFluxExport extends Module
 			$id_order_detail = $row['id_order_detail'];
 
 			$updateOrderDetail = array(
-				'product_price' => (float)((float)$order->TotalFees / (1 + ($tax_rate / 100))),
+				'product_price' => (float)($order->TotalFees),
 				'reduction_percent' => 0,
 				'reduction_amount' => 0,
-				'total_price_tax_incl' => (float)((float)$order->TotalFees),
-				'total_price_tax_excl' => (float)(((float)$order->TotalFees / (1 + ($tax_rate / 100)))),
+				'total_price_tax_incl' => (float)($order->TotalFees),
+				'total_price_tax_excl' => (float)($order->TotalFees),
 				'unit_price_tax_incl' => (float)($order->TotalFees),
-				'unit_price_tax_excl' => (float)((float)$order->TotalFees / (1 + ($tax_rate / 100))),
+				'unit_price_tax_excl' => (float)($order->TotalFees),
 			);
 
 			Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail', $updateOrderDetail, 'UPDATE', '`id_order` = '.(int)$id_order.' AND `product_id` = 55 AND `product_attribute_id` = 0');
 
 			$updateOrderDetailTax = array(
-				'unit_amount' => (float)((float)$order->TotalFees - ((float)$order->TotalFees/(1 + ($tax_rate / 100)))),
-				'total_amount' => (float)(((float)$order->TotalFees - ((float)$order->TotalFees/(1 + ($tax_rate / 100))))),
+				'unit_amount' => 0,
+				'total_amount' => 0,
 			);
 
 			Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail_tax', $updateOrderDetailTax, 'UPDATE', '`id_order_detail` = '.(int)$id_order_detail);
