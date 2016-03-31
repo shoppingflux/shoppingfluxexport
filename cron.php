@@ -27,18 +27,21 @@
 include(dirname(__FILE__).'/../../config/config.inc.php');
 include(dirname(__FILE__).'/../../init.php');
 
+include-once(dirname(__FILE__).'/sfpayment.php');
 include(dirname(__FILE__).'/shoppingfluxexport.php');
 
 ini_set('display_errors', 'off');
 
 $f = new ShoppingFluxExport();
 
-if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN'))
-	die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
+if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) {
+    die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
+}
 
 $current = Tools::getValue('current');
 
-if (empty($current))
-	$f->initFeed();
-else
-	$f->writeFeed( Tools::getValue('total'), Tools::getValue('current'), Tools::getValue('lang'));
+if (empty($current)) {
+    $f->initFeed();
+} else {
+    $f->writeFeed(Tools::getValue('total'), Tools::getValue('current'), Tools::getValue('lang'));
+}
