@@ -27,7 +27,7 @@
 include(dirname(__FILE__).'/../../config/config.inc.php');
 include(dirname(__FILE__).'/../../init.php');
 
-include(dirname(__FILE__).'/sfpayment.php');
+include_once(dirname(__FILE__).'/sfpayment.php');
 include(dirname(__FILE__).'/shoppingfluxexport.php');
 
 ini_set('display_errors', 'off');

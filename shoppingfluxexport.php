@@ -28,6 +28,8 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+include_once(dirname(__FILE__).'/sfpayment.php');
+
 class ShoppingFluxExport extends Module
 {
     private $default_country = null;
@@ -88,7 +90,8 @@ class ShoppingFluxExport extends Module
 
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
             foreach (Shop::getShops() as $shop) {
-                if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand()), false, null, $shop['id_shop']) ||
+                if (method_exists('ImageType', 'getFormatedName')) {
+                    if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand()), false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED'), false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING'), false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_IMAGE', ImageType::getFormatedName('large'), false, null, $shop['id_shop']) ||
@@ -99,13 +102,33 @@ class ShoppingFluxExport extends Module
                         !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_FDG', '', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '', false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_INDEX', 'http://'.$shop['domain'].$shop['uri'], false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_STOCKS', '', false, null, $shop['id_shop'])) {
-                    return false;
+                        !Configuration::updateValue('SHOPPING_FLUX_INDEX', 'http://' . $shop['domain'] . $shop['uri'], false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_STOCKS', '', false, null, $shop['id_shop'])
+                    ) {
+                        return false;
+                    }
+                } else {
+                    if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand()), false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED'), false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING'), false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_IMAGE', '', false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT'), false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_TRACKING', 'checked', false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_ORDERS', 'checked', false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_STATUS_SHIPPED', 'checked', false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '', false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_FDG', '', false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '', false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_INDEX', 'http://' . $shop['domain'] . $shop['uri'], false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_STOCKS', '', false, null, $shop['id_shop'])
+                    ) {
+                        return false;
+                    }
                 }
             }
         } else {
-            if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand())) ||
+            if (method_exists('ImageType', 'getFormatedName')) {
+                if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand())) ||
                     !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED')) ||
                     !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING')) ||
                     !Configuration::updateValue('SHOPPING_FLUX_IMAGE', ImageType::getFormatedName('large')) ||
@@ -118,7 +141,24 @@ class ShoppingFluxExport extends Module
                     !Configuration::updateValue('SHOPPING_FLUX_FDG', '') ||
                     !Configuration::updateValue('SHOPPING_FLUX_INDEX', 'http://'.$shop['domain'].$shop['uri']) ||
                     !Configuration::updateValue('SHOPPING_FLUX_STOCKS')) {
-                return false;
+                    return false;
+                }
+            } else {
+                if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand())) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED')) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING')) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_IMAGE', '') ||
+                    !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT')) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_TRACKING', 'checked') ||
+                    !Configuration::updateValue('SHOPPING_FLUX_ORDERS', 'checked') ||
+                    !Configuration::updateValue('SHOPPING_FLUX_STATUS_SHIPPED', 'checked') ||
+                    !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '') ||
+                    !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '') ||
+                    !Configuration::updateValue('SHOPPING_FLUX_FDG', '') ||
+                    !Configuration::updateValue('SHOPPING_FLUX_INDEX', 'http://'.$shop['domain'].$shop['uri']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_STOCKS')) {
+                    return false;
+                }
             }
         }
 
@@ -1366,6 +1406,10 @@ class ShoppingFluxExport extends Module
     /* Clean XML strings */
     private function _clean($string)
     {
+        if (!class_exists('DOMElement')) {
+            return preg_replace('/[^A-Za-z]/', '', $string);
+        }
+
         try {
             new DOMElement($string);
         } catch (DOMException $e) {
