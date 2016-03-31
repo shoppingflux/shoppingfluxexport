@@ -27,11 +27,27 @@
 include(dirname(__FILE__).'/../../config/config.inc.php');
 include(dirname(__FILE__).'/../../init.php');
 
+include_once(dirname(__FILE__).'/sfpayment.php');
 include(dirname(__FILE__).'/shoppingfluxexport.php');
 
 ini_set('display_errors', 'off');
 
-header ('Content-Type:text/xml');
+if (Tools::getValue('fdg') != '') {
+    $f = new shoppingfluxexport();
+    $res = $f->setFDG();
+    
+    if ($res == 'ok') {
+        echo 'Frais de gestion installé';
+    } elseif ($res == 'ko') {
+        echo 'Frais de gestion désinstallé';
+    } else {
+        echo 'Erreur';
+    }
+
+    exit;
+}
+
+header('Content-Type:text/xml');
 
 $f = new ShoppingFluxExport();
 echo $f->generateFeed();
