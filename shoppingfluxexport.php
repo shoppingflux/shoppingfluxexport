@@ -1252,11 +1252,11 @@ class ShoppingFluxExport extends Module
             $ip = Tools::getRemoteAddr();
         }
 
-        if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && !in_array($params['order']->payment, $params['order']->module == 'sfpayment')) {
+        if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && !in_array($params['order']->payment, $params['order']->module != 'sfpayment')) {
             Tools::file_get_contents('https://tag.shopping-flux.com/order/'.base64_encode(Configuration::get('SHOPPING_FLUX_ID').'|'.$params['order']->id.'|'.$params['order']->total_paid).'?ip='.$ip);
         }
 
-        if (Configuration::get('SHOPPING_FLUX_STOCKS') != '' && !in_array($params['order']->payment, $params['order']->module == 'sfpayment')) {
+        if (Configuration::get('SHOPPING_FLUX_STOCKS') != '' && !in_array($params['order']->payment, $params['order']->module != 'sfpayment')) {
             foreach ($params['cart']->getProducts() as $product) {
                 $id = (isset($product['id_product_attribute'])) ? (int)$product['id_product'].'_'.(int)$product['id_product_attribute'] : (int)$product['id_product'];
                 $qty = (int)$product['stock_quantity'] - (int)$product['quantity'];
