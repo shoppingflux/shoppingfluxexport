@@ -1,0 +1,10 @@
+<project name="shoppingfluxexport" basedir="." default="test:lint">
+    <target name="test:lint" description="Run php lint against base source code">
+        <phplint haltonfailure="true">
+            <fileset dir=".">
+                <include name="**/*.php"/>
+                <exclude name="vendor/**.php"/>
+            </fileset>
+        </phplint>
+    </target>
+</project>
