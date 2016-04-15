@@ -1406,16 +1406,7 @@ class ShoppingFluxExport extends Module
     /* Clean XML strings */
     private function _clean($string)
     {
-        if (!class_exists('DOMElement')) {
-            return preg_replace('/[^A-Za-z]/', '', $string);
-        }
-
-        try {
-            new DOMElement($string);
-        } catch (DOMException $e) {
-            return preg_replace('/[^A-Za-z]/', '', $string);
-        }
-        return $string;
+        return preg_replace('/[^A-Za-z]/', '', $string);
     }
 
     /* Call Shopping Flux Webservices */
