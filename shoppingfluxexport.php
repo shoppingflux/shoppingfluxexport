@@ -974,7 +974,6 @@ class ShoppingFluxExport extends Module
         }
 
         foreach ($combinations as $id => $combination) {
-
             if ($fileToWrite) {
                 $ret = '';
             }
