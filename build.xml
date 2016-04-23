@@ -1,5 +1,9 @@
 <project name="shoppingfluxexport" basedir="." default="test">
+
     <target name="test" depends="test:lint, test:phpcs"/>
+    <target name="clean" depends="clean:composer, clean:git, clean:misc"/>
+    <target name="prepare" depends="test, git:submodule, clean"/>
+
     <target name="test:lint" description="Run php lint against base source code">
         <phplint haltonfailure="true">
             <fileset dir=".">
@@ -8,12 +12,48 @@
             </fileset>
         </phplint>
     </target>
+
     <target name="test:phpcs" description="Run php code sniffer">
         <exec executable="${project.basedir}/vendor/bin/phpcs" checkreturn="true" passthru="true">
             <arg value="--standard=${project.basedir}/phpcs.xml"/>
-            <arg value="--ignore=${project.basedir}/vendor/"/>
+            <arg value="--ignore=${project.basedir}/vendor/,${project.basedir}/backward_compatibility/"/>
             <arg value="--report=emacs"/>
             <arg path="${project.basedir}" />
         </exec>
     </target>
+
+    <target name="git:submodule" description="Fetch git submodules">
+        <exec executable="git" passthru="true" checkreturn="true">
+            <arg value="submodule"/>
+            <arg value="init"/>
+        </exec>
+        <exec executable="git" passthru="true" checkreturn="true">
+            <arg value="submodule"/>
+            <arg value="update"/>
+        </exec>
+    </target>
+
+    <target name="clean:composer" description="Remove composer files">
+        <delete dir="vendor" />
+        <delete file="composer.json" />
+        <delete file="composer.lock" />
+    </target>
+
+    <target name="clean:git" description="Remove git files">
+        <delete dir=".git" />
+        <delete file=".gitignore" />
+        <delete file=".gitmodules" />
+        <delete file="backward_compatibility/.git" />
+        <delete file="backward_compatibility/.gitignore" />
+    </target>
+
+    <target name="clean:misc" description="Remove various files">
+        <delete file="build.xml" />
+        <delete file="phpcs.xml" />
+        <delete file="CONTRIBUTING.md" />
+        <delete file="ISSUE_TEMPLATE.md" />
+        <delete file="PULL_REQUEST_TEMPLATE.md" />
+        <delete file="README.md" />
+    </target>
+
 </project>
