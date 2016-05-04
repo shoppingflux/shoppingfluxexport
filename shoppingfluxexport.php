@@ -741,6 +741,22 @@ class ShoppingFluxExport extends Module
             return 'ok';
         }
     }
+    
+    public function setREF()
+    {
+        if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) {
+            die("Invalid Token");
+        }
+
+        $ref = Tools::getValue('ref');
+
+        if (is_bool($ref)) {
+            Configuration::updateValue('SHOPPING_FLUX_REF', $ref);
+            return 'ok';
+        } else {
+            return 'ko';
+        }
+    }
 
     /* Default data, in Product Class */
     private function _getBaseData($product, $configuration, $link, $carrier)
@@ -771,7 +787,7 @@ class ShoppingFluxExport extends Module
         );
 
         $data = array();
-        $data[0] = $product->id;
+        $data[0] = ($configuration['SHOPPING_FLUX_REF'] === false) ? $product->id : $product->reference;
         $data[1] = $product->name;
         $data[2] = $link->getProductLink($product);
         $data[4] = $product->description;
@@ -1543,12 +1559,31 @@ class ShoppingFluxExport extends Module
         return $customer->id;
     }
 
+    private function getIDs($ref){
+
+        $row = Db::getInstance()->getRow('SELECT pa.id_product, pa.id_product_attribute  FROM '._DB_PREFIX_.'product_attribute pa
+            WHERE pa.reference = "'.  pSQL($ref).'"');
+
+        if (isset($row['id_product_attribute'])) {
+            return array($row['id_product'], $row['id_product_attribute']);
+        }
+
+        $row2 = Db::getInstance()->getRow('SELECT p.id_product  FROM '._DB_PREFIX_.'product p
+            WHERE p.reference = "'.  pSQL($ref).'"');
+
+        return array($row2['id_product'], 0);
+    }
+
     private function _updatePrices($id_order, $order, $reference_order)
     {
         $tax_rate = 0;
 
         foreach ($order->Products->Product as $product) {
-            $skus = explode('_', $product->SKU);
+            if (Configuration::get('SHOPPING_FLUX_REF') === true) {
+                $skus = $this->getIDs($product->SKU);
+            } else {
+                $skus = explode('_', $product->SKU);
+            }
 
             $row = Db::getInstance()->getRow('SELECT t.rate, od.id_order_detail  FROM '._DB_PREFIX_.'tax t
                 LEFT JOIN '._DB_PREFIX_.'order_detail_tax odt ON t.id_tax = odt.id_tax
@@ -1727,7 +1762,12 @@ class ShoppingFluxExport extends Module
         $cart->add();
 
         foreach ($productsNode->Product as $product) {
-            $skus = explode('_', $product->SKU);
+            if (Configuration::get('SHOPPING_FLUX_REF') === true) {
+                $skus = $this->getIDs($product->SKU);
+            } else {
+                $skus = explode('_', $product->SKU);
+            }
+
             $p = new Product((int)($skus[0]), false, Configuration::get('PS_LANG_DEFAULT'), Context::getContext()->shop->id);
 
             if (!Validate::isLoadedObject($p)) {
@@ -1756,8 +1796,13 @@ class ShoppingFluxExport extends Module
         $available = true;
 
         foreach ($productsNode->Product as $product) {
-            if (strpos($product->SKU, '_') !== false) {
+            if (Configuration::get('SHOPPING_FLUX_REF') === true) {
+                $skus = $this->getIDs($product->SKU);
+            } else {
                 $skus = explode('_', $product->SKU);
+            }
+
+            if ($skus[1] !== false) {
                 $quantity = StockAvailable::getQuantityAvailableByProduct((int)$skus[0], (int)$skus[1]);
 
                 if ($quantity - $product->Quantity < 0) {
