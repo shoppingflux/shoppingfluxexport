@@ -598,34 +598,29 @@ class ShoppingFluxExport extends Module
                 echo '<to/>';
             }
             
-            $specificPrices = SpecificPrice::getIdsByProductId($product->id);
-            $specificPricesInFuture = array();
-            foreach($specificPrices as $idSpecificPrice) {
-                $specificPrice = new SpecificPrice($idSpecificPrice['id_specific_price']);
-                 
-                 
-                if (new DateTime($specificPrice->from) > new DateTime())
-                {
-                    $specificPricesInFuture[] = $specificPrice;
-                }
-            }
-             
             // The flux must give the specific price in the future when adding the parameter &discount=1
             if (Tools::getValue('discount') == 1) {
+                $specificPrices = SpecificPrice::getIdsByProductId($product->id);
+                $specificPricesInFuture = array();
+                foreach ($specificPrices as $idSpecificPrice) {
+                    $specificPrice = new SpecificPrice($idSpecificPrice['id_specific_price']);
+                    
+                    if (new DateTime($specificPrice->from) > new DateTime()) {
+                        $specificPricesInFuture[] = $specificPrice;
+                    }
+                }
+                
                 echo '<discounts>';
                 $priceComputed = $product->getPrice(true, null, 2, null, false, true, 1);
-                foreach($specificPricesInFuture as $currentSpecificPrice) {
+                foreach ($specificPricesInFuture as $currentSpecificPrice) {
                     echo '<discount>';
                     // Reduction calculation
                     $reduc = 0;
                     if ($currentSpecificPrice->price == -1) {
-                        if ($currentSpecificPrice->reduction_type == 'amount')
-                        {
+                        if ($currentSpecificPrice->reduction_type == 'amount') {
                             $reduction_amount = $currentSpecificPrice->reduction;
-                            $reduc = !$use_tax ? $product_tax_calculator->removeTaxes($reduction_amount) : $reduction_amount;
-                        }
-                        else
-                        {
+                            $reduc = $reduction_amount;
+                        } else {
                             $reduc = $priceComputed * $currentSpecificPrice->reduction;
                         }
                         $priceComputed -= $reduc;
@@ -745,18 +740,27 @@ class ShoppingFluxExport extends Module
             if (Tools::getValue('discount') == 1) {
                 $str .= '<discounts>';
                 $priceComputed = $product->getPrice(true, null, 2, null, false, true, 1);
-                foreach($specificPricesInFuture as $currentSpecificPrice) {
+
+                $specificPrices = SpecificPrice::getIdsByProductId($product->id);
+                $specificPricesInFuture = array();
+                foreach ($specificPrices as $idSpecificPrice) {
+                    $specificPrice = new SpecificPrice($idSpecificPrice['id_specific_price']);
+                     
+                     
+                    if (new DateTime($specificPrice->from) > new DateTime()) {
+                        $specificPricesInFuture[] = $specificPrice;
+                    }
+                }
+                
+                foreach ($specificPricesInFuture as $currentSpecificPrice) {
                     $str .= '<discount>';
                     // Reduction calculation
                     $reduc = 0;
                     if ($currentSpecificPrice->price == -1) {
-                        if ($currentSpecificPrice->reduction_type == 'amount')
-                        {
+                        if ($currentSpecificPrice->reduction_type == 'amount') {
                             $reduction_amount = $currentSpecificPrice->reduction;
-                            $reduc = !$use_tax ? $product_tax_calculator->removeTaxes($reduction_amount) : $reduction_amount;
-                        }
-                        else
-                        {
+                            $reduc = $reduction_amount;
+                        } else {
                             $reduc = $priceComputed * $currentSpecificPrice->reduction;
                         }
                         $priceComputed -= $reduc;
