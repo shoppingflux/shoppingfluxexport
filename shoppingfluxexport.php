@@ -1327,9 +1327,7 @@ class ShoppingFluxExport extends Module
     public function hookNewOrder($params)
     {
         $ip = Db::getInstance()->getValue('SELECT `ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$params['order']->id_customer);
-        if (empty($ip)) {
-            $ip = Tools::getRemoteAddr();
-        }
+        $ip = $this->getIp($ip);
 
         if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && $params['order']->module != 'sfpayment') {
             Tools::file_get_contents('https://tag.shopping-flux.com/order/'.base64_encode(Configuration::get('SHOPPING_FLUX_ID').'|'.$params['order']->id.'|'.$params['order']->total_paid).'?ip='.$ip);
@@ -1472,12 +1470,12 @@ class ShoppingFluxExport extends Module
     public function hookTop()
     {
         global $cookie;
-
+        $ip = $this->getIp();
         if ((int)Db::getInstance()->getValue('SELECT `id_customer_ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$cookie->id_customer) > 0) {
-            $updateIp = array('ip' => pSQL(Tools::getRemoteAddr()));
+            $updateIp = array('ip' => pSQL($ip));
             Db::getInstance()->autoExecute(_DB_PREFIX_.'customer_ip', $updateIp, 'UPDATE', '`id_customer` = '.(int)$cookie->id_customer);
         } else {
-            $insertIp = array('id_customer' => (int)$cookie->id_customer, 'ip' => pSQL(Tools::getRemoteAddr()));
+            $insertIp = array('id_customer' => (int)$cookie->id_customer, 'ip' => pSQL($ip));
             Db::getInstance()->autoExecute(_DB_PREFIX_.'customer_ip', $insertIp, 'INSERT');
         }
     }
@@ -1936,5 +1934,23 @@ class ShoppingFluxExport extends Module
         }
 
         return $field;
+    }
+
+    /**
+     * Get Tthe user's IP handling if there is a proxy
+     * @param String $ip optionnal IP comming from the order
+     */
+    private function getIp($ip)
+    {
+        if (empty($ip)) {
+            if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+                $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+            } elseif (isset($_SERVER['HTTP_CLIENT_IP'])) {
+                $ip = $_SERVER['HTTP_CLIENT_IP'];
+            } else {
+                $ip = $_SERVER['REMOTE_ADDR'];
+            }
+        }
+        return $ip;
     }
 }
