@@ -597,6 +597,45 @@ class ShoppingFluxExport extends Module
                 echo '<from/>';
                 echo '<to/>';
             }
+            
+            // The flux must give the specific price in the future when adding the parameter &discount=1
+            if (Tools::getValue('discount') == 1) {
+                $specificPrices = SpecificPrice::getIdsByProductId($product->id);
+                $specificPricesInFuture = array();
+                foreach ($specificPrices as $idSpecificPrice) {
+                    $specificPrice = new SpecificPrice($idSpecificPrice['id_specific_price']);
+                    
+                    if (new DateTime($specificPrice->from) > new DateTime()) {
+                        $specificPricesInFuture[] = $specificPrice;
+                    }
+                }
+                
+                echo '<discounts>';
+                $priceComputed = $product->getPrice(true, null, 2, null, false, true, 1);
+                foreach ($specificPricesInFuture as $currentSpecificPrice) {
+                    echo '<discount>';
+                    // Reduction calculation
+                    $reduc = 0;
+                    if ($currentSpecificPrice->price == -1) {
+                        if ($currentSpecificPrice->reduction_type == 'amount') {
+                            $reduction_amount = $currentSpecificPrice->reduction;
+                            $reduc = $reduction_amount;
+                        } else {
+                            $reduc = $priceComputed * $currentSpecificPrice->reduction;
+                        }
+                        $priceComputed -= $reduc;
+                        $priceComputed = round($priceComputed, 2);
+                    } else {
+                        $priceComputed = $currentSpecificPrice->price;
+                    }
+                     
+                    echo '<from><![CDATA['.$currentSpecificPrice->from.']]></from>';
+                    echo '<to><![CDATA['.$currentSpecificPrice->to.']]></to>';
+                    echo '<price><![CDATA['.$priceComputed.']]></price>';
+                    echo '</discount>';
+                }
+                echo '</discounts>';
+            }
 
             echo '<'.$this->_translateField('supplier_link').'><![CDATA['.$link->getSupplierLink($product->id_supplier, null, $configuration['PS_LANG_DEFAULT']).']]></'.$this->_translateField('supplier_link').'>';
             echo '<'.$this->_translateField('manufacturer_link').'><![CDATA['.$link->getManufacturerLink($product->id_manufacturer, null, $configuration['PS_LANG_DEFAULT']).']]></'.$this->_translateField('manufacturer_link').'>';
@@ -697,6 +736,47 @@ class ShoppingFluxExport extends Module
                 $str .= '<to/>';
             }
 
+            // The flux must give the specific price in the future when adding the parameter &discount=1
+            if (Tools::getValue('discount') == 1) {
+                $str .= '<discounts>';
+                $priceComputed = $product->getPrice(true, null, 2, null, false, true, 1);
+
+                $specificPrices = SpecificPrice::getIdsByProductId($product->id);
+                $specificPricesInFuture = array();
+                foreach ($specificPrices as $idSpecificPrice) {
+                    $specificPrice = new SpecificPrice($idSpecificPrice['id_specific_price']);
+                     
+                     
+                    if (new DateTime($specificPrice->from) > new DateTime()) {
+                        $specificPricesInFuture[] = $specificPrice;
+                    }
+                }
+                
+                foreach ($specificPricesInFuture as $currentSpecificPrice) {
+                    $str .= '<discount>';
+                    // Reduction calculation
+                    $reduc = 0;
+                    if ($currentSpecificPrice->price == -1) {
+                        if ($currentSpecificPrice->reduction_type == 'amount') {
+                            $reduction_amount = $currentSpecificPrice->reduction;
+                            $reduc = $reduction_amount;
+                        } else {
+                            $reduc = $priceComputed * $currentSpecificPrice->reduction;
+                        }
+                        $priceComputed -= $reduc;
+                        $priceComputed = round($priceComputed, 2);
+                    } else {
+                        $priceComputed = $currentSpecificPrice->price;
+                    }
+                     
+                    $str .= '<from><![CDATA['.$currentSpecificPrice->from.']]></from>';
+                    $str .= '<to><![CDATA['.$currentSpecificPrice->to.']]></to>';
+                    $str .= '<price><![CDATA['.$priceComputed.']]></price>';
+                    $str .= '</discount>';
+                }
+                $str .= '</discounts>';
+            }
+            
             $str .= '<'.$this->_translateField('supplier_link').'><![CDATA['.$link->getSupplierLink($product->id_supplier, null, $configuration['PS_LANG_DEFAULT']).']]></'.$this->_translateField('supplier_link').'>';
             $str .= '<'.$this->_translateField('manufacturer_link').'><![CDATA['.$link->getManufacturerLink($product->id_manufacturer, null, $configuration['PS_LANG_DEFAULT']).']]></'.$this->_translateField('manufacturer_link').'>';
             $str .= '<'.$this->_translateField('on_sale').'>'.(int)$product->on_sale.'</'.$this->_translateField('on_sale').'>';
@@ -1263,9 +1343,7 @@ class ShoppingFluxExport extends Module
     public function hookNewOrder($params)
     {
         $ip = Db::getInstance()->getValue('SELECT `ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$params['order']->id_customer);
-        if (empty($ip)) {
-            $ip = Tools::getRemoteAddr();
-        }
+        $ip = $this->getIp($ip);
 
         if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && $params['order']->module != 'sfpayment') {
             Tools::file_get_contents('https://tag.shopping-flux.com/order/'.base64_encode(Configuration::get('SHOPPING_FLUX_ID').'|'.$params['order']->id.'|'.$params['order']->total_paid).'?ip='.$ip);
@@ -1408,12 +1486,12 @@ class ShoppingFluxExport extends Module
     public function hookTop()
     {
         global $cookie;
-
+        $ip = $this->getIp();
         if ((int)Db::getInstance()->getValue('SELECT `id_customer_ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$cookie->id_customer) > 0) {
-            $updateIp = array('ip' => pSQL(Tools::getRemoteAddr()));
+            $updateIp = array('ip' => pSQL($ip));
             Db::getInstance()->autoExecute(_DB_PREFIX_.'customer_ip', $updateIp, 'UPDATE', '`id_customer` = '.(int)$cookie->id_customer);
         } else {
-            $insertIp = array('id_customer' => (int)$cookie->id_customer, 'ip' => pSQL(Tools::getRemoteAddr()));
+            $insertIp = array('id_customer' => (int)$cookie->id_customer, 'ip' => pSQL($ip));
             Db::getInstance()->autoExecute(_DB_PREFIX_.'customer_ip', $insertIp, 'INSERT');
         }
     }
@@ -1901,5 +1979,23 @@ class ShoppingFluxExport extends Module
         }
 
         return $field;
+    }
+
+    /**
+     * Get Tthe user's IP handling if there is a proxy
+     * @param String $ip optionnal IP comming from the order
+     */
+    private function getIp($ip)
+    {
+        if (empty($ip)) {
+            if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+                $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+            } elseif (isset($_SERVER['HTTP_CLIENT_IP'])) {
+                $ip = $_SERVER['HTTP_CLIENT_IP'];
+            } else {
+                $ip = $_SERVER['REMOTE_ADDR'];
+            }
+        }
+        return $ip;
     }
 }
