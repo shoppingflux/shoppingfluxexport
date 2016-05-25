@@ -54,6 +54,6 @@
         <delete file="ISSUE_TEMPLATE.md" />
         <delete file="PULL_REQUEST_TEMPLATE.md" />
         <delete file="README.md" />
+        <delete file="phing.phar" />
     </target>
-
 </project>
