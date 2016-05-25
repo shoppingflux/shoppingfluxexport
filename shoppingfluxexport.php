@@ -1037,9 +1037,9 @@ class ShoppingFluxExport extends Module
             }
 
             $ret .= '<'.$this->_translateField('mpn').'><![CDATA['.$combination['reference'].']]></'.$this->_translateField('mpn').'>';
+            $ret .= '<'.$this->_translateField('combination_link').'><![CDATA['.$link->getProductLink($product).$product->getAnchor($id, true).']]></'.$this->_translateField('combination_link').'>';
 
             $ret .= '</attributs>';
-            $ret .= '<'.$this->_translateField('combination_link').'><![CDATA['.$link->getProductLink($product).$product->getAnchor($id, true).']]></'.$this->_translateField('combination_link').'>';
             $ret .= '</declinaison>';
 
             if ($fileToWrite) {
