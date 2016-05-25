@@ -46,7 +46,7 @@ if (Tools::getValue('fdg') != '') {
     exit;
 }
 
-if ( Tools::getValue('ref') != '' ) {
+if (Tools::getValue('ref') != '') {
     $f = new shoppingfluxexport();
     $res = $f->setREF();
 
