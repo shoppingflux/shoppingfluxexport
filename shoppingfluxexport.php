@@ -39,13 +39,13 @@ class ShoppingFluxExport extends Module
     {
         $this->name = 'shoppingfluxexport';
         $this->tab = 'smart_shopping';
-        $this->version = '4.0.7';
+        $this->version = '4.1.0';
         $this->author = 'PrestaShop';
         $this->limited_countries = array('fr', 'us');
 
         parent::__construct();
 
-        $this->displayName = $this->l('Shopping Feed Export');
+        $this->displayName = $this->l('Shopping Feed Official');
         $this->description = $this->l('Export all your products to Google Shopping, eBay, Amazon, Rakuten, etc...');
         $this->confirmUninstall = $this->l('Delete this plugin ?');
 
