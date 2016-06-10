@@ -18,7 +18,7 @@ $_MODULE['<{shoppingfluxexport}prestashop>adminshoppingflux_ec53a8c4f07baed5d882
 $_MODULE['<{shoppingfluxexport}prestashop>adminshoppingflux_52f5e0bc3859bc5f5e25130b6c7e8881'] = 'Posizione';
 $_MODULE['<{shoppingfluxexport}prestashop>adminshoppingflux_110a4b01beabd53b661a47d4b44bd7a8'] = 'Pubblica';
 $_MODULE['<{shoppingfluxexport}prestashop>adminshoppingflux_181e9a13059454fb2212f1bf10f394ac'] = 'Non pubblica';
-$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_30bcd40a940ca2b33e0b03a220d32fe1'] = 'Shopping Feed Official';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d29557ce7f62dd1717e2d1515ee11852'] = 'Shopping Flux Official';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_9f61ff0493120d928b4149a2947f0872'] = 'Esportate i vostri prodotti su Google Shopping, eBay, Amazon, CDiscount...';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_9d9ce5ee47d93c3e7cbfa24f65021688'] = 'Eliminare questo modulo?';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_3ded6c07524e0ef7f619ce547daca4b5'] = 'Siete ora registrati per la vostra prova gratuita, sarete contattati dal nostro team al più presto!';
