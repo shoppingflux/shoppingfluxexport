@@ -101,6 +101,7 @@ class ShoppingFluxExport extends Module
                         !Configuration::updateValue('SHOPPING_FLUX_STATUS_SHIPPED', 'checked', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_FDG', '', false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_REF', '', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_INDEX', 'http://' . $shop['domain'] . $shop['uri'], false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_STOCKS', '', false, null, $shop['id_shop'])
@@ -118,6 +119,7 @@ class ShoppingFluxExport extends Module
                         !Configuration::updateValue('SHOPPING_FLUX_STATUS_SHIPPED', 'checked', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_FDG', '', false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_REF', '', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_INDEX', 'http://' . $shop['domain'] . $shop['uri'], false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_STOCKS', '', false, null, $shop['id_shop'])
@@ -139,6 +141,7 @@ class ShoppingFluxExport extends Module
                     !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '') ||
                     !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '') ||
                     !Configuration::updateValue('SHOPPING_FLUX_FDG', '') ||
+                    !Configuration::updateValue('SHOPPING_FLUX_REF', '') ||
                     !Configuration::updateValue('SHOPPING_FLUX_INDEX', 'http://'.$shop['domain'].$shop['uri']) ||
                     !Configuration::updateValue('SHOPPING_FLUX_STOCKS')) {
                     return false;
@@ -155,6 +158,7 @@ class ShoppingFluxExport extends Module
                     !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '') ||
                     !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '') ||
                     !Configuration::updateValue('SHOPPING_FLUX_FDG', '') ||
+                    !Configuration::updateValue('SHOPPING_FLUX_REF', '') ||
                     !Configuration::updateValue('SHOPPING_FLUX_INDEX', 'http://'.$shop['domain'].$shop['uri']) ||
                     !Configuration::updateValue('SHOPPING_FLUX_STOCKS')) {
                     return false;
@@ -177,6 +181,7 @@ class ShoppingFluxExport extends Module
                 !Configuration::deleteByName('SHOPPING_FLUX_STATUS_CANCELED') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_LOGIN') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_FDG') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_REF') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_INDEX') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_STOCKS') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_SHIPPING_MATCHING') ||
@@ -557,7 +562,7 @@ class ShoppingFluxExport extends Module
         }
 
         $configuration = Configuration::getMultiple(array('PS_TAX_ADDRESS_TYPE', 'PS_CARRIER_DEFAULT', 'PS_COUNTRY_DEFAULT',
-                    'PS_LANG_DEFAULT', 'PS_SHIPPING_FREE_PRICE', 'PS_SHIPPING_HANDLING', 'PS_SHIPPING_METHOD', 'PS_SHIPPING_FREE_WEIGHT', 'SHOPPING_FLUX_IMAGE'));
+                    'PS_LANG_DEFAULT', 'PS_SHIPPING_FREE_PRICE', 'PS_SHIPPING_HANDLING', 'PS_SHIPPING_METHOD', 'PS_SHIPPING_FREE_WEIGHT', 'SHOPPING_FLUX_IMAGE', 'SHOPPING_FLUX_REF'));
 
         $no_breadcrumb = Tools::getValue('no_breadcrumb');
 
@@ -683,7 +688,8 @@ class ShoppingFluxExport extends Module
             array(
                 'PS_TAX_ADDRESS_TYPE', 'PS_CARRIER_DEFAULT', 'PS_COUNTRY_DEFAULT',
                 'PS_LANG_DEFAULT', 'PS_SHIPPING_FREE_PRICE', 'PS_SHIPPING_HANDLING',
-                'PS_SHIPPING_METHOD', 'PS_SHIPPING_FREE_WEIGHT', 'SHOPPING_FLUX_IMAGE'
+                'PS_SHIPPING_METHOD', 'PS_SHIPPING_FREE_WEIGHT', 'SHOPPING_FLUX_IMAGE',
+                'SHOPPING_FLUX_REF'
             )
         );
 
@@ -830,9 +836,12 @@ class ShoppingFluxExport extends Module
 
         $ref = Tools::getValue('ref');
 
-        if (is_bool($ref)) {
-            Configuration::updateValue('SHOPPING_FLUX_REF', $ref);
+        if ($ref == 'true') {
+            Configuration::updateValue('SHOPPING_FLUX_REF', 'true');
             return 'ok';
+        } elseif ($ref == 'false') {
+            Configuration::updateValue('SHOPPING_FLUX_REF', 'false');
+            return 'ko';
         } else {
             return 'ko';
         }
@@ -867,7 +876,7 @@ class ShoppingFluxExport extends Module
         );
 
         $data = array();
-        $data[0] = ($configuration['SHOPPING_FLUX_REF'] === false) ? $product->id : $product->reference;
+        $data[0] = ($configuration['SHOPPING_FLUX_REF'] != 'true') ? $product->id : $product->reference;
         $data[1] = $product->name;
         $data[2] = $link->getProductLink($product);
         $data[4] = $product->description;
@@ -1292,7 +1301,11 @@ class ShoppingFluxExport extends Module
     {
         $id_shop = $this->context->shop->id;
         foreach ($order->Products->Product as $product) {
-            $ids = explode('_', $product->SKU);
+            if (Configuration::get('SHOPPING_FLUX_REF') == 'true') {
+                $ids = $this->getIDs($product->SKU);
+            } else {
+                $ids = explode('_', $product->SKU);
+            }
             if (!$ids[1]) {
                 $p = new Product($ids[0]);
                 if (empty($p->id)) {
@@ -1301,7 +1314,7 @@ class ShoppingFluxExport extends Module
 
                 $res = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow('
                 SELECT active, available_for_order
-                FROM '._DB_PREFIX_.'product
+                FROM '._DB_PREFIX_.'product_shop
                 WHERE id_product ='.$ids[0].' AND id_shop = '.$id_shop);
 
                 if ($res['active'] != 1 || $res['available_for_order'] != 1) {
@@ -1322,7 +1335,7 @@ class ShoppingFluxExport extends Module
 
                 $res = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow('
                 SELECT active, available_for_order
-                FROM '._DB_PREFIX_.'product
+                FROM '._DB_PREFIX_.'product_shop
                 WHERE id_product ='.$ids[0].' AND id_shop = '.$id_shop);
 
                 if ($res['active'] != 1 || $res['available_for_order'] != 1) {
@@ -1658,7 +1671,7 @@ class ShoppingFluxExport extends Module
         $tax_rate = 0;
 
         foreach ($order->Products->Product as $product) {
-            if (Configuration::get('SHOPPING_FLUX_REF') === true) {
+            if (Configuration::get('SHOPPING_FLUX_REF') == 'true') {
                 $skus = $this->getIDs($product->SKU);
             } else {
                 $skus = explode('_', $product->SKU);
@@ -1841,7 +1854,7 @@ class ShoppingFluxExport extends Module
         $cart->add();
 
         foreach ($productsNode->Product as $product) {
-            if (Configuration::get('SHOPPING_FLUX_REF') === true) {
+            if (Configuration::get('SHOPPING_FLUX_REF') == 'true') {
                 $skus = $this->getIDs($product->SKU);
             } else {
                 $skus = explode('_', $product->SKU);
@@ -1875,7 +1888,7 @@ class ShoppingFluxExport extends Module
         $available = true;
 
         foreach ($productsNode->Product as $product) {
-            if (Configuration::get('SHOPPING_FLUX_REF') === true) {
+            if (Configuration::get('SHOPPING_FLUX_REF') == 'true') {
                 $skus = $this->getIDs($product->SKU);
             } else {
                 $skus = explode('_', $product->SKU);

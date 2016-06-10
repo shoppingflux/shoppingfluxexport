@@ -54,6 +54,8 @@ if (Tools::getValue('ref') != '') {
         echo 'Ref enable';
     } elseif ($res == 'ko') {
         echo 'Ref disable';
+    } elseif ($res == 'e') {
+        echo 'Error';
     }
     exit;
 }

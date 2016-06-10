@@ -2,7 +2,7 @@
 
 global $_MODULE;
 $_MODULE = array();
-$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_30bcd40a940ca2b33e0b03a220d32fe1'] = 'Shopping Flux Officiel';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d29557ce7f62dd1717e2d1515ee11852'] = 'Shopping Flux Officiel';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_9f61ff0493120d928b4149a2947f0872'] = 'Exportez vos produits sur Google Shopping, eBay, Amazon, CDiscount...';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_9d9ce5ee47d93c3e7cbfa24f65021688'] = 'Supprimer ce module?';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_3ded6c07524e0ef7f619ce547daca4b5'] = 'Votre enregistrement est effectif, vous serez contacté sous peu.';
@@ -26,7 +26,6 @@ $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_4cc397b091e82bf228f
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_62771ddcef5175c021832870566ccc8b'] = 'Plus de 1400 marchands se connectent chaque jour à Shopping Flux pour augmenter leurs ventes.';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_3225a10b07f1580f10dee4abc3779e6c'] = 'Paramètres';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_a0cb60f37bd4242a92a71af430ce15df'] = 'Shopping Flux';
-$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_26b3bece683b8f5f7734d7c7f15acc4c'] = 'l\'origine de vos commandes seront trackées';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_11035a6e3e5aceb6563c44c6e464e577'] = 'Tracking commandes';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_f8af698bee6f17ce11b3740a0188321a'] = 'vous pourrez lister les commandes venant des comparateurs de prix';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_e0dae2ddee8f5358afba1fafa6a08146'] = 'Remontée commandes';
