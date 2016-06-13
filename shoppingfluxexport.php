@@ -231,8 +231,6 @@ class ShoppingFluxExport extends Module
     /* Default view when site isn't in Shopping Flux DB */
     private function _defaultView($price = 0)
     {
-        global $cookie;
-
         //uri feed
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
             $shop = Context::getContext()->shop;
@@ -246,7 +244,7 @@ class ShoppingFluxExport extends Module
         //uri images
         $uri_img = 'http://'.Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/views/img/';
         //owner object
-        $owner = new Employee($cookie->id_employee);
+        $owner = new Employee($this->context->cookie->id_employee);
         //post process
         $send_mail = Tools::getValue('send_mail');
         if (isset($send_mail) && $send_mail != null) {
@@ -1499,13 +1497,12 @@ class ShoppingFluxExport extends Module
 
     public function hookTop()
     {
-        global $cookie;
         $ip = $this->getIp();
-        if ((int)Db::getInstance()->getValue('SELECT `id_customer_ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$cookie->id_customer) > 0) {
+        if ((int)Db::getInstance()->getValue('SELECT `id_customer_ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$this->context->cookie->id_customer) > 0) {
             $updateIp = array('ip' => pSQL($ip));
-            Db::getInstance()->autoExecute(_DB_PREFIX_.'customer_ip', $updateIp, 'UPDATE', '`id_customer` = '.(int)$cookie->id_customer);
+            Db::getInstance()->autoExecute(_DB_PREFIX_.'customer_ip', $updateIp, 'UPDATE', '`id_customer` = '.(int)$this->context->cookie->id_customer);
         } else {
-            $insertIp = array('id_customer' => (int)$cookie->id_customer, 'ip' => pSQL($ip));
+            $insertIp = array('id_customer' => (int)$this->context->cookie->id_customer, 'ip' => pSQL($ip));
             Db::getInstance()->autoExecute(_DB_PREFIX_.'customer_ip', $insertIp, 'INSERT');
         }
     }
