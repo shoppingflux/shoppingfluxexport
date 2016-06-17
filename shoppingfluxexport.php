@@ -1265,7 +1265,7 @@ class ShoppingFluxExport extends Module
 
                             Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => pSQL($email)), 'UPDATE', '`id_customer` = '.(int)$id_customer);
 
-                            Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => $id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
+                            Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
                             $this->_updatePrices($id_order, $order, $reference_order);
                         }
                     }
@@ -1313,7 +1313,7 @@ class ShoppingFluxExport extends Module
                 $res = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow('
                 SELECT active, available_for_order
                 FROM '._DB_PREFIX_.'product_shop
-                WHERE id_product ='.$ids[0].' AND id_shop = '.$id_shop);
+                WHERE id_product ='.(int)$ids[0].' AND id_shop = '.(int)$id_shop);
 
                 if ($res['active'] != 1 || $res['available_for_order'] != 1) {
                     return 'Product is not active or not available for order';
@@ -1324,8 +1324,8 @@ class ShoppingFluxExport extends Module
                 $exist = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow('
                 SELECT id_product_attribute
                 FROM '._DB_PREFIX_.'product_attribute
-                WHERE id_product = '.$ids[0].'
-                AND id_product_attribute ='.$ids[1]);
+                WHERE id_product = '.(int)$ids[0].'
+                AND id_product_attribute ='.(int)$ids[1]);
 
                 if ($exist === false) {
                     return 'Product ID don\'t exist';
@@ -1334,7 +1334,7 @@ class ShoppingFluxExport extends Module
                 $res = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow('
                 SELECT active, available_for_order
                 FROM '._DB_PREFIX_.'product_shop
-                WHERE id_product ='.$ids[0].' AND id_shop = '.$id_shop);
+                WHERE id_product ='.(int)$ids[0].' AND id_shop = '.(int)$id_shop);
 
                 if ($res['active'] != 1 || $res['available_for_order'] != 1) {
                     return 'Product is not active or not available for order';
@@ -1454,7 +1454,7 @@ class ShoppingFluxExport extends Module
             if (!$responseXML->Response->Error) {
                 Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
             } else {
-                Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => $order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
+                Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
             }
         }
     }
@@ -1707,7 +1707,7 @@ class ShoppingFluxExport extends Module
             $row = Db::getInstance()->getRow('SELECT t.rate, od.id_order_detail  FROM '._DB_PREFIX_.'tax t
                 LEFT JOIN '._DB_PREFIX_.'order_detail_tax odt ON t.id_tax = odt.id_tax
                 LEFT JOIN '._DB_PREFIX_.'order_detail od ON odt.id_order_detail = od.id_order_detail
-                WHERE od.id_order = '.(int)$id_order.' AND product_id = '.Configuration::get('SHOPPING_FLUX_FDG').' AND product_attribute_id = 0');
+                WHERE od.id_order = '.(int)$id_order.' AND product_id = '.(int)Configuration::get('SHOPPING_FLUX_FDG').' AND product_attribute_id = 0');
 
             $tax_rate = $row['rate'];
             $id_order_detail = $row['id_order_detail'];
@@ -1722,7 +1722,7 @@ class ShoppingFluxExport extends Module
                 'unit_price_tax_excl' => (float)($order->TotalFees),
             );
 
-            Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail', $updateOrderDetail, 'UPDATE', '`id_order` = '.(int)$id_order.' AND `product_id` = '.Configuration::get('SHOPPING_FLUX_FDG').' AND `product_attribute_id` = 0');
+            Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail', $updateOrderDetail, 'UPDATE', '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)Configuration::get('SHOPPING_FLUX_FDG').' AND `product_attribute_id` = 0');
 
             $updateOrderDetailTax = array(
                 'unit_amount' => 0,
