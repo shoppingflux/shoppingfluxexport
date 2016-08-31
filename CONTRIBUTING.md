@@ -1,5 +1,7 @@
 # Shopping Feed Prestashop Module
 
+This project follow the semantic versionning V2: http://semver.org
+
 ## Contributing
 
 This module is an **open-source extension** to the PrestaShop e-commerce solution. Everyone is welcome and even encouraged to contribute with their own improvements.

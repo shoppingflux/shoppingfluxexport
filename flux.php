@@ -43,7 +43,20 @@ if (Tools::getValue('fdg') != '') {
     } else {
         echo 'Erreur';
     }
+    exit;
+}
 
+if (Tools::getValue('ref') != '') {
+    $f = new shoppingfluxexport();
+    $res = $f->setREF();
+
+    if ($res == 'ok') {
+        echo 'Ref enable';
+    } elseif ($res == 'ko') {
+        echo 'Ref disable';
+    } elseif ($res == 'e') {
+        echo 'Error';
+    }
     exit;
 }
 
