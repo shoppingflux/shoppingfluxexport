@@ -1126,6 +1126,10 @@ class ShoppingFluxExport extends Module
             $ret .= '<'.$this->_translateField('mpn').'><![CDATA['.$combination['reference'].']]></'.$this->_translateField('mpn').'>';
             $ret .= '<'.$this->_translateField('combination_link').'><![CDATA['.$link->getProductLink($product).$product->getAnchor($id, true).']]></'.$this->_translateField('combination_link').'>';
 
+            if (method_exists('Product', 'combinationFeaturesAsXml')) {
+                $ret .= Product::combinationFeaturesAsXml($product->id, $id);
+            }
+
             $ret .= '</attributs>';
             $ret .= '</declinaison>';
 
