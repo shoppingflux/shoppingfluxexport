@@ -24,9 +24,6 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
-include(dirname(__FILE__).'/../../../config/config.inc.php');
-include(dirname(__FILE__).'/../../../init.php');
-
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -40,4 +37,6 @@ function upgrade_module_4_0_6()
     } else {
         Configuration::updateValue('SHOPPING_FLUX_FDG', '');
     }
+    
+    return true;
 }
