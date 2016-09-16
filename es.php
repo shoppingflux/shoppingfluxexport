@@ -61,3 +61,4 @@ $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_c9d7eedc8be4380c021
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_944eb62ed1a48750a399825e633f420e'] = 'Matching transportistas';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_189ef27ecdec3868dbf25f2a8b1650f8'] = 'Asocie los transportistas de las marketplaces a sus transportistas Prestashop.';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d9b6d613daaa5fee5c15b0af367af6b0'] = 'Su catálogo';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_025fe640fe054b1f626a9c1b058fefee'] = 'Seleccione los campos adicionales de los productos a exportar';
