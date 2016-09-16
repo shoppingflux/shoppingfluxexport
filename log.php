@@ -39,12 +39,12 @@ if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration:
     die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
 }
 
-// MODIFS PROFILEO Ticket 38
 // Check if file exists
-$outputFileCronexport = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport.txt';
+$outputFileCronexport = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport_';
+$outputFileCronexport .= Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
 
 if (!file_exists($outputFileCronexport)) {
-    p('cronexport.txt file does not exists');
+    p('cronexport file does not exists');
 } else {
     echo '========================= PRODUCT CRON GENERATION DETAILS =========================';
     $text = Tools::file_get_contents($outputFileCronexport);
@@ -52,10 +52,11 @@ if (!file_exists($outputFileCronexport)) {
     p('');
 }
 
-$outputFilecallWebService = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/callWebService.txt';
+$outputFilecallWebService = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/callWebService_';
+$outputFilecallWebService .= Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
 
 if (!file_exists($outputFilecallWebService)) {
-    p('callWebService.txt file does not exists');
+    p('callWebService file does not exists');
 } else {
     echo '========================= CALL TO WEBSERVICE DETAILS =========================';
     $text = Tools::file_get_contents($outputFilecallWebService);

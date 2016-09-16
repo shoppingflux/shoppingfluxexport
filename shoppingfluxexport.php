@@ -34,14 +34,14 @@ class ShoppingFluxExport extends Module
 {
     private $default_country = null;
     private $_html = '';
-    
+
     private $debug = true;
 
     public function __construct()
     {
         $this->name = 'shoppingfluxexport';
         $this->tab = 'smart_shopping';
-        $this->version = '4.2.0';
+        $this->version = '4.2.1';
         $this->author = 'PrestaShop';
         $this->limited_countries = array('fr', 'us');
         $this->module_key = '08b3cf6b1a86256e876b485ff9bd4135';
@@ -225,7 +225,19 @@ class ShoppingFluxExport extends Module
         } else {
             Configuration::updateValue('SHOPPINGFLUXEXPORT_CONFIGURED', true); // SHOPPINGFLUXEXPORT_CONFIGURATION_OK
         }
-
+        
+        foreach (Shop::getShops() as $shop) {
+            $lockFile = dirname(__FILE__).'/cron_'.$shop['id_shop'].'.lock';
+            if (file_exists($lockFile)) {
+                // Remove lock
+                $fp = fopen($lockFile, 'r+');
+                fflush($fp);
+                flock($fp, LOCK_UN);
+                fclose($fp);
+            }
+        }
+        
+        
         return $this->_html;
     }
 
@@ -503,10 +515,16 @@ class ShoppingFluxExport extends Module
         } elseif (isset($rec_config_adv) && $rec_config_adv != null) {
             $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_PASSES'));
             
-
-            if (!empty(Tools::getValue('SHOPPING_FLUX_PASSES')) ||
+            if (empty(Tools::getValue('SHOPPING_FLUX_PASSES')) ||
+                Tools::getValue('SHOPPING_FLUX_PASSES') == 0) {
+                    Configuration::updateValue('SHOPPING_FLUX_PASSES', '200');
+            } elseif (!empty(Tools::getValue('SHOPPING_FLUX_PASSES')) ||
                 is_int(Tools::getValue('SHOPPING_FLUX_PASSES'))) {
-                    Configuration::updateValue('SHOPPING_FLUX_PASSES', Tools::getValue('SHOPPING_FLUX_PASSES'));
+                $passValue = (int)Tools::getValue('SHOPPING_FLUX_PASSES');
+                if ($passValue == 0) {
+                    $passValue = 200;
+                }
+                Configuration::updateValue('SHOPPING_FLUX_PASSES', $passValue);
             }
         }
     }
@@ -617,7 +635,7 @@ class ShoppingFluxExport extends Module
         
         // Check if file exists
         if (!file_exists($filename)) {
-            p('XML file does not exists');
+            die("<?xml version='1.0' encoding='utf-8'?><error>XML file does not exists</error>");
         } else {
             // If file exists, we just read the previously generated XML file
             $handle = fopen($filename, "r");
@@ -631,31 +649,44 @@ class ShoppingFluxExport extends Module
 
     public function initFeed()
     {
-        // Do not allow feed generation if less than 6 hours before last generation
-        $frequency_in_hours = 6;
-        $last_executed = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME');
-        $today = date('y-m-d H:i:s');
-        if (empty($last_executed) || ($last_executed == '0')) {
-            $last_executed = 0;
+        $id_shop = $this->context->shop->id;
+        $lockFile = dirname(__FILE__).'/cron_'.$id_shop.'.lock';
+        if (!file_exists($lockFile)) {
+            $fp = fopen($lockFile, 'w+');
+        } else {
+            $fp = fopen($lockFile, 'r+');
         }
         
-        // Convert to unix timestamp
-        $timestamp_last_exec = strtotime($last_executed);
-        $timestamp_today = strtotime($today);
-        $hours = ($timestamp_today - $timestamp_last_exec)/(60*60);
         
-        if ($hours >= $frequency_in_hours) {
-            $this->emptyLog();
-            
-            $file = fopen(dirname(__FILE__).'/feed_'.$this->context->shop->id.'_tmp.xml', 'w+');
-            fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">');
-            fclose($file);
-    
-            $totalProducts = $this->countProducts();
-            
-            $this->logDebug('Starting generation of '.$totalProducts.' products');
-            $this->writeFeed($totalProducts);
+        
+        // Avoid simultaneous calls
+        if (flock($fp, LOCK_EX)) {
+            ftruncate($fp, 0);
+            fwrite($fp, "lock");
+        } else {
+            $this->logDebug('Simultaneous CRON, lock activated, we stop execution');
+            die();
         }
+        
+        // Write time when init for first time
+        $today =  date('Y-m-d H:i:s');
+        Configuration::updateValue('PS_SHOPPINGFLUX_CRON_TIME', $today, false, null, $id_shop);
+        
+        $this->emptyLog();
+        
+        $file = fopen(dirname(__FILE__).'/feed_'.$this->context->shop->id.'_tmp.xml', 'w+');
+        fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">');
+        fclose($file);
+
+        $totalProducts = $this->countProducts();
+        
+        $this->logDebug('Starting generation of '.$totalProducts.' products');
+        $this->writeFeed($totalProducts);
+        
+        // Release lock
+        fflush($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
     }
 
     public function writeFeed($total, $current = 0)
@@ -705,16 +736,19 @@ class ShoppingFluxExport extends Module
         $carrier = is_object($carrier) ? $carrier : new Carrier((int)Configuration::get('SHOPPING_FLUX_CARRIER'));
         $products = $this->getSimpleProducts($configuration['PS_LANG_DEFAULT'], $current, $configuration['PASSES']);
         $link = new Link();
-        
+
         $i = 0;
         $this->logDebug('Last url - '.Configuration::get('PS_SHOPPINGFLUX_LAST_URL'));
-        $this->logDebug('-- URL call for products from '.($current+1).'/'.$total.' 
-            to '.($current+1+$configuration['PASSES']).'/'.$total.', current URL is: '.$_SERVER['REQUEST_URI']);
-
+        $logMessage = '-- URL call for products from '.($current+1).'/'.$total.' to ';
+        $logMessage .= ($current+1+$configuration['PASSES']).'/'.$total.', current URL is: '.$_SERVER['REQUEST_URI'];
+        $this->logDebug($logMessage);
+        
         foreach ($products as $productArray) {
             $i++;
-            $this->logDebug('----- Product generation '.$i.' / '.$configuration['PASSES'].' 
-                (for this URL call) (id_product = '.$product->id.')');
+            $logMessage = '----- Product generation '.$i.' / '.$configuration['PASSES'];
+            $logMessage .= '(for this URL call) (id_product = '.$productArray['id_product'].')';
+            $this->logDebug($logMessage);
+            
             $str = '';
             $product = new Product((int)($productArray['id_product']), true, $configuration['PS_LANG_DEFAULT']);
 
@@ -819,16 +853,12 @@ class ShoppingFluxExport extends Module
             curl_setopt($curl, CURLOPT_TIMEOUT, 1);
             $curl_response = curl_exec($curl);
             curl_close($curl);
-            
-
-            // Store timestamps when cron has successfully been generated
-            $today =  date('Y-m-d h:i:s');
-            Configuration::updateValue('PS_SHOPPINGFLUX_CRON_TIME', $today);
-            
+                        
             // Empty last known url
             Configuration::updateValue('PS_SHOPPINGFLUX_LAST_URL', '0');
         } else {
-            $next_uri = 'http://'.Tools::getHttpHost().__PS_BASE_URI__;
+            $protocol_link = (Configuration::get('PS_SSL_ENABLED')) ? 'https://' : 'http://';
+            $next_uri = $protocol_link.Tools::getHttpHost().__PS_BASE_URI__;
             $next_uri .= 'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
             $next_uri .= '&current='.($current + $configuration['PASSES']).'&total='.$total;
             $next_uri .= '&passes='.$configuration['PASSES'].(!empty($no_breadcrumb) ? '&no_breadcrumb=true' : '');
@@ -1067,7 +1097,7 @@ class ShoppingFluxExport extends Module
         $ret = '<caracteristiques>';
         foreach ($product->getFrontFeatures($configuration['PS_LANG_DEFAULT']) as $feature) {
             $feature['name'] = $this->_clean($feature['name']);
-
+            
             if (!empty($feature['name'])) {
                 $ret .= '<'.$feature['name'].'><![CDATA['.$feature['value'].']]></'.$feature['name'].'>';
             }
@@ -1151,8 +1181,9 @@ class ShoppingFluxExport extends Module
             // Add time limit to php execution in case of multiple combination
             set_time_limit(60);
             $j++;
-            $this->logDebug('---------- Attribute
-                generation '.$j.' / '.count($combinations).' (id_product = '.$product->id.')');
+            $logMessage = '---------- Attribute generation '.$j.' / '.count($combinations);
+            $logMessage .= ' (id_product = '.$product->id.')';
+            $this->logDebug($logMessage);
             
             if ($fileToWrite) {
                 $ret = '';
@@ -1195,6 +1226,7 @@ class ShoppingFluxExport extends Module
             asort($combination['attributes']);
             foreach ($combination['attributes'] as $attributeName => $attributeValue) {
                 $attributeName = $this->_clean($attributeName);
+                
                 if (!empty($attributeName)) {
                     $ret .= '<'.$attributeName.'><![CDATA['.$attributeValue.']]></'.$attributeName.'>';
                 }
@@ -1577,7 +1609,11 @@ class ShoppingFluxExport extends Module
     /* Clean XML strings */
     private function _clean($string)
     {
-        return str_replace("\r\n", '', strip_tags($string));
+        $string = str_replace("\r\n", '', strip_tags($string));
+        $string = str_replace(" ", '_', strip_tags($string));
+        $string = str_replace(array('(', ')', '°', '&', '+', '/', "'", ':', ';', ','), '', strip_tags($string));
+        
+        return $string;
     }
 
     /* Call Shopping Flux Webservices */
@@ -2190,12 +2226,13 @@ class ShoppingFluxExport extends Module
      */
     private function getCronDetails($configuration)
     {
+        $id_shop = $this->context->shop->id;
         $html = '';
         $html .= '<p style="clear: both"><label>';
         $html .= '<p style="clear: both"><label>'.$this->l('Cron last generated date');
         $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">';
-        if (Configuration::get('PS_SHOPPINGFLUX_CRON_TIME') != '') {
-            $cronTime = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME');
+        if (Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop) != '') {
+            $cronTime = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop);
             $html .= Tools::displayDate($cronTime, $configuration['PS_LANG_DEFAULT'], true, '/');
         } else {
             $html .= 'Jamais';
@@ -2216,7 +2253,7 @@ class ShoppingFluxExport extends Module
     public function logDebug($toLog)
     {
         if ($this->debug) {
-            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport.txt';
+            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport_'.Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
             $fp = fopen($outputFile, 'a');
             fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
             fclose($fp);
@@ -2229,7 +2266,7 @@ class ShoppingFluxExport extends Module
     private function emptyLog()
     {
         if ($this->debug) {
-            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport.txt';
+            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport_'.Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
             unlink($outputFile);
         }
     }
@@ -2242,7 +2279,7 @@ class ShoppingFluxExport extends Module
     public function logCallWebservice($toLog)
     {
         if ($this->debug) {
-            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/callWebService.txt';
+            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/callWebService_'.Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
             $fp = fopen($outputFile, 'a');
             fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
             fclose($fp);
@@ -2256,19 +2293,38 @@ class ShoppingFluxExport extends Module
      */
     public function hookDisplayFooter($params)
     {
-        $cron_url = 'http://'.Tools::getHttpHost().__PS_BASE_URI__;
-        $cron_url .= 'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
-        return '
-            <script type="text/javascript">
-                $.ajax({
-                    url : "'.$cron_url.'",
-                    success : function(result) {
-                    },
-                    error : function(result) {
-                    },
-                });
-            </script>
-        ';
+        // Do not allow feed generation if less than 6 hours before last generation
+        $frequency_in_hours = 6;
+        $id_shop = $this->context->shop->id;
+        $last_executed = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop);
+        $today = date('Y-m-d H:i:s');
+        if (empty($last_executed) || ($last_executed == '0')) {
+            $last_executed = 0;
+        }
+        // Convert to unix timestamp
+        $timestamp_last_exec = strtotime($last_executed);
+        $timestamp_today = strtotime($today);
+        $hours = ($timestamp_today - $timestamp_last_exec) / (60 * 60);
+    
+        if ($hours >= $frequency_in_hours) {
+            $this->logDebug('CRON CALL - lauching ajax');
+            $protocol_link = (Configuration::get('PS_SSL_ENABLED')) ? 'https://' : 'http://';
+            $cron_url = $protocol_link.Tools::getHttpHost().__PS_BASE_URI__;
+            $cron_url .= 'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
+            return '
+                <script type="text/javascript">
+                    $.ajax({
+                        url : "'.$cron_url.'",
+                        success : function(result) {
+                        },
+                        error : function(result) {
+                        },
+                    });
+                </script>
+            ';
+        } else {
+            return '';
+        }
     }
     
     /**
