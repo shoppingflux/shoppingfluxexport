@@ -34,14 +34,14 @@ class ShoppingFluxExport extends Module
 {
     private $default_country = null;
     private $_html = '';
-
+    
     private $debug = true;
 
     public function __construct()
     {
         $this->name = 'shoppingfluxexport';
         $this->tab = 'smart_shopping';
-        $this->version = '4.2.1';
+        $this->version = '4.2';
         $this->author = 'PrestaShop';
         $this->limited_countries = array('fr', 'us');
         $this->module_key = '08b3cf6b1a86256e876b485ff9bd4135';
@@ -68,8 +68,7 @@ class ShoppingFluxExport extends Module
                 !$this->registerHook('postUpdateOrderStatus') ||
                 !$this->registerHook('backOfficeTop') ||
                 !$this->registerHook('actionProductAdd') ||
-                !$this->registerHook('top') ||
-                !$this->registerHook('displayFooter')) {
+                !$this->registerHook('top')) {
             return false;
         }
 
@@ -515,6 +514,7 @@ class ShoppingFluxExport extends Module
         } elseif (isset($rec_config_adv) && $rec_config_adv != null) {
             $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_PASSES'));
             
+
             if (empty(Tools::getValue('SHOPPING_FLUX_PASSES')) ||
                 Tools::getValue('SHOPPING_FLUX_PASSES') == 0) {
                     Configuration::updateValue('SHOPPING_FLUX_PASSES', '200');
@@ -628,25 +628,58 @@ class ShoppingFluxExport extends Module
         if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
-
-        // Filename as the shop id so we can generate a feed by shop
-        $shop_id = $this->context->shop->id;
-        $filename = dirname(__FILE__).'/feed_'.$shop_id.'.xml';
-        
-        // Check if file exists
-        if (!file_exists($filename)) {
-            die("<?xml version='1.0' encoding='utf-8'?><error>XML file does not exists</error>");
-        } else {
-            // If file exists, we just read the previously generated XML file
-            $handle = fopen($filename, "r");
-            while (!feof($handle)) {
-                echo fread($handle, 8192);
+    
+        $configuration = Configuration::getMultiple(array('PS_TAX_ADDRESS_TYPE', 'PS_CARRIER_DEFAULT', 'PS_COUNTRY_DEFAULT',
+            'PS_LANG_DEFAULT', 'PS_SHIPPING_FREE_PRICE', 'PS_SHIPPING_HANDLING', 'PS_SHIPPING_METHOD', 'PS_SHIPPING_FREE_WEIGHT', 'SHOPPING_FLUX_IMAGE'));
+    
+        $no_breadcrumb = Tools::getValue('no_breadcrumb');
+    
+        $lang = Tools::getValue('lang');
+        $configuration['PS_LANG_DEFAULT'] = !empty($lang) ? Language::getIdByIso($lang) : $configuration['PS_LANG_DEFAULT'];
+        $carrier = Carrier::getCarrierByReference((int)Configuration::get('SHOPPING_FLUX_CARRIER'));
+    
+        //manage case PS_CARRIER_DEFAULT is deleted
+        $carrier = is_object($carrier) ? $carrier : new Carrier((int)Configuration::get('SHOPPING_FLUX_CARRIER'));
+        $products = $this->getSimpleProducts($configuration['PS_LANG_DEFAULT'], false, 0);
+        $link = new Link();
+    
+        echo '<?xml version="1.0" encoding="utf-8"?>';
+        echo '<products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">';
+    
+        foreach ($products as $productArray) {
+            $product = new Product((int)($productArray['id_product']), true, $configuration['PS_LANG_DEFAULT']);
+    
+            echo '<'.$this->_translateField('product').'>';
+            echo $this->_getBaseData($product, $configuration, $link, $carrier);
+            echo $this->_getImages($product, $configuration, $link);
+            echo $this->_getUrlCategories($product, $configuration, $link);
+            echo $this->_getFeatures($product, $configuration);
+            echo $this->_getCombinaisons($product, $configuration, $link, $carrier);
+    
+            if (empty($no_breadcrumb)) {
+                echo $this->_getFilAriane($product, $configuration);
             }
-            fclose($handle);
-            die();
+    
+            echo '<manufacturer><![CDATA['.$product->manufacturer_name.']]></manufacturer>';
+            echo '<supplier><![CDATA['.$product->supplier_name.']]></supplier>';
+    
+            if (is_array($product->specificPrice)) {
+                echo '<from><![CDATA['.$product->specificPrice['from'].']]></from>';
+                echo '<to><![CDATA['.$product->specificPrice['to'].']]></to>';
+            } else {
+                echo '<from/>';
+                echo '<to/>';
+            }
+    
+            echo '<'.$this->_translateField('supplier_link').'><![CDATA['.$link->getSupplierLink($product->id_supplier, null, $configuration['PS_LANG_DEFAULT']).']]></'.$this->_translateField('supplier_link').'>';
+            echo '<'.$this->_translateField('manufacturer_link').'><![CDATA['.$link->getManufacturerLink($product->id_manufacturer, null, $configuration['PS_LANG_DEFAULT']).']]></'.$this->_translateField('manufacturer_link').'>';
+            echo '<'.$this->_translateField('on_sale').'>'.(int)$product->on_sale.'</'.$this->_translateField('on_sale').'>';
+            echo '</'.$this->_translateField('product').'>';
         }
+    
+        echo '</products>';
     }
-
+    
     public function initFeed()
     {
         $id_shop = $this->context->shop->id;
@@ -674,7 +707,7 @@ class ShoppingFluxExport extends Module
         
         $this->emptyLog();
         
-        $file = fopen(dirname(__FILE__).'/feed_'.$this->context->shop->id.'_tmp.xml', 'w+');
+        $file = fopen(dirname(__FILE__).'/feed_tmp.xml', 'w+');
         fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">');
         fclose($file);
 
@@ -696,11 +729,11 @@ class ShoppingFluxExport extends Module
         }
         
         $shop_id = $this->context->shop->id;
-        if (!is_file(dirname(__FILE__).'/feed_'.$shop_id.'_tmp.xml')) {
+        if (!is_file(dirname(__FILE__).'/feed_tmp.xml')) {
             die("<?xml version='1.0' encoding='utf-8'?><error>File error</error>");
         }
 
-        $file = fopen(dirname(__FILE__).'/feed_'.$shop_id.'_tmp.xml', 'a+');
+        $file = fopen(dirname(__FILE__).'/feed_tmp.xml', 'a+');
 
         $configuration = Configuration::getMultiple(
             array(
@@ -834,8 +867,8 @@ class ShoppingFluxExport extends Module
             
             // Remove previous feed an place the newly generated one
             $shop_id = $this->context->shop->id;
-            unlink(dirname(__FILE__).'/feed_'.$shop_id.'.xml');
-            rename(dirname(__FILE__).'/feed_'.$shop_id.'_tmp.xml', dirname(__FILE__).'/feed_'.$shop_id.'.xml');
+            unlink(dirname(__FILE__).'/feed.xml');
+            rename(dirname(__FILE__).'/feed_tmp.xml', dirname(__FILE__).'/feed.xml');
             
             // Notify end of cron execution
             $this->logDebug('EXPORT SUCCESSFULL');
@@ -890,7 +923,7 @@ class ShoppingFluxExport extends Module
 
     private function closeFeed()
     {
-        $file = fopen(dirname(__FILE__).'/feed_'.$this->context->shop->id.'_tmp.xml', 'a+');
+        $file = fopen(dirname(__FILE__).'/feed_tmp.xml', 'a+');
         fwrite($file, '</products>');
     }
 
@@ -2283,47 +2316,6 @@ class ShoppingFluxExport extends Module
             $fp = fopen($outputFile, 'a');
             fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
             fclose($fp);
-        }
-    }
-    
-    /**
-     * implements hookDisplayFooter
-     * @param  array $params
-     * @return string
-     */
-    public function hookDisplayFooter($params)
-    {
-        // Do not allow feed generation if less than 6 hours before last generation
-        $frequency_in_hours = 6;
-        $id_shop = $this->context->shop->id;
-        $last_executed = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop);
-        $today = date('Y-m-d H:i:s');
-        if (empty($last_executed) || ($last_executed == '0')) {
-            $last_executed = 0;
-        }
-        // Convert to unix timestamp
-        $timestamp_last_exec = strtotime($last_executed);
-        $timestamp_today = strtotime($today);
-        $hours = ($timestamp_today - $timestamp_last_exec) / (60 * 60);
-    
-        if ($hours >= $frequency_in_hours) {
-            $this->logDebug('CRON CALL - lauching ajax');
-            $protocol_link = (Configuration::get('PS_SSL_ENABLED')) ? 'https://' : 'http://';
-            $cron_url = $protocol_link.Tools::getHttpHost().__PS_BASE_URI__;
-            $cron_url .= 'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
-            return '
-                <script type="text/javascript">
-                    $.ajax({
-                        url : "'.$cron_url.'",
-                        success : function(result) {
-                        },
-                        error : function(result) {
-                        },
-                    });
-                </script>
-            ';
-        } else {
-            return '';
         }
     }
     
