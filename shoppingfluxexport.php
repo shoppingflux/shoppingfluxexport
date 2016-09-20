@@ -41,7 +41,7 @@ class ShoppingFluxExport extends Module
     {
         $this->name = 'shoppingfluxexport';
         $this->tab = 'smart_shopping';
-        $this->version = '4.2';
+        $this->version = '4.2.0';
         $this->author = 'PrestaShop';
         $this->limited_countries = array('fr', 'us');
         $this->module_key = '08b3cf6b1a86256e876b485ff9bd4135';
@@ -872,21 +872,7 @@ class ShoppingFluxExport extends Module
             
             // Notify end of cron execution
             $this->logDebug('EXPORT SUCCESSFULL');
-            $curl_post_data = array();
-            $uri = 'http://www.shopping-flux.com/';
-            $curl = curl_init();
-            curl_setopt($curl, CURLOPT_URL, $uri);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
-            curl_setopt($curl, CURLOPT_HEADER, false);
-            curl_setopt($curl, CURLOPT_POST, true);
-            curl_setopt($curl, CURLOPT_POSTFIELDS, $curl_post_data);
-            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 10);
-            curl_setopt($curl, CURLOPT_TIMEOUT, 1);
-            $curl_response = curl_exec($curl);
-            curl_close($curl);
-                        
+
             // Empty last known url
             Configuration::updateValue('PS_SHOPPINGFLUX_LAST_URL', '0');
         } else {
@@ -899,24 +885,8 @@ class ShoppingFluxExport extends Module
         
             // Disconnect DB to avoid reaching max connections
             DB::getInstance()->disconnect();
-            if (ini_get('allow_url_fopen')) {
-                $curl = curl_init();
-                curl_setopt($curl, CURLOPT_URL, $next_uri);
-                curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
-                curl_setopt($curl, CURLOPT_HEADER, false);
-                curl_setopt($curl, CURLOPT_POST, true);
-                curl_setopt($curl, CURLOPT_POSTFIELDS, $curl_post_data);
-                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 10);
-                curl_setopt($curl, CURLOPT_TIMEOUT, 1);
-                $curl_response = curl_exec($curl);
-                curl_close($curl);
-                die();
-            } else {
-                Tools::redirect($next_uri);
-                die();
-            }
+
+            Tools::redirect($next_uri);
         }
         
     }
