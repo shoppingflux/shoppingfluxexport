@@ -670,6 +670,45 @@ class ShoppingFluxExport extends Module
                 echo '<from/>';
                 echo '<to/>';
             }
+
+            // The flux must give the specific price in the future when adding the parameter &discount=1
+            if (Tools::getValue('discount') == 1) {
+                $specificPrices = SpecificPrice::getIdsByProductId($product->id);
+                $specificPricesInFuture = array();
+                foreach ($specificPrices as $idSpecificPrice) {
+                    $specificPrice = new SpecificPrice($idSpecificPrice['id_specific_price']);
+
+                    if (new DateTime($specificPrice->from) > new DateTime()) {
+                        $specificPricesInFuture[] = $specificPrice;
+                    }
+                }
+
+                echo '<discounts>';
+                $priceComputed = $product->getPrice(true, null, 2, null, false, true, 1);
+                foreach ($specificPricesInFuture as $currentSpecificPrice) {
+                    echo '<discount>';
+                    // Reduction calculation
+                    $reduc = 0;
+                    if ($currentSpecificPrice->price == -1) {
+                        if ($currentSpecificPrice->reduction_type == 'amount') {
+                            $reduction_amount = $currentSpecificPrice->reduction;
+                            $reduc = $reduction_amount;
+                        } else {
+                            $reduc = $priceComputed * $currentSpecificPrice->reduction;
+                        }
+                        $priceComputed -= $reduc;
+                        $priceComputed = round($priceComputed, 2);
+                    } else {
+                        $priceComputed = $currentSpecificPrice->price;
+                    }
+
+                    echo '<from><![CDATA['.$currentSpecificPrice->from.']]></from>';
+                    echo '<to><![CDATA['.$currentSpecificPrice->to.']]></to>';
+                    echo '<price><![CDATA['.$priceComputed.']]></price>';
+                    echo '</discount>';
+                }
+                echo '</discounts>';
+            }
     
             echo '<'.$this->_translateField('supplier_link').'><![CDATA['.$link->getSupplierLink($product->id_supplier, null, $configuration['PS_LANG_DEFAULT']).']]></'.$this->_translateField('supplier_link').'>';
             echo '<'.$this->_translateField('manufacturer_link').'><![CDATA['.$link->getManufacturerLink($product->id_manufacturer, null, $configuration['PS_LANG_DEFAULT']).']]></'.$this->_translateField('manufacturer_link').'>';
