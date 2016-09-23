@@ -11,13 +11,9 @@ $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_47c1cd97f5787ec6067
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_94966d90747b97d1f0f206c98a8b1ac3'] = 'Envoyer';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d7b5618c59901c1b47e17de4c6108f30'] = 'Testez maintenant !';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_1f34e16c2fe25926a537759b8d368d15'] = 'Avec Shopping Flux, vous allez pouvoir exporter vers les Comparateurs de Prix et les places de marché ';
-$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_70ab9b852a66571c7973c8d4d04b12a7'] = '';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_604b38638222ddefbea065a5bc9522d9'] = 'Exportez vers les Comparateurs de Prix etsurtout le plus important, Google Shopping';
-$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_08ff2db75ba3d654c2b2b0ebb595cf4d'] = '';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_e4fceb9e5be7c4e90a2e8a2759978e2d'] = 'Exportez aussi sur les Places de Marché Amazon, eBay, LaRedoute, Cdiscout, GoSport, Darty, PriceMinister, Spartoo, Galeries Lafayette, Delamainson, Menlook, Boulanger.fr, et des dizaines d\'autres.';
-$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_f6d580bc010ff22392172e4c445c7a70'] = '';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_f84d96b227f67d3f91af1d9ea2d4729a'] = 'Augmentez vos prix ou modifiez vos données grâce à notre outil chercher / remplacer';
-$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_41012ea5f39df602168036dc57b12690'] = '';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_6b0c5b875ed0acd77f14816ade904984'] = 'Shopping Flux fera remonter vos commandes au sein de votre PrestaShop et tiendra automatiquement à jour tous vos stocks et prix.';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_5423b341ed120f5fd2d165f7d1449620'] = 'Intégré en natif dans PrestaShop, Shopping Flux vous propose de tester pendant un mois, gratuitement et sans engagement son logiciel.';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_ae272547a2a7b7f72c4f37b1a5e86213'] = 'Chaque nouveau marchand PrestaShop bénéficie en plus d\'une formation à l\'outil et à la stratégie marketing par notre équipe Success Team.';
@@ -45,3 +41,12 @@ $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_c9d7eedc8be4380c021
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_944eb62ed1a48750a399825e633f420e'] = 'Matching transporteurs';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_189ef27ecdec3868dbf25f2a8b1650f8'] = 'Associez les transporteurs des places de marché à vos transporteurs Prestashop';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d9b6d613daaa5fee5c15b0af367af6b0'] = 'Votre flux';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_025fe640fe054b1f626a9c1b058fefee'] = 'Sélectionnez les champs supplémentaires à exporter';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_cf52d2a32c35b9c5a51f60a44c519993'] = 'FDG';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_2bc7d3b3f0665c5c6aacf514a7954b19'] = 'Date de dernière génération intégrale du CRON';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_7d615a3e78cf1d8cd4bf8ea83bf2a3ae'] = 'Nombre de produits à traiter à chaque appel d\'URL du CRON (ne pas modifier)';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_ee68e5b99222bbc29a480fcb0d1d6ee2'] = 'Prérequis';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_184478ebb0ec8a25273ca5f484107d8c'] = 'Technologie CURL';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_777cb12b43cac89ac1bce1bbfbe3da7c'] = 'Ouverture d\'URLs';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_cb15e45b760616ab807f1bbfd9a63a1e'] = 'Activé (correct)';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_b181e62093fe36fac8dbebff2845a439'] = 'Non installée (incorrect)';
