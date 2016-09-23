@@ -1307,7 +1307,7 @@ class ShoppingFluxExport extends Module
         $id_parent = '';
     
         if ($id_category) {
-            $ret[$val['id_category']] = $name;
+            $ret[$id_category] = $name;
             $id_parent = $id_parent;
             $id_category = $id_category;
         } else {
