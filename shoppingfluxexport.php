@@ -200,6 +200,8 @@ class ShoppingFluxExport extends Module
 
     public function getContent()
     {
+        $this->setREF();
+        
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
         $price = is_object($status_xml) ? (float)$status_xml->Response->Price : 0;
@@ -946,10 +948,6 @@ class ShoppingFluxExport extends Module
     
     public function setREF()
     {
-        if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) {
-            die("Invalid Token");
-        }
-
         $ref = Tools::getValue('ref');
 
         if ($ref == 'true') {
