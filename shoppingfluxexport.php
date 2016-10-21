@@ -1225,9 +1225,15 @@ class ShoppingFluxExport extends Module
             if ($fileToWrite) {
                 $ret = '';
             }
+            
+            if ($configuration['SHOPPING_FLUX_REF'] != 'true') {
+                $ref = $id;
+            } else {
+                $ref = $combination['reference'];
+            }
 
             $ret .= '<declinaison>';
-            $ret .= '<id><![CDATA['.$id.']]></id>';
+            $ret .= '<id><![CDATA['.$ref.']]></id>';
             $ret .= '<ean><![CDATA['.$combination['ean13'].']]></ean>';
             $ret .= '<upc><![CDATA['.$combination['upc'].']]></upc>';
             $ret .= '<'.$this->_translateField('quantity').'><![CDATA['.$combination['quantity'].']]></'.$this->_translateField('quantity').'>';
