@@ -207,6 +207,7 @@ class ShoppingFluxExport extends Module
     public function getContent()
     {
         $this->setREF();
+        $this->setFDG();
         
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
@@ -522,12 +523,12 @@ class ShoppingFluxExport extends Module
         } elseif (isset($rec_config_adv) && $rec_config_adv != null) {
             $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_PASSES'));
             
-
-            if (empty(Tools::getValue('SHOPPING_FLUX_PASSES')) ||
-                Tools::getValue('SHOPPING_FLUX_PASSES') == 0) {
+            $passes = Tools::getValue('SHOPPING_FLUX_PASSES');
+            if (empty($passes) ||
+                $passes == 0) {
                     Configuration::updateValue('SHOPPING_FLUX_PASSES', '200');
-            } elseif (!empty(Tools::getValue('SHOPPING_FLUX_PASSES')) ||
-                is_int(Tools::getValue('SHOPPING_FLUX_PASSES'))) {
+            } elseif (!empty($passes) ||
+                is_int($passes)) {
                 $passValue = (int)Tools::getValue('SHOPPING_FLUX_PASSES');
                 if ($passValue == 0) {
                     $passValue = 200;
@@ -633,7 +634,9 @@ class ShoppingFluxExport extends Module
 
     public function generateFeed()
     {
-        if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) {
+        $token = Tools::getValue('token');
+        $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+        if ($token == '' || $token != $tokenInConfig) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
     
@@ -732,7 +735,9 @@ class ShoppingFluxExport extends Module
 
     public function writeFeed($total, $current = 0)
     {
-        if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) {
+        $token = Tools::getValue('token');
+        $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+        if ($token == '' || $token != $tokenInConfig) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
         
@@ -821,7 +826,8 @@ class ShoppingFluxExport extends Module
             }
 
             // The flux must give the specific price in the future when adding the parameter &discount=1
-            if (Tools::getValue('discount') == 1) {
+            $discounts = Tools::getValue('discount');
+            if ($discounts == 1) {
                 $str .= '<discounts>';
                 $priceComputed = $product->getPrice(true, null, 2, null, false, true, 1);
 
@@ -937,10 +943,6 @@ class ShoppingFluxExport extends Module
 
     public function setFDG()
     {
-        if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) {
-            die("Invalid Token");
-        }
-
         $id = Tools::getValue('fdg');
 
         if ($id == 'del') {
@@ -1373,10 +1375,12 @@ class ShoppingFluxExport extends Module
 
     public function hookbackOfficeTop($no_cron = true)
     {
-        if ((Tools::strtolower(Tools::getValue('controller')) == 'adminorders' &&
-                Configuration::get('SHOPPING_FLUX_ORDERS') != '' &&
-                in_array('curl', get_loaded_extensions())) ||
-                $no_cron == false) {
+        $controller = Tools::strtolower(Tools::getValue('controller'));
+        $ordersConfig = Configuration::get('SHOPPING_FLUX_ORDERS');
+        if (($controller == 'adminorders' &&
+            $ordersConfig != '' &&
+            in_array('curl', get_loaded_extensions())) ||
+            $no_cron == false) {
             $ordersXML = $this->_callWebService('GetOrders');
 
             if (count($ordersXML->Response->Orders) == 0) {
