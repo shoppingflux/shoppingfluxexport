@@ -2229,9 +2229,22 @@ class ShoppingFluxExport extends Module
      */
     private function getFDGContent($configuration)
     {
-        if (empty(Configuration::get('SHOPPING_FLUX_FDG'))) {
-            $languages = Language::getLanguages(false);
-            
+        $html = '';
+        $html .= '<p style="clear: both"><label>'.$this->l('FDG');
+        $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">'.$this->getOrCreateFdgProduct().'</span></p>';
+        $html .= '<p style="clear: both"></p>';
+        return $html;
+    }
+    
+    /**
+     * Returns the FDG product, if not existing we create it
+     */
+    private function getOrCreateFdgProduct()
+    {
+        $fdg = Configuration::get('SHOPPING_FLUX_FDG');
+        $languages = Language::getLanguages(false);
+    
+        if (empty($fdg)) {
             // Create new FDG Product, not visible in front office
             $product = new Product();
             foreach ($languages as $language) {
@@ -2242,19 +2255,55 @@ class ShoppingFluxExport extends Module
             $product->active = 1;
             $product->visibility = 'none';
             $product->price = 0;
+            $product->out_of_stock = 1;
             $product->add();
-            
+    
             // Retrieve FDG product id after save
             Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
+    
+            $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
+            $stock_available = new StockAvailable($id_stock_available);
+            $stock_available->out_of_stock = 1;
+            $stock_available->update();
+        } else {
+            $product = new Product($fdg);
+    
+            if (Validate::isLoadedObject($product)) {
+                // Poruct exists, we check if it can be ordered when out of stock
+                if ($product->out_of_stock == 0 || $product->out_of_stock == 2) {
+                    $product->out_of_stock = 1;
+                    $product->update();
+    
+                    $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
+                    $stock_available = new StockAvailable($id_stock_available);
+                    $stock_available->out_of_stock = 1;
+                    $stock_available->update();
+                }
+            } else {
+                // Create new FDG Product, not visible in front office since it does not exist
+                $product = new Product();
+                foreach ($languages as $language) {
+                    $product->name[$language['id_lang']] = 'CDiscount fees';
+                    $product->link_rewrite[$language['id_lang']] = 'fdg';
+                }
+                $product->id_category_default = Configuration::get('PS_HOME_CATEGORY');
+                $product->active = 1;
+                $product->visibility = 'none';
+                $product->price = 0;
+                $product->out_of_stock = 1;
+                $product->add();
+    
+                $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
+                $stock_available = new StockAvailable($id_stock_available);
+                $stock_available->out_of_stock = 1;
+                $stock_available->update();
+    
+                // Retrieve FDG product id after save
+                Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
+            }
         }
-        
-        $fdg = Configuration::get('SHOPPING_FLUX_FDG');
-        
-        $html = '';
-        $html .= '<p style="clear: both"><label>'.$this->l('FDG');
-        $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">'.$fdg.'</span></p>';
-        $html .= '<p style="clear: both"></p>';
-        return $html;
+    
+        return Configuration::get('SHOPPING_FLUX_FDG');
     }
     
     /**
