@@ -54,6 +54,12 @@ class ShoppingFluxExport extends Module
 
         $id_default_country = Configuration::get('PS_COUNTRY_DEFAULT');
         $this->default_country = new Country($id_default_country);
+        
+        // Set default passes if not existing
+        $productsToBeTreated = Configuration::get('SHOPPING_FLUX_PASSES');
+        if (empty($productsToBeTreated) || !isset($productsToBeTreated)) {
+            Configuration::updateValue('SHOPPING_FLUX_PASSES', '200');
+        }
     }
 
     public function install()
