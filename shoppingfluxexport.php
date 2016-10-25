@@ -639,9 +639,10 @@ class ShoppingFluxExport extends Module
         if ($token == '' || $token != $tokenInConfig) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
-    
+        
         $configuration = Configuration::getMultiple(array('PS_TAX_ADDRESS_TYPE', 'PS_CARRIER_DEFAULT', 'PS_COUNTRY_DEFAULT',
-            'PS_LANG_DEFAULT', 'PS_SHIPPING_FREE_PRICE', 'PS_SHIPPING_HANDLING', 'PS_SHIPPING_METHOD', 'PS_SHIPPING_FREE_WEIGHT', 'SHOPPING_FLUX_IMAGE'));
+            'PS_LANG_DEFAULT', 'PS_SHIPPING_FREE_PRICE', 'PS_SHIPPING_HANDLING', 'PS_SHIPPING_METHOD', 'PS_SHIPPING_FREE_WEIGHT',
+            'SHOPPING_FLUX_IMAGE', 'SHOPPING_FLUX_REF'));
     
         $no_breadcrumb = Tools::getValue('no_breadcrumb');
     
