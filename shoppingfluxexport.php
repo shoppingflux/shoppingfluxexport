@@ -1847,7 +1847,12 @@ class ShoppingFluxExport extends Module
                 LEFT JOIN '._DB_PREFIX_.'order_detail od ON odt.id_order_detail = od.id_order_detail
                 WHERE od.id_order = '.(int)$id_order.' AND product_id = '.(int)$skus[0].' AND product_attribute_id = '.(int)$skus[1]);
 
-            $tax_rate = $row['rate'];
+            // Tax 0 for FDG product
+            if (Configuration::get('SHOPPING_FLUX_FDG') == (int)$skus[0]) {
+                $tax_rate = 0;
+            } else {
+                $tax_rate = $row['rate'];
+            }
             $id_order_detail = $row['id_order_detail'];
 
             $updateOrderDetail = array(
