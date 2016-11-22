@@ -41,31 +41,9 @@ if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration:
 
 $current = Tools::getValue('current');
 
-// Do not allow feed generation if less than 6 hours before last generation
-$frequency_in_hours = 6;
-$last_executed = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop);
-$today = date('Y-m-d H:i:s');
-if (empty($last_executed) || ($last_executed == '0')) {
-    $last_executed = 0;
-}
-// Convert to unix timestamp
-$timestamp_last_exec = strtotime($last_executed);
-$timestamp_today = strtotime($today);
-$hours = ($timestamp_today - $timestamp_last_exec) / (60 * 60);
-
 if (empty($current)) {
-    if ($hours >= $frequency_in_hours) {
-        $f->logDebug('CRON CALL - begining of treament');
-        $f->initFeed();
-    } else {
-        $logMessage = 'CRON CALL - Not initiated SHOULD NOT HAVE BEEN CALLED BY AJAX. ';
-        $logMessage .= 'Cron call has already been called at ' . $last_executed;
-        $f->logDebug($logMessage);
-        
-        $logMessage = 'NEXT CRON CALL - Can be initiated at ';
-        $logMessage .= date('Y-m-d H:i:s', strtotime($last_executed . ' + ' . $frequency_in_hours . ' hour'));
-        $f->logDebug($logMessage);
-    }
+    $f->logDebug('CRON CALL - begining of treament');
+    $f->initFeed();
 } else {
     $f->writeFeed(Tools::getValue('total'), Tools::getValue('current'), Tools::getValue('lang'));
 }

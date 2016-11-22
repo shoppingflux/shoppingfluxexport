@@ -41,7 +41,7 @@ class ShoppingFluxExport extends Module
     {
         $this->name = 'shoppingfluxexport';
         $this->tab = 'smart_shopping';
-        $this->version = '4.2';
+        $this->version = '4.2.0';
         $this->author = 'PrestaShop';
         $this->limited_countries = array('fr', 'us');
         $this->module_key = '08b3cf6b1a86256e876b485ff9bd4135';
@@ -682,6 +682,45 @@ class ShoppingFluxExport extends Module
                 echo '<from/>';
                 echo '<to/>';
             }
+
+            // The flux must give the specific price in the future when adding the parameter &discount=1
+            if (Tools::getValue('discount') == 1) {
+                $specificPrices = SpecificPrice::getIdsByProductId($product->id);
+                $specificPricesInFuture = array();
+                foreach ($specificPrices as $idSpecificPrice) {
+                    $specificPrice = new SpecificPrice($idSpecificPrice['id_specific_price']);
+
+                    if (new DateTime($specificPrice->from) > new DateTime()) {
+                        $specificPricesInFuture[] = $specificPrice;
+                    }
+                }
+
+                echo '<discounts>';
+                $priceComputed = $product->getPrice(true, null, 2, null, false, true, 1);
+                foreach ($specificPricesInFuture as $currentSpecificPrice) {
+                    echo '<discount>';
+                    // Reduction calculation
+                    $reduc = 0;
+                    if ($currentSpecificPrice->price == -1) {
+                        if ($currentSpecificPrice->reduction_type == 'amount') {
+                            $reduction_amount = $currentSpecificPrice->reduction;
+                            $reduc = $reduction_amount;
+                        } else {
+                            $reduc = $priceComputed * $currentSpecificPrice->reduction;
+                        }
+                        $priceComputed -= $reduc;
+                        $priceComputed = round($priceComputed, 2);
+                    } else {
+                        $priceComputed = $currentSpecificPrice->price;
+                    }
+
+                    echo '<from><![CDATA['.$currentSpecificPrice->from.']]></from>';
+                    echo '<to><![CDATA['.$currentSpecificPrice->to.']]></to>';
+                    echo '<price><![CDATA['.$priceComputed.']]></price>';
+                    echo '</discount>';
+                }
+                echo '</discounts>';
+            }
     
             echo '<'.$this->_translateField('supplier_link').'><![CDATA['.$link->getSupplierLink($product->id_supplier, null, $configuration['PS_LANG_DEFAULT']).']]></'.$this->_translateField('supplier_link').'>';
             echo '<'.$this->_translateField('manufacturer_link').'><![CDATA['.$link->getManufacturerLink($product->id_manufacturer, null, $configuration['PS_LANG_DEFAULT']).']]></'.$this->_translateField('manufacturer_link').'>';
@@ -887,21 +926,7 @@ class ShoppingFluxExport extends Module
             
             // Notify end of cron execution
             $this->logDebug('EXPORT SUCCESSFULL');
-            $curl_post_data = array();
-            $uri = 'http://www.shopping-flux.com/';
-            $curl = curl_init();
-            curl_setopt($curl, CURLOPT_URL, $uri);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
-            curl_setopt($curl, CURLOPT_HEADER, false);
-            curl_setopt($curl, CURLOPT_POST, true);
-            curl_setopt($curl, CURLOPT_POSTFIELDS, $curl_post_data);
-            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 10);
-            curl_setopt($curl, CURLOPT_TIMEOUT, 1);
-            $curl_response = curl_exec($curl);
-            curl_close($curl);
-                        
+
             // Empty last known url
             Configuration::updateValue('PS_SHOPPINGFLUX_LAST_URL', '0');
         } else {
@@ -914,24 +939,8 @@ class ShoppingFluxExport extends Module
         
             // Disconnect DB to avoid reaching max connections
             DB::getInstance()->disconnect();
-            if (ini_get('allow_url_fopen')) {
-                $curl = curl_init();
-                curl_setopt($curl, CURLOPT_URL, $next_uri);
-                curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-                curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
-                curl_setopt($curl, CURLOPT_HEADER, false);
-                curl_setopt($curl, CURLOPT_POST, true);
-                curl_setopt($curl, CURLOPT_POSTFIELDS, $curl_post_data);
-                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 10);
-                curl_setopt($curl, CURLOPT_TIMEOUT, 1);
-                $curl_response = curl_exec($curl);
-                curl_close($curl);
-                die();
-            } else {
-                Tools::redirect($next_uri);
-                die();
-            }
+
+            Tools::redirect($next_uri);
         }
         
     }
