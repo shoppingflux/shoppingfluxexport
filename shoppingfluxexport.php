@@ -54,6 +54,12 @@ class ShoppingFluxExport extends Module
 
         $id_default_country = Configuration::get('PS_COUNTRY_DEFAULT');
         $this->default_country = new Country($id_default_country);
+        
+        // Set default passes if not existing
+        $productsToBeTreated = Configuration::get('SHOPPING_FLUX_PASSES');
+        if (empty($productsToBeTreated) || !isset($productsToBeTreated)) {
+            Configuration::updateValue('SHOPPING_FLUX_PASSES', '200');
+        }
     }
 
     public function install()
@@ -200,6 +206,9 @@ class ShoppingFluxExport extends Module
 
     public function getContent()
     {
+        $this->setREF();
+        $this->setFDG();
+        
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
         $price = is_object($status_xml) ? (float)$status_xml->Response->Price : 0;
@@ -514,12 +523,12 @@ class ShoppingFluxExport extends Module
         } elseif (isset($rec_config_adv) && $rec_config_adv != null) {
             $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_PASSES'));
             
-
-            if (empty(Tools::getValue('SHOPPING_FLUX_PASSES')) ||
-                Tools::getValue('SHOPPING_FLUX_PASSES') == 0) {
+            $passes = Tools::getValue('SHOPPING_FLUX_PASSES');
+            if (empty($passes) ||
+                $passes == 0) {
                     Configuration::updateValue('SHOPPING_FLUX_PASSES', '200');
-            } elseif (!empty(Tools::getValue('SHOPPING_FLUX_PASSES')) ||
-                is_int(Tools::getValue('SHOPPING_FLUX_PASSES'))) {
+            } elseif (!empty($passes) ||
+                is_int($passes)) {
                 $passValue = (int)Tools::getValue('SHOPPING_FLUX_PASSES');
                 if ($passValue == 0) {
                     $passValue = 200;
@@ -625,12 +634,15 @@ class ShoppingFluxExport extends Module
 
     public function generateFeed()
     {
-        if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) {
+        $token = Tools::getValue('token');
+        $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+        if ($token == '' || $token != $tokenInConfig) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
-    
+        
         $configuration = Configuration::getMultiple(array('PS_TAX_ADDRESS_TYPE', 'PS_CARRIER_DEFAULT', 'PS_COUNTRY_DEFAULT',
-            'PS_LANG_DEFAULT', 'PS_SHIPPING_FREE_PRICE', 'PS_SHIPPING_HANDLING', 'PS_SHIPPING_METHOD', 'PS_SHIPPING_FREE_WEIGHT', 'SHOPPING_FLUX_IMAGE'));
+            'PS_LANG_DEFAULT', 'PS_SHIPPING_FREE_PRICE', 'PS_SHIPPING_HANDLING', 'PS_SHIPPING_METHOD', 'PS_SHIPPING_FREE_WEIGHT',
+            'SHOPPING_FLUX_IMAGE', 'SHOPPING_FLUX_REF'));
     
         $no_breadcrumb = Tools::getValue('no_breadcrumb');
     
@@ -763,7 +775,9 @@ class ShoppingFluxExport extends Module
 
     public function writeFeed($total, $current = 0)
     {
-        if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) {
+        $token = Tools::getValue('token');
+        $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+        if ($token == '' || $token != $tokenInConfig) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
         
@@ -852,7 +866,8 @@ class ShoppingFluxExport extends Module
             }
 
             // The flux must give the specific price in the future when adding the parameter &discount=1
-            if (Tools::getValue('discount') == 1) {
+            $discounts = Tools::getValue('discount');
+            if ($discounts == 1) {
                 $str .= '<discounts>';
                 $priceComputed = $product->getPrice(true, null, 2, null, false, true, 1);
 
@@ -938,10 +953,6 @@ class ShoppingFluxExport extends Module
 
     public function setFDG()
     {
-        if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) {
-            die("Invalid Token");
-        }
-
         $id = Tools::getValue('fdg');
 
         if ($id == 'del') {
@@ -955,10 +966,6 @@ class ShoppingFluxExport extends Module
     
     public function setREF()
     {
-        if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) {
-            die("Invalid Token");
-        }
-
         $ref = Tools::getValue('ref');
 
         if ($ref == 'true') {
@@ -1230,14 +1237,19 @@ class ShoppingFluxExport extends Module
             if ($fileToWrite) {
                 $ret = '';
             }
+            
+            if ($configuration['SHOPPING_FLUX_REF'] != 'true') {
+                $ref = $id;
+            } else {
+                $ref = $combination['reference'];
+            }
 
             $ret .= '<declinaison>';
-            $ret .= '<id><![CDATA['.$id.']]></id>';
+            $ret .= '<id><![CDATA['.$ref.']]></id>';
             $ret .= '<ean><![CDATA['.$combination['ean13'].']]></ean>';
             $ret .= '<upc><![CDATA['.$combination['upc'].']]></upc>';
             $ret .= '<'.$this->_translateField('quantity').'><![CDATA['.$combination['quantity'].']]></'.$this->_translateField('quantity').'>';
-            $ret .= '<'.$this->_translateField('weight').'><![CDATA['.$combination['weight'].']]></'.$this->_translateField('weight').'>';
-            $ret .= '<'.$this->_translateField('total_weight').'><![CDATA['.$combination['poids'].']]></'.$this->_translateField('total_weight').'>';
+            $ret .= '<'.$this->_translateField('weight').'><![CDATA['.$combination['poids'].']]></'.$this->_translateField('weight').'>';
             $ret .= '<'.$this->_translateField('price').'><![CDATA['.$product->getPrice(true, $id, 2, null, false, true, 1).']]></'.$this->_translateField('price').'>';
             $ret .= '<'.$this->_translateField('old_price').'><![CDATA['.$product->getPrice(true, $id, 2, null, false, false, 1).']]></'.$this->_translateField('old_price').'>';
             $ret .= '<'.$this->_translateField('shipping_cost').'><![CDATA['.$this->_getShipping($product, $configuration, $carrier, $id, $combination['weight']).']]></'.$this->_translateField('shipping_cost').'>';
@@ -1316,7 +1328,7 @@ class ShoppingFluxExport extends Module
         $id_parent = '';
     
         if ($id_category) {
-            $ret[$val['id_category']] = $name;
+            $ret[$id_category] = $name;
             $id_parent = $id_parent;
             $id_category = $id_category;
         } else {
@@ -1373,10 +1385,12 @@ class ShoppingFluxExport extends Module
 
     public function hookbackOfficeTop($no_cron = true)
     {
-        if ((Tools::strtolower(Tools::getValue('controller')) == 'adminorders' &&
-                Configuration::get('SHOPPING_FLUX_ORDERS') != '' &&
-                in_array('curl', get_loaded_extensions())) ||
-                $no_cron == false) {
+        $controller = Tools::strtolower(Tools::getValue('controller'));
+        $ordersConfig = Configuration::get('SHOPPING_FLUX_ORDERS');
+        if (($controller == 'adminorders' &&
+            $ordersConfig != '' &&
+            in_array('curl', get_loaded_extensions())) ||
+            $no_cron == false) {
             $ordersXML = $this->_callWebService('GetOrders');
 
             if (count($ordersXML->Response->Orders) == 0) {
@@ -1655,6 +1669,11 @@ class ShoppingFluxExport extends Module
         $string = str_replace(" ", '_', strip_tags($string));
         $string = str_replace(array('(', ')', '°', '&', '+', '/', "'", ':', ';', ','), '', strip_tags($string));
         
+        //Check if first char is a number
+        if (preg_match('#[0-9]#', substr($string,0, 1))) {
+            $string = str_replace(substr($string,0, 1), '_', strip_tags($string));
+        }
+        
         return $string;
     }
 
@@ -1837,7 +1856,12 @@ class ShoppingFluxExport extends Module
                 LEFT JOIN '._DB_PREFIX_.'order_detail od ON odt.id_order_detail = od.id_order_detail
                 WHERE od.id_order = '.(int)$id_order.' AND product_id = '.(int)$skus[0].' AND product_attribute_id = '.(int)$skus[1]);
 
-            $tax_rate = $row['rate'];
+            // Tax 0 for FDG product
+            if (Configuration::get('SHOPPING_FLUX_FDG') == (int)$skus[0]) {
+                $tax_rate = 0;
+            } else {
+                $tax_rate = $row['rate'];
+            }
             $id_order_detail = $row['id_order_detail'];
 
             $updateOrderDetail = array(
@@ -2234,9 +2258,22 @@ class ShoppingFluxExport extends Module
      */
     private function getFDGContent($configuration)
     {
-        if (empty(Configuration::get('SHOPPING_FLUX_FDG'))) {
-            $languages = Language::getLanguages(false);
-            
+        $html = '';
+        $html .= '<p style="clear: both"><label>'.$this->l('FDG');
+        $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">'.$this->getOrCreateFdgProduct().'</span></p>';
+        $html .= '<p style="clear: both"></p>';
+        return $html;
+    }
+    
+    /**
+     * Returns the FDG product, if not existing we create it
+     */
+    private function getOrCreateFdgProduct()
+    {
+        $fdg = Configuration::get('SHOPPING_FLUX_FDG');
+        $languages = Language::getLanguages(false);
+    
+        if (empty($fdg)) {
             // Create new FDG Product, not visible in front office
             $product = new Product();
             foreach ($languages as $language) {
@@ -2247,19 +2284,55 @@ class ShoppingFluxExport extends Module
             $product->active = 1;
             $product->visibility = 'none';
             $product->price = 0;
+            $product->out_of_stock = 1;
             $product->add();
-            
+    
             // Retrieve FDG product id after save
             Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
+    
+            $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
+            $stock_available = new StockAvailable($id_stock_available);
+            $stock_available->out_of_stock = 1;
+            $stock_available->update();
+        } else {
+            $product = new Product($fdg);
+    
+            if (Validate::isLoadedObject($product)) {
+                // Poruct exists, we check if it can be ordered when out of stock
+                if ($product->out_of_stock == 0 || $product->out_of_stock == 2) {
+                    $product->out_of_stock = 1;
+                    $product->update();
+    
+                    $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
+                    $stock_available = new StockAvailable($id_stock_available);
+                    $stock_available->out_of_stock = 1;
+                    $stock_available->update();
+                }
+            } else {
+                // Create new FDG Product, not visible in front office since it does not exist
+                $product = new Product();
+                foreach ($languages as $language) {
+                    $product->name[$language['id_lang']] = 'CDiscount fees';
+                    $product->link_rewrite[$language['id_lang']] = 'fdg';
+                }
+                $product->id_category_default = Configuration::get('PS_HOME_CATEGORY');
+                $product->active = 1;
+                $product->visibility = 'none';
+                $product->price = 0;
+                $product->out_of_stock = 1;
+                $product->add();
+    
+                $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
+                $stock_available = new StockAvailable($id_stock_available);
+                $stock_available->out_of_stock = 1;
+                $stock_available->update();
+    
+                // Retrieve FDG product id after save
+                Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
+            }
         }
-        
-        $fdg = Configuration::get('SHOPPING_FLUX_FDG');
-        
-        $html = '';
-        $html .= '<p style="clear: both"><label>'.$this->l('FDG');
-        $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">'.$fdg.'</span></p>';
-        $html .= '<p style="clear: both"></p>';
-        return $html;
+    
+        return Configuration::get('SHOPPING_FLUX_FDG');
     }
     
     /**
