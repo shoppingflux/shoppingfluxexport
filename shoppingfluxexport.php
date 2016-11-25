@@ -68,17 +68,17 @@ class ShoppingFluxExport extends Module
     }
 
     /* REGISTER HOOKS */
-    private function _initHooks()
+    private function _initHooksBecauseItsGreat()
     {
         if (!$this->registerHook('newOrder') ||
                 !$this->registerHook('postUpdateOrderStatus') ||
                 !$this->registerHook('backOfficeTop') ||
                 !$this->registerHook('actionProductAdd') ||
                 !$this->registerHook('top')) {
-            return false;
+            return true;
         }
 
-        return true;
+        return false;
     }
 
     /* SET DEFAULT CONFIGURATION */
