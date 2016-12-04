@@ -34,8 +34,9 @@ class ShoppingFluxExport extends Module
 {
     private $default_country = null;
     private $_html = '';
-    
+
     private $debug = true;
+    private $debugOrders = false;
 
     public function __construct()
     {
@@ -54,6 +55,8 @@ class ShoppingFluxExport extends Module
 
         $id_default_country = Configuration::get('PS_COUNTRY_DEFAULT');
         $this->default_country = new Country($id_default_country);
+
+        $this->debugOrders = Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG');
         
         // Set default passes if not existing
         $productsToBeTreated = Configuration::get('SHOPPING_FLUX_PASSES');
@@ -208,6 +211,7 @@ class ShoppingFluxExport extends Module
     {
         $this->setREF();
         $this->setFDG();
+        $this->setOrdersDebug();
         
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
@@ -978,6 +982,17 @@ class ShoppingFluxExport extends Module
             return 'ko';
         }
     }
+    
+    /**
+     * Sets the debug mode On or Off for orders creations
+     */
+    public function setOrdersDebug()
+    {
+        $ordersDebug = Tools::getValue('orders_debug');
+        if ($ordersDebug) {
+            Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', 'true');
+        }
+    }
 
     /* Default data, in Product Class */
     private function _getBaseData($product, $configuration, $link, $carrier)
@@ -1398,6 +1413,7 @@ class ShoppingFluxExport extends Module
             }
 
             foreach ($ordersXML->Response->Orders->Order as $order) {
+                $this->logDebugOrders('----------------- Order creation received');
                 try {
                     if ((Tools::strtolower($order->Marketplace) == 'rdc' || Tools::strtolower($order->Marketplace) == 'rueducommerce') && strpos($order->ShippingMethod, 'Mondial Relay') !== false) {
                         $num = explode(' ', $order->ShippingMethod);
@@ -1409,12 +1425,14 @@ class ShoppingFluxExport extends Module
                         WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
 
                     if (isset($orderExists['id_message'])) {
+                        $this->logDebugOrders('Order allready exists : '.$order->IdOrder);
                         $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace);
                         continue;
                     }
 
                     $check = $this->checkData($order);
                     if ($check !== true) {
+                        $this->logDebugOrders('Check data incorrect - '.$check);
                         $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $check);
                         continue;
                     }
@@ -1423,10 +1441,15 @@ class ShoppingFluxExport extends Module
                     $email = (empty($mail)) ? pSQL($order->IdOrder.'@'.$order->Marketplace.'.sf') : pSQL($mail);
 
                     $id_customer = $this->_getCustomer($email, (string)$order->BillingAddress->LastName, (string)$order->BillingAddress->FirstName);
+                    $this->logDebugOrders('Id customer created or found : '.$id_customer);
+                    
                     //avoid update of old orders by the same merchant with different addresses
                     $id_address_billing = $this->_getAddress($order->BillingAddress, $id_customer, 'Billing-'.(string)$order->IdOrder);
+                    $this->logDebugOrders('Id adress delivery created or found : '.$id_address_billing);
                     $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other);
+                    $this->logDebugOrders('Id adress shipping or found : '.$id_address_shipping);
                     $products_available = $this->_checkProducts($order->Products);
+                    $this->logDebugOrders('Check products availabilityresult : '.$products_available);
 
                     $current_customer = new Customer((int)$id_customer);
 
@@ -1434,6 +1457,8 @@ class ShoppingFluxExport extends Module
                         $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees);
 
                         if ($cart) {
+                            $this->logDebugOrders('Cart '.$cart->id.' successfully built');
+                            
                             //compatibylity with socolissmo
                             $this->context->cart = $cart;
 
@@ -1449,7 +1474,9 @@ class ShoppingFluxExport extends Module
                             $id_order = $payment->currentOrder;
 
                             //we valid there
-                            $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order);
+                            $this->logDebugOrders('Calling validateOrder');
+                            $orderCreation = $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order);
+                            $this->logDebugOrders('ValidateOrder result : '.$orderCreation);
 
                             $reference_order = $payment->currentOrderReference;
 
@@ -1478,15 +1505,21 @@ class ShoppingFluxExport extends Module
                         $customerClear->clearCache(true);
                     }
                 } catch (PrestaShopException $pe) {
+                    $this->logDebugOrders('Error on order creation : '.$pe->getMessage());
                     $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $pe->getMessage());
                 }
             }
         }
     }
 
-    //Check Data to avoid errors
+    /**
+     * Check Data to avoid errors
+     * @return string|boolean : true if everything ok, error message if not
+     */
     private function checkData($order)
     {
+        $this->logDebugOrders('Checking order data');
+        
         $id_shop = $this->context->shop->id;
         foreach ($order->Products->Product as $product) {
             if (Configuration::get('SHOPPING_FLUX_REF') == 'true') {
@@ -1497,7 +1530,7 @@ class ShoppingFluxExport extends Module
             if (!$ids[1]) {
                 $p = new Product($ids[0]);
                 if (empty($p->id)) {
-                    return 'Product ID don\'t exist';
+                    return 'Product ID don\'t exist, product_id = '.$ids[0];
                 }
 
                 $res = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow('
@@ -1506,7 +1539,7 @@ class ShoppingFluxExport extends Module
                 WHERE id_product ='.(int)$ids[0].' AND id_shop = '.(int)$id_shop);
 
                 if ($res['active'] != 1 || $res['available_for_order'] != 1) {
-                    return 'Product is not active or not available for order';
+                    return 'Product is not active or not available for order, product_id = '.$p->id;
                 }
 
                 $minimalQuantity = $p->minimal_quantity;
@@ -1518,7 +1551,7 @@ class ShoppingFluxExport extends Module
                 AND id_product_attribute ='.(int)$ids[1]);
 
                 if ($exist === false) {
-                    return 'Product ID don\'t exist';
+                    return 'Product ID don\'t exist, product_id = '.$ids[0];
                 }
 
                 $res = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow('
@@ -1527,7 +1560,7 @@ class ShoppingFluxExport extends Module
                 WHERE id_product ='.(int)$ids[0].' AND id_shop = '.(int)$id_shop);
 
                 if ($res['active'] != 1 || $res['available_for_order'] != 1) {
-                    return 'Product is not active or not available for order';
+                    return 'Product is not active or not available for order, product_id = '.$ids[0];
                 }
 
                 $minimalQuantity = (int)Attribute::getAttributeMinimalQty((int)$ids[1]);
@@ -1535,7 +1568,7 @@ class ShoppingFluxExport extends Module
 
 
             if ($minimalQuantity > $product->Quantity) {
-                return 'Minimal quantity for product '.$product->SKU.' is '.$minimalQuantity.'.';
+                return 'Minimal quantity for product '.$product->SKU.' is '.$minimalQuantity.', product_id = '.$product->id;
             }
         }
 
@@ -2032,28 +2065,40 @@ class ShoppingFluxExport extends Module
         $cart->id_carrier = $carrier->id;
         $cart->add();
 
+        $useReference = Configuration::get('SHOPPING_FLUX_REF') == 'true';
+        if ($useReference) {
+            $this->debugOrders('Loading products by reference');
+        } else {
+            $this->debugOrders('Loading products by ID');
+        }
+        
         foreach ($productsNode->Product as $product) {
-            if (Configuration::get('SHOPPING_FLUX_REF') == 'true') {
+            if ($useReference) {
                 $skus = $this->getIDs($product->SKU);
             } else {
                 $skus = explode('_', $product->SKU);
             }
 
+            $this->debugOrders('Loading product SKU '.(int)($skus[0]).' and adding it to cart');
             $p = new Product((int)($skus[0]), false, Configuration::get('PS_LANG_DEFAULT'), Context::getContext()->shop->id);
 
             if (!Validate::isLoadedObject($p)) {
+                $this->debugOrders('    Not a valid SKU');
                 return false;
             }
 
             $added = $cart->updateQty((int)($product->Quantity), (int)($skus[0]), ((isset($skus[1])) ? $skus[1] : null));
 
             if ($added < 0 || $added === false) {
+                $this->debugOrders('    Could not add to cart');
                 return false;
             }
+            $this->debugOrders('    Product successfully added to cart');
         }
 
         if (isset($fees) && $fees > 0 && Configuration::get('SHOPPING_FLUX_FDG') != '') {
             if (!$cart->updateQty(1, Configuration::get('SHOPPING_FLUX_FDG'), null)) {
+                $this->debugOrders('Could not add FDG product to cart');
                 return false;
             }
         }
@@ -2369,6 +2414,21 @@ class ShoppingFluxExport extends Module
     {
         if ($this->debug) {
             $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport_'.Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
+            $fp = fopen($outputFile, 'a');
+            fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
+            fclose($fp);
+        }
+    }
+    
+    /**
+     * log a debug trace about orders into a log file
+     *
+     * @param string $toLog the string to log
+     */
+    public function logDebugOrders($toLog)
+    {
+        if ($this->debugOrders) {
+            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/orders_debug_'.Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
             $fp = fopen($outputFile, 'a');
             fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
             fclose($fp);
