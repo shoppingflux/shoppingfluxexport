@@ -2067,9 +2067,9 @@ class ShoppingFluxExport extends Module
 
         $useReference = Configuration::get('SHOPPING_FLUX_REF') == 'true';
         if ($useReference) {
-            $this->debugOrders('Loading products by reference');
+            $this->logDebugOrders('Loading products by reference');
         } else {
-            $this->debugOrders('Loading products by ID');
+            $this->logDebugOrders('Loading products by ID');
         }
         
         foreach ($productsNode->Product as $product) {
@@ -2079,26 +2079,26 @@ class ShoppingFluxExport extends Module
                 $skus = explode('_', $product->SKU);
             }
 
-            $this->debugOrders('Loading product SKU '.(int)($skus[0]).' and adding it to cart');
+            $this->logDebugOrders('Loading product SKU '.(int)($skus[0]).' and adding it to cart');
             $p = new Product((int)($skus[0]), false, Configuration::get('PS_LANG_DEFAULT'), Context::getContext()->shop->id);
 
             if (!Validate::isLoadedObject($p)) {
-                $this->debugOrders('    Not a valid SKU');
+                $this->logDebugOrders('    Not a valid SKU');
                 return false;
             }
 
             $added = $cart->updateQty((int)($product->Quantity), (int)($skus[0]), ((isset($skus[1])) ? $skus[1] : null));
 
             if ($added < 0 || $added === false) {
-                $this->debugOrders('    Could not add to cart');
+                $this->logDebugOrders('    Could not add to cart');
                 return false;
             }
-            $this->debugOrders('    Product successfully added to cart');
+            $this->logDebugOrders('    Product successfully added to cart');
         }
 
         if (isset($fees) && $fees > 0 && Configuration::get('SHOPPING_FLUX_FDG') != '') {
             if (!$cart->updateQty(1, Configuration::get('SHOPPING_FLUX_FDG'), null)) {
-                $this->debugOrders('Could not add FDG product to cart');
+                $this->logDebugOrders('Could not add FDG product to cart');
                 return false;
             }
         }
