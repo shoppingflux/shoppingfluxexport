@@ -101,7 +101,7 @@ class ShoppingFluxExport extends Module
                     if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand()), false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED'), false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING'), false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_IMAGE', ImageType::getFormatedName('large'), false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_IMAGE', ImageType::getFormatedName('thickbox'), false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT'), false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_TRACKING', 'checked', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_ORDERS', 'checked', false, null, $shop['id_shop']) ||
@@ -142,7 +142,7 @@ class ShoppingFluxExport extends Module
                 if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand())) ||
                     !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED')) ||
                     !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING')) ||
-                    !Configuration::updateValue('SHOPPING_FLUX_IMAGE', ImageType::getFormatedName('large')) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_IMAGE', ImageType::getFormatedName('thickbox')) ||
                     !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT')) ||
                     !Configuration::updateValue('SHOPPING_FLUX_TRACKING', 'checked') ||
                     !Configuration::updateValue('SHOPPING_FLUX_ORDERS', 'checked') ||
