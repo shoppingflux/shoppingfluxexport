@@ -1766,10 +1766,15 @@ class ShoppingFluxExport extends Module
 
         $lastname = (string)$addressNode->LastName;
         $firstname = (string)$addressNode->FirstName;
+        
 
         $lastname = preg_replace('/\-?\d+/', '', $lastname);
         $firstname = preg_replace('/\-?\d+/', '', $firstname);
-
+        
+        // Avoid Prestashop error on length
+        $lastname = substr($lastname, 0, 32);
+        $firstname = substr($firstname, 0, 32);
+        
         $address->id_customer = (int)$id_customer;
         $address->id_country = (int)Country::getByIso(trim($addressNode->Country));
         $address->alias = pSQL($type);
@@ -1813,6 +1818,9 @@ class ShoppingFluxExport extends Module
 
         $lastname = preg_replace('/\-?\d+/', '', $lastname);
         $firstname = preg_replace('/\-?\d+/', '', $firstname);
+        // Avoid Prestashop error on length
+        $lastname = substr($lastname, 0, 32);
+        $firstname = substr($firstname, 0, 32);
 
         $customer = new Customer();
         $customer->lastname = (!empty($lastname)) ? pSQL($lastname) : '-';
