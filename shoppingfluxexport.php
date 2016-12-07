@@ -1385,100 +1385,107 @@ class ShoppingFluxExport extends Module
 
     public function hookbackOfficeTop($no_cron = true)
     {
-        $controller = Tools::strtolower(Tools::getValue('controller'));
-        $ordersConfig = Configuration::get('SHOPPING_FLUX_ORDERS');
-        if (($controller == 'adminorders' &&
-            $ordersConfig != '' &&
-            in_array('curl', get_loaded_extensions())) ||
-            $no_cron == false) {
-            $ordersXML = $this->_callWebService('GetOrders');
+        $minTimeDiff = 60;
+        $now = time();
+        $lastHookCalledTime = Configuration::get('SHOPPING_BACKOFFICE_CALL');
+        $moreThanOneMinute = $now - $lastHookCalledTime;
 
-            if (count($ordersXML->Response->Orders) == 0) {
-                return;
-            }
-
-            foreach ($ordersXML->Response->Orders->Order as $order) {
-                try {
-                    if ((Tools::strtolower($order->Marketplace) == 'rdc' || Tools::strtolower($order->Marketplace) == 'rueducommerce') && strpos($order->ShippingMethod, 'Mondial Relay') !== false) {
-                        $num = explode(' ', $order->ShippingMethod);
-                        $order->Other = end($num);
-                        $order->ShippingMethod = 'Mondial Relay';
-                    }
-
-                    $orderExists = Db::getInstance()->getRow('SELECT m.id_message  FROM '._DB_PREFIX_.'message m
-                        WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
-
-                    if (isset($orderExists['id_message'])) {
-                        $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace);
-                        continue;
-                    }
-
-                    $check = $this->checkData($order);
-                    if ($check !== true) {
-                        $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $check);
-                        continue;
-                    }
-
-                    $mail = (string)$order->BillingAddress->Email;
-                    $email = (empty($mail)) ? pSQL($order->IdOrder.'@'.$order->Marketplace.'.sf') : pSQL($mail);
-
-                    $id_customer = $this->_getCustomer($email, (string)$order->BillingAddress->LastName, (string)$order->BillingAddress->FirstName);
-                    //avoid update of old orders by the same merchant with different addresses
-                    $id_address_billing = $this->_getAddress($order->BillingAddress, $id_customer, 'Billing-'.(string)$order->IdOrder);
-                    $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other);
-                    $products_available = $this->_checkProducts($order->Products);
-
-                    $current_customer = new Customer((int)$id_customer);
-
-                    if ($products_available && $id_address_shipping && $id_address_billing && $id_customer) {
-                        $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees);
-
-                        if ($cart) {
-                            //compatibylity with socolissmo
-                            $this->context->cart = $cart;
-
-                            Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), 'UPDATE', '`id_customer` = '.(int)$id_customer);
-
-                            $customerClear = new Customer();
-
-                            if (method_exists($customerClear, 'clearCache')) {
-                                $customerClear->clearCache(true);
-                            }
-
-                            $payment = $this->_validateOrder($cart, $order->Marketplace);
-                            $id_order = $payment->currentOrder;
-
-                            //we valid there
-                            $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order);
-
-                            $reference_order = $payment->currentOrderReference;
-
-                            Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => pSQL($email)), 'UPDATE', '`id_customer` = '.(int)$id_customer);
-
-                            Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                            $this->_updatePrices($id_order, $order, $reference_order);
+        if ($moreThanOneMinute > $minTimeDiff) {
+            $controller = Tools::strtolower(Tools::getValue('controller'));
+            $ordersConfig = Configuration::get('SHOPPING_FLUX_ORDERS');
+            if (($controller == 'adminorders' &&
+                $ordersConfig != '' &&
+                in_array('curl', get_loaded_extensions())) ||
+                $no_cron == false) {
+                $ordersXML = $this->_callWebService('GetOrders');
+    
+                if (count($ordersXML->Response->Orders) == 0) {
+                    return;
+                }
+    
+                foreach ($ordersXML->Response->Orders->Order as $order) {
+                    try {
+                        if ((Tools::strtolower($order->Marketplace) == 'rdc' || Tools::strtolower($order->Marketplace) == 'rueducommerce') && strpos($order->ShippingMethod, 'Mondial Relay') !== false) {
+                            $num = explode(' ', $order->ShippingMethod);
+                            $order->Other = end($num);
+                            $order->ShippingMethod = 'Mondial Relay';
                         }
+    
+                        $orderExists = Db::getInstance()->getRow('SELECT m.id_message  FROM '._DB_PREFIX_.'message m
+                            WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
+    
+                        if (isset($orderExists['id_message'])) {
+                            $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace);
+                            continue;
+                        }
+    
+                        $check = $this->checkData($order);
+                        if ($check !== true) {
+                            $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $check);
+                            continue;
+                        }
+    
+                        $mail = (string)$order->BillingAddress->Email;
+                        $email = (empty($mail)) ? pSQL($order->IdOrder.'@'.$order->Marketplace.'.sf') : pSQL($mail);
+    
+                        $id_customer = $this->_getCustomer($email, (string)$order->BillingAddress->LastName, (string)$order->BillingAddress->FirstName);
+                        //avoid update of old orders by the same merchant with different addresses
+                        $id_address_billing = $this->_getAddress($order->BillingAddress, $id_customer, 'Billing-'.(string)$order->IdOrder);
+                        $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other);
+                        $products_available = $this->_checkProducts($order->Products);
+    
+                        $current_customer = new Customer((int)$id_customer);
+    
+                        if ($products_available && $id_address_shipping && $id_address_billing && $id_customer) {
+                            $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees);
+    
+                            if ($cart) {
+                                //compatibylity with socolissmo
+                                $this->context->cart = $cart;
+    
+                                Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), 'UPDATE', '`id_customer` = '.(int)$id_customer);
+    
+                                $customerClear = new Customer();
+    
+                                if (method_exists($customerClear, 'clearCache')) {
+                                    $customerClear->clearCache(true);
+                                }
+    
+                                $payment = $this->_validateOrder($cart, $order->Marketplace);
+                                $id_order = $payment->currentOrder;
+    
+                                //we valid there
+                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order);
+    
+                                $reference_order = $payment->currentOrderReference;
+    
+                                Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => pSQL($email)), 'UPDATE', '`id_customer` = '.(int)$id_customer);
+    
+                                Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
+                                $this->_updatePrices($id_order, $order, $reference_order);
+                            }
+                        }
+    
+                        $cartClear = new Cart();
+    
+                        if (method_exists($cartClear, 'clearCache')) {
+                            $cartClear->clearCache(true);
+                        }
+    
+                        $addressClear = new Address();
+    
+                        if (method_exists($addressClear, 'clearCache')) {
+                            $addressClear->clearCache(true);
+                        }
+    
+                        $customerClear = new Customer();
+    
+                        if (method_exists($customerClear, 'clearCache')) {
+                            $customerClear->clearCache(true);
+                        }
+                    } catch (PrestaShopException $pe) {
+                        $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $pe->getMessage());
                     }
-
-                    $cartClear = new Cart();
-
-                    if (method_exists($cartClear, 'clearCache')) {
-                        $cartClear->clearCache(true);
-                    }
-
-                    $addressClear = new Address();
-
-                    if (method_exists($addressClear, 'clearCache')) {
-                        $addressClear->clearCache(true);
-                    }
-
-                    $customerClear = new Customer();
-
-                    if (method_exists($customerClear, 'clearCache')) {
-                        $customerClear->clearCache(true);
-                    }
-                } catch (PrestaShopException $pe) {
-                    $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $pe->getMessage());
                 }
             }
         }
