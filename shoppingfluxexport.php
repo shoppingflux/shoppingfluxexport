@@ -1506,6 +1506,7 @@ class ShoppingFluxExport extends Module
                     }
                 } catch (PrestaShopException $pe) {
                     $this->logDebugOrders('Error on order creation : '.$pe->getMessage());
+                    $this->logDebugOrders('Trace : '.print_r($pe->getTraceAsString(),true));
                     $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $pe->getMessage());
                 }
             }
