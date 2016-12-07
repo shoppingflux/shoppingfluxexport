@@ -2285,6 +2285,7 @@ class ShoppingFluxExport extends Module
             $product->visibility = 'none';
             $product->price = 0;
             $product->out_of_stock = 1;
+            $product->reference = 'FDG';
             $product->add();
     
             // Retrieve FDG product id after save
@@ -2301,6 +2302,7 @@ class ShoppingFluxExport extends Module
                 // Poruct exists, we check if it can be ordered when out of stock
                 if ($product->out_of_stock == 0 || $product->out_of_stock == 2) {
                     $product->out_of_stock = 1;
+                    $product->reference = 'FDG';
                     $product->update();
     
                     $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
@@ -2320,6 +2322,7 @@ class ShoppingFluxExport extends Module
                 $product->visibility = 'none';
                 $product->price = 0;
                 $product->out_of_stock = 1;
+                $product->reference = 'FDG';
                 $product->add();
     
                 $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
