@@ -2470,4 +2470,12 @@ class ShoppingFluxExport extends Module
         }
         return $response;
     }
+
+    /**
+     * Ps 1.7
+     */
+    public function pstest()
+    {
+        echo 1;
+    }
 }
