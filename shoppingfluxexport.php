@@ -758,7 +758,7 @@ class ShoppingFluxExport extends Module
         
         $this->emptyLog();
         
-        $file = fopen(dirname(__FILE__).'/feed_tmp.xml', 'w+');
+        $file = fopen($this->getFeedName(true), 'w+');
         fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">');
         fclose($file);
 
@@ -782,11 +782,8 @@ class ShoppingFluxExport extends Module
         }
         
         $shop_id = $this->context->shop->id;
-        if (!is_file(dirname(__FILE__).'/feed_tmp.xml')) {
-            die("<?xml version='1.0' encoding='utf-8'?><error>File error</error>");
-        }
-
-        $file = fopen(dirname(__FILE__).'/feed_tmp.xml', 'a+');
+        
+        $file = fopen($this->getFeedName(true), 'a+');
 
         $configuration = Configuration::getMultiple(
             array(
@@ -798,7 +795,7 @@ class ShoppingFluxExport extends Module
         );
 
         $no_breadcrumb = Tools::getValue('no_breadcrumb');
-
+        
         $lang = Tools::getValue('lang');
         $configuration['PS_LANG_DEFAULT'] = !empty($lang) ? Language::getIdByIso($lang) : $configuration['PS_LANG_DEFAULT'];
         $carrier = Carrier::getCarrierByReference((int)Configuration::get('SHOPPING_FLUX_CARRIER'));
@@ -921,8 +918,8 @@ class ShoppingFluxExport extends Module
             
             // Remove previous feed an place the newly generated one
             $shop_id = $this->context->shop->id;
-            unlink(dirname(__FILE__).'/feed.xml');
-            rename(dirname(__FILE__).'/feed_tmp.xml', dirname(__FILE__).'/feed.xml');
+            unlink($this->getFeedName());
+            rename($this->getFeedName(true), $this->getFeedName());
             
             // Notify end of cron execution
             $this->logDebug('EXPORT SUCCESSFULL');
@@ -935,6 +932,8 @@ class ShoppingFluxExport extends Module
             $next_uri .= 'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
             $next_uri .= '&current='.($current + $configuration['PASSES']).'&total='.$total;
             $next_uri .= '&passes='.$configuration['PASSES'].(!empty($no_breadcrumb) ? '&no_breadcrumb=true' : '');
+            $next_uri .= (!empty(Tools::getValue('currency')) ? '&currency='.Tools::getValue('currency') : '');
+            $next_uri .= (!empty($lang) ? '&lang='.$lang : '');
             $this->logDebug('-- going to call URL: '.$next_uri);
         
             // Disconnect DB to avoid reaching max connections
@@ -947,7 +946,7 @@ class ShoppingFluxExport extends Module
 
     private function closeFeed()
     {
-        $file = fopen(dirname(__FILE__).'/feed_tmp.xml', 'a+');
+        $file = fopen($this->getFeedName(true), 'a+');
         fwrite($file, '</products>');
     }
 
@@ -1013,6 +1012,22 @@ class ShoppingFluxExport extends Module
         $data[2] = $link->getProductLink($product);
         $data[4] = $product->description;
         $data[5] = $product->description_short;
+        
+        $context = Context::getContext();
+        $id_currency = Tools::getValue('currency');
+        if ($id_currency) {
+            $context->currency  = new Currency(Tools::getValue('currency'));
+        }
+        
+        /*$argsPriceReduc = array((int)$product->id, true, null, 2, null, true, true, 1, false, null, null, null, null,
+            true, true, $context, false);
+        
+        $argsPriceNoReduc = array((int)$product->id, true, null, 2, null, false, false, 1, false, null, null, null, null,
+            true, true, $context, false);
+
+        $data[6] = Product::getPriceStatic(implode(', ', $argsPriceReduc));
+        $data[7] = Product::getPriceStatic(implode(', ', $argsPriceNoReduc));*/
+        
         $data[6] = $product->getPrice(true, null, 2, null, false, true, 1);
         $data[7] = $product->getPrice(true, null, 2, null, false, false, 1);
         $data[8] = $this->_getShipping($product, $configuration, $carrier);
@@ -2476,5 +2491,26 @@ class ShoppingFluxExport extends Module
             $response = $this->l('Not installed (incorrect)');
         }
         return $response;
+    }
+    
+    /**
+     * Manage feed name depending on currency and lang
+     */
+    private function getFeedName($tmp_file)
+    {
+        $lang = Tools::getValue('lang');
+        $currency = Tools::getValue('currency');
+        $name = '';
+        if ($lang != '') {
+            $name .= '_'.$lang;
+        }
+        if ($currency != '') {
+            $name .= '_'.$currency;
+        }
+        if ($tmp_file) {
+            return dirname(__FILE__).'/feed'.$name.'_tmp.xml';
+        } else {
+            return dirname(__FILE__).'/feed'.$name.'.xml';
+        }
     }
 }
