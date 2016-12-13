@@ -1220,8 +1220,7 @@ class ShoppingFluxExport extends Module
             $combinations[$combinaison['id_product_attribute']]['ean13'] = $combinaison['ean13'];
             $combinations[$combinaison['id_product_attribute']]['upc'] = $combinaison['upc'];
             $combinations[$combinaison['id_product_attribute']]['quantity'] = $combinaison['quantity'];
-            $combinations[$combinaison['id_product_attribute']]['poids'] = $combinaison['weight'] + $product->weight;
-            $combinations[$combinaison['id_product_attribute']]['weight'] = $combinaison['weight'];
+            $combinations[$combinaison['id_product_attribute']]['weight'] = $combinaison['weight'] + $product->weight;
             $combinations[$combinaison['id_product_attribute']]['reference'] = $combinaison['reference'];
         }
 
