@@ -758,7 +758,7 @@ class ShoppingFluxExport extends Module
         
         $this->emptyLog();
         
-        $file = fopen($this->getFeedName(true), 'w+');
+        $file = fopen($this->getFeedName(), 'w+');
         fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">');
         fclose($file);
 
@@ -783,7 +783,7 @@ class ShoppingFluxExport extends Module
         
         $shop_id = $this->context->shop->id;
         
-        $file = fopen($this->getFeedName(true), 'a+');
+        $file = fopen($this->getFeedName(), 'a+');
 
         $configuration = Configuration::getMultiple(
             array(
@@ -918,8 +918,8 @@ class ShoppingFluxExport extends Module
             
             // Remove previous feed an place the newly generated one
             $shop_id = $this->context->shop->id;
-            unlink($this->getFeedName());
-            rename($this->getFeedName(true), $this->getFeedName());
+            unlink($this->getFeedName(false));
+            rename($this->getFeedName(), $this->getFeedName(false));
             
             // Notify end of cron execution
             $this->logDebug('EXPORT SUCCESSFULL');
@@ -946,7 +946,7 @@ class ShoppingFluxExport extends Module
 
     private function closeFeed()
     {
-        $file = fopen($this->getFeedName(true), 'a+');
+        $file = fopen($this->getFeedName(), 'a+');
         fwrite($file, '</products>');
     }
 
@@ -1018,15 +1018,6 @@ class ShoppingFluxExport extends Module
         if ($id_currency) {
             $context->currency  = new Currency(Tools::getValue('currency'));
         }
-        
-        /*$argsPriceReduc = array((int)$product->id, true, null, 2, null, true, true, 1, false, null, null, null, null,
-            true, true, $context, false);
-        
-        $argsPriceNoReduc = array((int)$product->id, true, null, 2, null, false, false, 1, false, null, null, null, null,
-            true, true, $context, false);
-
-        $data[6] = Product::getPriceStatic(implode(', ', $argsPriceReduc));
-        $data[7] = Product::getPriceStatic(implode(', ', $argsPriceNoReduc));*/
         
         $data[6] = $product->getPrice(true, null, 2, null, false, true, 1);
         $data[7] = $product->getPrice(true, null, 2, null, false, false, 1);
@@ -2496,7 +2487,7 @@ class ShoppingFluxExport extends Module
     /**
      * Manage feed name depending on currency and lang
      */
-    private function getFeedName($tmp_file)
+    private function getFeedName($tmp_file = true)
     {
         $lang = Tools::getValue('lang');
         $currency = Tools::getValue('currency');
