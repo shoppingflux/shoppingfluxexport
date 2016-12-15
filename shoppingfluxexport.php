@@ -1517,7 +1517,7 @@ class ShoppingFluxExport extends Module
                         $this->logDebugOrders('Error on order creation : '.$pe->getMessage());
                         $this->logDebugOrders('Trace : '.print_r($pe->getTraceAsString(), true));
                         $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $pe->getMessage());
-                    }          
+                    }
                 }
             }
         }
@@ -2442,7 +2442,8 @@ class ShoppingFluxExport extends Module
     public function logDebugOrders($toLog)
     {
         if ($this->debugOrders) {
-            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/orders_debug_'.Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
+            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/orders_debug_';
+            $outputFile .= Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
             $fp = fopen($outputFile, 'a');
             fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
             fclose($fp);
