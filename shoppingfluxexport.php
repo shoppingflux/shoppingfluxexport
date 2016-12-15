@@ -1463,6 +1463,10 @@ class ShoppingFluxExport extends Module
     
                                 Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
                                 $this->_updatePrices($id_order, $order, $reference_order);
+                                
+                                // Avoid SoColissimo module to change the address by the one he created
+                                $sql_update = 'UPDATE '._DB_PREFIX_.'orders SET id_address_delivery = '.(int)$id_address_billing.' WHERE id_order = '.(int)$id_order;
+                                Db::getInstance()->execute($sql_update);
                             }
                         }
     
