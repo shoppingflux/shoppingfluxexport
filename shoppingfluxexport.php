@@ -70,10 +70,10 @@ class ShoppingFluxExport extends Module
     /* REGISTER HOOKS */
     private function _initHooks()
     {
-        if (!$this->registerHook('newOrder') ||
-                !$this->registerHook('postUpdateOrderStatus') ||
+        if (!$this->registerHook('postUpdateOrderStatus') ||
                 !$this->registerHook('backOfficeTop') ||
                 !$this->registerHook('actionProductAdd') ||
+                !$this->registerHook('actionObjectAddAfter') ||
                 !$this->registerHook('top')) {
             return false;
         }
@@ -261,15 +261,15 @@ class ShoppingFluxExport extends Module
         //uri feed
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
             $shop = Context::getContext()->shop;
-            $base_uri = 'http://'.$shop->domain.$shop->physical_uri.$shop->virtual_uri;
-            $uri = 'http://'.$shop->domain.$shop->physical_uri.$shop->virtual_uri.'modules/shoppingfluxexport/flux.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
+            $base_uri = Tools::getCurrentUrlProtocolPrefix().$shop->domain.$shop->physical_uri.$shop->virtual_uri;
+            $uri = Tools::getCurrentUrlProtocolPrefix().$shop->domain.$shop->physical_uri.$shop->virtual_uri.'modules/shoppingfluxexport/flux.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
         } else {
-            $base_uri = 'http://'.Tools::getHttpHost().__PS_BASE_URI__;
-            $uri = 'http://'.Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/flux.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
+            $base_uri = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__;
+            $uri = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/flux.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
         }
 
         //uri images
-        $uri_img = 'http://'.Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/views/img/';
+        $uri_img = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/views/img/';
         //owner object
         $owner = new Employee($this->context->cookie->id_employee);
         //post process
@@ -461,9 +461,9 @@ class ShoppingFluxExport extends Module
         //uri feed
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
             $shop = Context::getContext()->shop;
-            $base_uri = 'http://'.$shop->domain.$shop->physical_uri.$shop->virtual_uri;
+            $base_uri = Tools::getCurrentUrlProtocolPrefix().$shop->domain.$shop->physical_uri.$shop->virtual_uri;
         } else {
-            $base_uri = 'http://'.Tools::getHttpHost().__PS_BASE_URI__;
+            $base_uri = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__;
         }
 
         $uri = $base_uri.'modules/shoppingfluxexport/flux.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
@@ -921,7 +921,7 @@ class ShoppingFluxExport extends Module
             
             // Remove previous feed an place the newly generated one
             $shop_id = $this->context->shop->id;
-            unlink(dirname(__FILE__).'/feed.xml');
+            @unlink(dirname(__FILE__).'/feed.xml');
             rename(dirname(__FILE__).'/feed_tmp.xml', dirname(__FILE__).'/feed.xml');
             
             // Notify end of cron execution
@@ -930,7 +930,7 @@ class ShoppingFluxExport extends Module
             // Empty last known url
             Configuration::updateValue('PS_SHOPPINGFLUX_LAST_URL', '0');
         } else {
-            $protocol_link = (Configuration::get('PS_SSL_ENABLED')) ? 'https://' : 'http://';
+            $protocol_link = Tools::getCurrentUrlProtocolPrefix();
             $next_uri = $protocol_link.Tools::getHttpHost().__PS_BASE_URI__;
             $next_uri .= 'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
             $next_uri .= '&current='.($current + $configuration['PASSES']).'&total='.$total;
@@ -1100,8 +1100,7 @@ class ShoppingFluxExport extends Module
         if ($images != false) {
             foreach ($images as $image) {
                 $ids = $product->id.'-'.$image['id_image'];
-                $ret .= '<image><![CDATA[http://'.$link->getImageLink($product->link_rewrite, $ids, $configuration['SHOPPING_FLUX_IMAGE']).']]></image>';
-                $ret = str_replace('http://http://', 'http://', $ret);
+                $ret .= '<image><![CDATA['.Tools::getCurrentUrlProtocolPrefix().$link->getImageLink($product->link_rewrite, $ids, $configuration['SHOPPING_FLUX_IMAGE']).']]></image>';
             }
         }
         $ret .= '</images>';
@@ -1262,15 +1261,13 @@ class ShoppingFluxExport extends Module
                     $image_child = false;
                     break;
                 }
-                $ret .= '<image><![CDATA[http://'.$link->getImageLink($product->link_rewrite, $product->id.'-'.$image, $configuration['SHOPPING_FLUX_IMAGE']).']]></image>';
-                $ret = str_replace('http://http://', 'http://', $ret);
+                $ret .= '<image><![CDATA['.Tools::getCurrentUrlProtocolPrefix().$link->getImageLink($product->link_rewrite, $product->id.'-'.$image, $configuration['SHOPPING_FLUX_IMAGE']).']]></image>';
             }
 
             if (!$image_child) {
                 foreach ($product->getImages($configuration['PS_LANG_DEFAULT']) as $images) {
                     $ids = $product->id.'-'.$images['id_image'];
-                    $ret .= '<image><![CDATA[http://'.$link->getImageLink($product->link_rewrite, $ids, $configuration['SHOPPING_FLUX_IMAGE']).']]></image>';
-                    $ret = str_replace('http://http://', 'http://', $ret);
+                    $ret .= '<image><![CDATA['.Tools::getCurrentUrlProtocolPrefix().$link->getImageLink($product->link_rewrite, $ids, $configuration['SHOPPING_FLUX_IMAGE']).']]></image>';
                 }
             }
 
@@ -1549,33 +1546,6 @@ class ShoppingFluxExport extends Module
         return true;
     }
 
-    public function hookNewOrder($params)
-    {
-        $ip = Db::getInstance()->getValue('SELECT `ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$params['order']->id_customer);
-        $ip = $this->getIp($ip);
-
-        if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && $params['order']->module != 'sfpayment') {
-            Tools::file_get_contents('https://tag.shopping-flux.com/order/'.base64_encode(Configuration::get('SHOPPING_FLUX_ID').'|'.$params['order']->id.'|'.$params['order']->total_paid).'?ip='.$ip);
-        }
-
-        if (Configuration::get('SHOPPING_FLUX_STOCKS') != '' && $params['order']->module != 'sfpayment') {
-            foreach ($params['cart']->getProducts() as $product) {
-                $id = (isset($product['id_product_attribute'])) ? (int)$product['id_product'].'_'.(int)$product['id_product_attribute'] : (int)$product['id_product'];
-                $qty = (int)$product['stock_quantity'] - (int)$product['quantity'];
-
-                $xml = '<?xml version="1.0" encoding="UTF-8"?>';
-                $xml .= '<UpdateProduct>';
-                $xml .= '<Product>';
-                $xml .= '<SKU>'.$id.'</SKU>';
-                $xml .= '<Quantity>'.$qty.'</Quantity>';
-                $xml .= '</Product>';
-                $xml .= '</UpdateProduct>';
-
-                $this->_callWebService('UpdateProduct', $xml);
-            }
-        }
-    }
-
     public function hookPostUpdateOrderStatus($params)
     {
         $order = new Order((int)$params['id_order']);
@@ -1660,12 +1630,21 @@ class ShoppingFluxExport extends Module
     {
         
         $ip = $this->getIp();
-        if ((int)Db::getInstance()->getValue('SELECT `id_customer_ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$this->context->cookie->id_customer) > 0) {
+        if ((int)Db::getInstance()->getValue('SELECT `id_customer_ip` FROM `'._DB_PREFIX_.'customer_ip` 
+            WHERE `id_customer` = '.(int)$this->context->cookie->id_customer) > 0) {
             $updateIp = array('ip' => pSQL($ip));
-            Db::getInstance()->autoExecute(_DB_PREFIX_.'customer_ip', $updateIp, 'UPDATE', '`id_customer` = '.(int)$this->context->cookie->id_customer);
+            $sql = 'UPDATE `'._DB_PREFIX_.'customer_ip`
+					SET `ip` = '.(int)$updateIp['ip'].'
+					WHERE `id_customer` = '.(int)(int)$this->context->cookie->id_customer;
+            Db::getInstance()->execute($sql);
         } else {
             $insertIp = array('id_customer' => (int)$this->context->cookie->id_customer, 'ip' => pSQL($ip));
-            Db::getInstance()->autoExecute(_DB_PREFIX_.'customer_ip', $insertIp, 'INSERT');
+
+            $sql = 'INSERT INTO `'._DB_PREFIX_.'customer_ip` (`id_customer`, `ip`)
+					VALUES
+					('.(int)$insertIp['id_customer'].',
+					'.(int)$insertIp['ip'].')';
+            Db::getInstance()->execute($sql);
         }
     }
 
@@ -2476,5 +2455,42 @@ class ShoppingFluxExport extends Module
             $response = $this->l('Not installed (incorrect)');
         }
         return $response;
+    }
+    
+    /**
+     * On order creation, send XML notification to ShoppingFlux
+     */
+    public function hookActionObjectAddAfter($params)
+    {
+        if ($params['object'] instanceof Order) {
+            $ip = Db::getInstance()->getValue('SELECT `ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = 
+                '.(int)$params['object']->id_customer);
+            $ip = $this->getIp($ip);
+            
+            if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != ''
+                && $params['object']->module != 'sfpayment') {
+                Tools::file_get_contents('https://tag.shopping-flux.com/order/'
+                    .base64_encode(Configuration::get('SHOPPING_FLUX_ID').'|'.$params['object']->id.'|'
+                        .$params['object']->total_paid).'?ip='.$ip);
+            }
+            
+            if (Configuration::get('SHOPPING_FLUX_STOCKS') != '' && $params['object']->module != 'sfpayment') {
+                foreach ($params['cart']->getProducts() as $product) {
+                    $id = (isset($product['id_product_attribute'])) ? (int)$product['id_product']
+                    .'_'.(int)$product['id_product_attribute'] : (int)$product['id_product'];
+                    $qty = (int)$product['stock_quantity'] - (int)$product['quantity'];
+            
+                    $xml = '<?xml version="1.0" encoding="UTF-8"?>';
+                    $xml .= '<UpdateProduct>';
+                    $xml .= '<Product>';
+                    $xml .= '<SKU>'.$id.'</SKU>';
+                    $xml .= '<Quantity>'.$qty.'</Quantity>';
+                    $xml .= '</Product>';
+                    $xml .= '</UpdateProduct>';
+            
+                    $this->_callWebService('UpdateProduct', $xml);
+                }
+            }
+        }
     }
 }
