@@ -1711,7 +1711,7 @@ class ShoppingFluxExport extends Module
     {
         $string = str_replace("\r\n", '', strip_tags($string));
         $string = str_replace(" ", '_', strip_tags($string));
-        $string = str_replace(array('(', ')', '°', '&', '+', '/', "'", ':', ';', ','), '', strip_tags($string));
+        $string = str_replace(array('(', ')', '°', '&', '+', '/', "'", ':', ';', ',', '?'), '', strip_tags($string));
         
         //Check if first char is a number
         if (preg_match('#[0-9]#', substr($string, 0, 1))) {
