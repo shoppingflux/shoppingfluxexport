@@ -1895,6 +1895,7 @@ class ShoppingFluxExport extends Module
     private function _updatePrices($id_order, $order, $reference_order)
     {
         $tax_rate = 0;
+        $total_products_tax_excl = 0;
 
         foreach ($order->Products->Product as $product) {
             if (Configuration::get('SHOPPING_FLUX_REF') == 'true') {
@@ -1915,23 +1916,26 @@ class ShoppingFluxExport extends Module
                 $tax_rate = $row['rate'];
             }
             $id_order_detail = $row['id_order_detail'];
-
+            
+            $total_price_tax_excl = (float)(((float)$product->Price / (1 + ($tax_rate / 100))) * $product->Quantity);
+            $total_products_tax_excl += $total_price_tax_excl;
+            
             $updateOrderDetail = array(
-                'product_price' => (float)((float)$product->Price / (1 + ($tax_rate / 100))),
-                'reduction_percent' => 0,
-                'reduction_amount' => 0,
-                'ecotax' => 0,
+                'product_price'        => (float)((float)$product->Price / (1 + ($tax_rate / 100))),
+                'reduction_percent'    => 0,
+                'reduction_amount'     => 0,
+                'ecotax'               => 0,
                 'total_price_tax_incl' => (float)((float)$product->Price * $product->Quantity),
-                'total_price_tax_excl' => (float)(((float)$product->Price / (1 + ($tax_rate / 100))) * $product->Quantity),
-                'unit_price_tax_incl' => (float)$product->Price,
-                'unit_price_tax_excl' => (float)((float)$product->Price / (1 + ($tax_rate / 100))),
+                'total_price_tax_excl' => $total_price_tax_excl,
+                'unit_price_tax_incl'  => (float)$product->Price,
+                'unit_price_tax_excl'  => (float)((float)$product->Price / (1 + ($tax_rate / 100))),
             );
 
             Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail', $updateOrderDetail, 'UPDATE', '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)$skus[0].' AND `product_attribute_id` = '.(int)$skus[1]);
 
             $updateOrderDetailTax = array(
-                'unit_amount' => (float)((float)$product->Price - ((float)$product->Price / (1 + ($tax_rate / 100)))),
-                'total_amount' => (float)(((float)$product->Price - ((float)$product->Price / (1 + ($tax_rate / 100)))) * $product->Quantity),
+                'unit_amount'  => Tools::ps_round((float)((float)$product->Price - ((float)$product->Price / (1 + ($tax_rate / 100)))), 2),
+                'total_amount' => Tools::ps_round((float)(((float)$product->Price - ((float)$product->Price / (1 + ($tax_rate / 100)))) * $product->Quantity), 2),
             );
 
             Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail_tax', $updateOrderDetailTax, 'UPDATE', '`id_order_detail` = '.(int)$id_order_detail);
@@ -1947,13 +1951,13 @@ class ShoppingFluxExport extends Module
             $id_order_detail = $row['id_order_detail'];
 
             $updateOrderDetail = array(
-                'product_price' => (float)($order->TotalFees),
-                'reduction_percent' => 0,
-                'reduction_amount' => 0,
+                'product_price'        => (float)($order->TotalFees),
+                'reduction_percent'    => 0,
+                'reduction_amount'     => 0,
                 'total_price_tax_incl' => (float)($order->TotalFees),
                 'total_price_tax_excl' => (float)($order->TotalFees),
-                'unit_price_tax_incl' => (float)($order->TotalFees),
-                'unit_price_tax_excl' => (float)($order->TotalFees),
+                'unit_price_tax_incl'  => (float)($order->TotalFees),
+                'unit_price_tax_excl'  => (float)($order->TotalFees),
             );
 
             Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail', $updateOrderDetail, 'UPDATE', '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)Configuration::get('SHOPPING_FLUX_FDG').' AND `product_attribute_id` = 0');
@@ -1977,31 +1981,46 @@ class ShoppingFluxExport extends Module
         //manage case PS_CARRIER_DEFAULT is deleted
         $carrier = is_object($carrier) ? $carrier : new Carrier($carrier_to_load);
 
+        $total_products_tax_excl = Tools::ps_round($total_products_tax_excl, 2);
+        
+        // Carrier tax calculation START
+        $ps_order = new Order($id_order);
+        if (Configuration::get('PS_TAX_ADDRESS_TYPE') == 'id_address_invoice') {
+            $address = new Address($ps_order->id_address_invoice);
+        } else {
+            $address = new Address($ps_order->id_address_delivery);
+        }
+        $carrier_tax_rate = $carrier->getTaxesRate($address);
+        $total_shipping_tax_excl = Tools::ps_round((float)((float)$order->TotalShipping / (1 + ($carrier_tax_rate / 100))), 2);
+        
+        // Total paid tax excluded calculation
+        $total_paid_tax_excl = $total_products_tax_excl + $total_shipping_tax_excl;
+                
         if ((float)$order->TotalFees > 0) {
             $updateOrder = array(
-                'total_paid' => (float)($order->TotalAmount),
-                'total_paid_tax_incl' => (float)($order->TotalAmount),
-                'total_paid_tax_excl' => (float)((float)$order->TotalAmount / (1 + ($tax_rate / 100))),
-                'total_paid_real' => (float)($order->TotalAmount),
-                'total_products' => (float)(Db::getInstance()->getValue('SELECT SUM(`product_price`)*`product_quantity` FROM `'._DB_PREFIX_.'order_detail` WHERE `id_order` = '.(int)$id_order)),
-                'total_products_wt' => (float)((float)$order->TotalProducts + (float)$order->TotalFees),
-                'total_shipping' => (float)($order->TotalShipping),
+                'total_paid'              => (float)($order->TotalAmount),
+                'total_paid_tax_incl'     => (float)($order->TotalAmount),
+                'total_paid_tax_excl'     => $total_paid_tax_excl,
+                'total_paid_real'         => (float)($order->TotalAmount),
+                'total_products'          => $total_products_tax_excl,
+                'total_products_wt'       => (float)((float)$order->TotalProducts + (float)$order->TotalFees),
+                'total_shipping'          => (float)($order->TotalShipping),
                 'total_shipping_tax_incl' => (float)($order->TotalShipping),
-                'total_shipping_tax_excl' => (float)((float)$order->TotalShipping / (1 + ($tax_rate / 100))),
-                'id_carrier' => $carrier->id
+                'total_shipping_tax_excl' => $total_shipping_tax_excl,
+                'id_carrier'              => $carrier->id
             );
         } else {
             $updateOrder = array(
-                'total_paid' => (float)($order->TotalAmount),
-                'total_paid_tax_incl' => (float)($order->TotalAmount),
-                'total_paid_tax_excl' => (float)((float)$order->TotalAmount / (1 + ($tax_rate / 100))),
-                'total_paid_real' => (float)($order->TotalAmount),
-                'total_products' => (float)(Db::getInstance()->getValue('SELECT SUM(`product_price`)*`product_quantity` FROM `'._DB_PREFIX_.'order_detail` WHERE `id_order` = '.(int)$id_order)),
-                'total_products_wt' => (float)($order->TotalProducts),
-                'total_shipping' => (float)($order->TotalShipping),
+                'total_paid'              => (float)($order->TotalAmount),
+                'total_paid_tax_incl'     => (float)($order->TotalAmount),
+                'total_paid_tax_excl'     => $total_paid_tax_excl,
+                'total_paid_real'         => (float)($order->TotalAmount),
+                'total_products'          => $total_products_tax_excl,
+                'total_products_wt'       => (float)($order->TotalProducts),
+                'total_shipping'          => (float)($order->TotalShipping),
                 'total_shipping_tax_incl' => (float)($order->TotalShipping),
-                'total_shipping_tax_excl' => (float)((float)$order->TotalShipping / (1 + ($tax_rate / 100))),
-                'id_carrier' => $carrier->id
+                'total_shipping_tax_excl' => $total_shipping_tax_excl,
+                'id_carrier'              => $carrier->id
             );
         }
 
@@ -2009,21 +2028,21 @@ class ShoppingFluxExport extends Module
 
         if ((float)$order->TotalFees > 0) {
             $updateOrderInvoice = array(
-                'total_paid_tax_incl' => (float)($order->TotalAmount),
-                'total_paid_tax_excl' => (float)((float)$order->TotalAmount / (1 + ($tax_rate / 100))),
-                'total_products' => (float)(Db::getInstance()->getValue('SELECT SUM(`product_price`)*`product_quantity` FROM `'._DB_PREFIX_.'order_detail` WHERE `id_order` = '.(int)$id_order)),
-                'total_products_wt' => (float)((float)$order->TotalProducts + (float)$order->TotalFees),
+                'total_paid_tax_incl'     => (float)($order->TotalAmount),
+                'total_paid_tax_excl'     => $total_paid_tax_excl,
+                'total_products'          => $total_products_tax_excl,
+                'total_products_wt'       => (float)((float)$order->TotalProducts + (float)$order->TotalFees),
                 'total_shipping_tax_incl' => (float)($order->TotalShipping),
-                'total_shipping_tax_excl' => (float)((float)$order->TotalShipping / (1 + ($tax_rate / 100))),
+                'total_shipping_tax_excl' => $total_shipping_tax_excl,
             );
         } else {
             $updateOrderInvoice = array(
-                'total_paid_tax_incl' => (float)($order->TotalAmount),
-                'total_paid_tax_excl' => (float)((float)$order->TotalAmount / (1 + ($tax_rate / 100))),
-                'total_products' => (float)(Db::getInstance()->getValue('SELECT SUM(`product_price`)*`product_quantity` FROM `'._DB_PREFIX_.'order_detail` WHERE `id_order` = '.(int)$id_order)),
-                'total_products_wt' => (float)($order->TotalProducts),
+                'total_paid_tax_incl'     => (float)($order->TotalAmount),
+                'total_paid_tax_excl'     => $total_paid_tax_excl,
+                'total_products'          => $total_products_tax_excl,
+                'total_products_wt'       => (float)($order->TotalProducts),
                 'total_shipping_tax_incl' => (float)($order->TotalShipping),
-                'total_shipping_tax_excl' => (float)((float)$order->TotalShipping / (1 + ($tax_rate / 100))),
+                'total_shipping_tax_excl' => $total_shipping_tax_excl,
             );
         }
 
@@ -2031,7 +2050,7 @@ class ShoppingFluxExport extends Module
 
         $updateOrderTracking = array(
             'shipping_cost_tax_incl' => (float)($order->TotalShipping),
-            'shipping_cost_tax_excl' => (float)((float)$order->TotalShipping / (1 + ($tax_rate / 100))),
+            'shipping_cost_tax_excl' => $total_shipping_tax_excl,
             'id_carrier' => $carrier->id
         );
 
