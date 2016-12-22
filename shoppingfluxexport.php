@@ -1182,7 +1182,7 @@ class ShoppingFluxExport extends Module
         if (empty($tabTags[$configuration['PS_LANG_DEFAULT']])) {
             $ret .= '<tags></tags>';
         } else {
-            $ret .= '<tags><![CDATA['.implode(" ", $tabTags[$configuration['PS_LANG_DEFAULT']]).']]></tags>';
+            $ret .= '<tags><![CDATA['.implode("|", $tabTags[$configuration['PS_LANG_DEFAULT']]).']]></tags>';
         }
         
 
