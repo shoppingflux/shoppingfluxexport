@@ -568,6 +568,11 @@ class ShoppingFluxExport extends Module
     /* Clean XML tags */
     private function clean($string)
     {
+        $string = str_replace(chr(25), ' ', $string);
+        $string = str_replace(chr(28), ' ', $string);
+        $string = str_replace(chr(29), ' ', $string);
+        $string = str_replace(chr(30), ' ', $string);
+        $string = str_replace(chr(31), ' ', $string);
         return str_replace("\r\n", '', strip_tags($string));
     }
 
