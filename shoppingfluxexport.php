@@ -1016,7 +1016,7 @@ class ShoppingFluxExport extends Module
         $context = Context::getContext();
         $id_currency = Tools::getValue('currency');
         if ($id_currency) {
-            $context->currency  = new Currency(Tools::getValue('currency'));
+            $context->currency  = new Currency(Currency::getIdByIsoCode(Tools::getValue('currency')));
         }
         
         $data[6] = $product->getPrice(true, null, 2, null, false, true, 1);
