@@ -194,7 +194,6 @@ class ShoppingFluxExport extends Module
                 !Configuration::deleteByName('SHOPPING_FLUX_STATUS_SHIPPED') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_STATUS_CANCELED') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_LOGIN') ||
-                !Configuration::deleteByName('SHOPPING_FLUX_FDG') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_REF') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_INDEX') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_STOCKS') ||
@@ -1036,7 +1035,7 @@ class ShoppingFluxExport extends Module
         $context = Context::getContext();
         $id_currency = Tools::getValue('currency');
         if ($id_currency) {
-            $context->currency  = new Currency(Tools::getValue('currency'));
+            $context->currency  = new Currency(Currency::getIdByIsoCode(Tools::getValue('currency')));
         }
         
         $data[6] = $product->getPrice(true, null, 2, null, false, true, 1);
@@ -1274,7 +1273,7 @@ class ShoppingFluxExport extends Module
             $ret .= '<ean><![CDATA['.$combination['ean13'].']]></ean>';
             $ret .= '<upc><![CDATA['.$combination['upc'].']]></upc>';
             $ret .= '<'.$this->_translateField('quantity').'><![CDATA['.$combination['quantity'].']]></'.$this->_translateField('quantity').'>';
-            $ret .= '<'.$this->_translateField('weight').'><![CDATA['.$combination['poids'].']]></'.$this->_translateField('weight').'>';
+            $ret .= '<'.$this->_translateField('weight').'><![CDATA['.$combination['weight'].']]></'.$this->_translateField('weight').'>';
             $ret .= '<'.$this->_translateField('price').'><![CDATA['.$product->getPrice(true, $id, 2, null, false, true, 1).']]></'.$this->_translateField('price').'>';
             $ret .= '<'.$this->_translateField('old_price').'><![CDATA['.$product->getPrice(true, $id, 2, null, false, false, 1).']]></'.$this->_translateField('old_price').'>';
             $ret .= '<'.$this->_translateField('shipping_cost').'><![CDATA['.$this->_getShipping($product, $configuration, $carrier, $id, $combination['weight']).']]></'.$this->_translateField('shipping_cost').'>';
@@ -2253,7 +2252,6 @@ class ShoppingFluxExport extends Module
                 'supplier_reference' => 'ref-fournisseur',
                 'category_breadcrumb' => 'fil-ariane',
                 'combination_link' => 'url-declinaison',
-                'total_weight' => 'poids-total',
             )
         );
 
@@ -2369,15 +2367,15 @@ class ShoppingFluxExport extends Module
             // Create new FDG Product, not visible in front office
             $product = new Product();
             foreach ($languages as $language) {
-                $product->name[$language['id_lang']] = 'CDiscount fees';
-                $product->link_rewrite[$language['id_lang']] = 'fdg';
+                $product->name[$language['id_lang']] = 'CDiscount fees - ShoppingFlux';
+                $product->link_rewrite[$language['id_lang']] = 'cdiscount-fdg-shoppingflux';
             }
             $product->id_category_default = Configuration::get('PS_HOME_CATEGORY');
             $product->active = 1;
             $product->visibility = 'none';
             $product->price = 0;
             $product->out_of_stock = 1;
-            $product->reference = 'FDG';
+            $product->reference = 'FDG-ShoppingFlux';
             $product->add();
     
             // Retrieve FDG product id after save
@@ -2394,7 +2392,7 @@ class ShoppingFluxExport extends Module
                 // Poruct exists, we check if it can be ordered when out of stock
                 if ($product->out_of_stock == 0 || $product->out_of_stock == 2) {
                     $product->out_of_stock = 1;
-                    $product->reference = 'FDG';
+                    $product->reference = 'FDG-ShoppingFlux';
                     $product->update();
     
                     $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
@@ -2406,15 +2404,15 @@ class ShoppingFluxExport extends Module
                 // Create new FDG Product, not visible in front office since it does not exist
                 $product = new Product();
                 foreach ($languages as $language) {
-                    $product->name[$language['id_lang']] = 'CDiscount fees';
-                    $product->link_rewrite[$language['id_lang']] = 'fdg';
+                    $product->name[$language['id_lang']] = 'CDiscount fees - ShoppingFlux';
+                    $product->link_rewrite[$language['id_lang']] = 'cdiscount-fdg-shoppingflux';
                 }
                 $product->id_category_default = Configuration::get('PS_HOME_CATEGORY');
                 $product->active = 1;
                 $product->visibility = 'none';
                 $product->price = 0;
                 $product->out_of_stock = 1;
-                $product->reference = 'FDG';
+                $product->reference = 'FDG-ShoppingFlux';
                 $product->add();
     
                 $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
