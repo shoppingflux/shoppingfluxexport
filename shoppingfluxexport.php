@@ -1388,9 +1388,10 @@ class ShoppingFluxExport extends Module
         $minTimeDiff = 60;
         $now = time();
         $lastHookCalledTime = Configuration::get('SHOPPING_BACKOFFICE_CALL');
-        $moreThanOneMinute = $now - $lastHookCalledTime;
+        $timeDiffFromLastCall = $now - $lastHookCalledTime;
 
-        if ($moreThanOneMinute > $minTimeDiff) {
+        if ($timeDiffFromLastCall > $minTimeDiff) {
+            Configuration::updateValue('SHOPPING_BACKOFFICE_CALL', $now);
             $controller = Tools::strtolower(Tools::getValue('controller'));
             $ordersConfig = Configuration::get('SHOPPING_FLUX_ORDERS');
             if (($controller == 'adminorders' &&
