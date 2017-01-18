@@ -94,14 +94,15 @@ class ShoppingFluxExport extends Module
             KEY `idx_id_customer` (`id_customer`)
             ) ENGINE='._MYSQL_ENGINE_.'  DEFAULT CHARSET=utf8;');
 
-
+        $imageName = $this->getMaxImageInformation();
+        
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
             foreach (Shop::getShops() as $shop) {
                 if (method_exists('ImageType', 'getFormatedName')) {
                     if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand()), false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED'), false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING'), false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_IMAGE', ImageType::getFormatedName('thickbox'), false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_IMAGE', $imageName, false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT'), false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_TRACKING', 'checked', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_ORDERS', 'checked', false, null, $shop['id_shop']) ||
@@ -142,7 +143,7 @@ class ShoppingFluxExport extends Module
                 if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand())) ||
                     !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED')) ||
                     !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING')) ||
-                    !Configuration::updateValue('SHOPPING_FLUX_IMAGE', ImageType::getFormatedName('thickbox')) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_IMAGE', $imageName) ||
                     !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT')) ||
                     !Configuration::updateValue('SHOPPING_FLUX_TRACKING', 'checked') ||
                     !Configuration::updateValue('SHOPPING_FLUX_ORDERS', 'checked') ||
@@ -2467,4 +2468,25 @@ class ShoppingFluxExport extends Module
         }
         return $response;
     }
+    
+    /**
+     * Function to retrieve image with max width and height
+     */
+    private function getMaxImageInformation()
+    {
+        $sql = 'SELECT it.name, it.width, it.height
+                FROM `'._DB_PREFIX_.'image_type` it
+                WHERE it.products = 1';
+        $results = Db::getInstance()->executeS($sql);
+        $resultKey = 0;
+        $maxArea = 0;
+        foreach ($results as $key => $value) {
+            $area = (int)$value['width'] * (int)$value['height'];
+            if ($area > $maxArea) {
+                $resultKey = $key;
+            }
+        }
+    
+        return $results[$resultKey]['name'];
+    }    
 }
