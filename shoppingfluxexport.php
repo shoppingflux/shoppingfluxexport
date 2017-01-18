@@ -579,7 +579,7 @@ class ShoppingFluxExport extends Module
             } else {
                 $front = true;
             }
-            $fixedIdProduct = Tools::getValue('ID');
+            $fixedIdProduct = Tools::getValue('id');
             $fixedIdProductClause = '';
             if ($fixedIdProduct) {
                 $fixedIdProductClause = "AND p.`id_product` = '".$fixedIdProduct."'";
