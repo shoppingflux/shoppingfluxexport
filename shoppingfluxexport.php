@@ -931,19 +931,34 @@ class ShoppingFluxExport extends Module
             // Empty last known url
             Configuration::updateValue('PS_SHOPPINGFLUX_LAST_URL', '0');
         } else {
-            $protocol_link = (Configuration::get('PS_SSL_ENABLED')) ? 'https://' : 'http://';
+            $protocol_link = Tools::getCurrentUrlProtocolPrefix();
             $next_uri = $protocol_link.Tools::getHttpHost().__PS_BASE_URI__;
             $next_uri .= 'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
             $next_uri .= '&current='.($current + $configuration['PASSES']).'&total='.$total;
             $next_uri .= '&passes='.$configuration['PASSES'].(!empty($no_breadcrumb) ? '&no_breadcrumb=true' : '');
             $next_uri .= (!empty(Tools::getValue('currency')) ? '&currency='.Tools::getValue('currency') : '');
-            $next_uri .= (!empty($lang) ? '&lang='.$lang : '');
             $this->logDebug('-- going to call URL: '.$next_uri);
         
             // Disconnect DB to avoid reaching max connections
             DB::getInstance()->disconnect();
-
-            Tools::redirect($next_uri);
+            if (ini_get('allow_url_fopen')) {
+                $curl = curl_init();
+                curl_setopt($curl, CURLOPT_URL, $next_uri);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+                curl_setopt($curl, CURLOPT_HEADER, false);
+                curl_setopt($curl, CURLOPT_POST, true);
+                curl_setopt($curl, CURLOPT_POSTFIELDS, $curl_post_data);
+                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 10);
+                curl_setopt($curl, CURLOPT_TIMEOUT, 1);
+                $curl_response = curl_exec($curl);
+                curl_close($curl);
+                die();
+            } else {
+                Tools::redirect($next_uri);
+                die();
+            }
         }
         
     }
