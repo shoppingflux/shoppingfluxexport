@@ -2474,19 +2474,13 @@ class ShoppingFluxExport extends Module
      */
     private function getMaxImageInformation()
     {
-        $sql = 'SELECT it.name, it.width, it.height
+        $sql = 'SELECT it.name, (it.width * it.height) AS area
                 FROM `'._DB_PREFIX_.'image_type` it
-                WHERE it.products = 1';
-        $results = Db::getInstance()->executeS($sql);
-        $resultKey = 0;
-        $maxArea = 0;
-        foreach ($results as $key => $value) {
-            $area = (int)$value['width'] * (int)$value['height'];
-            if ($area > $maxArea) {
-                $resultKey = $key;
-            }
-        }
-    
-        return $results[$resultKey]['name'];
+                WHERE it.products =1
+                ORDER BY area DESC
+                LIMIT 1';
+        
+        $result = Db::getInstance()->executeS($sql);
+        return $result['0']['name'];
     }    
 }
