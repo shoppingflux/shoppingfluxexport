@@ -1888,14 +1888,14 @@ class ShoppingFluxExport extends Module
     private function getIDs($ref)
     {
         $row = Db::getInstance()->getRow('SELECT pa.id_product, pa.id_product_attribute  FROM '._DB_PREFIX_.'product_attribute pa
-            WHERE pa.reference = "'.  pSQL($ref).'"');
+            WHERE pa.reference = "'.  pSQL($ref).'" AND pa.id_product!=0');
 
         if (isset($row['id_product_attribute'])) {
             return array($row['id_product'], $row['id_product_attribute']);
         }
 
         $row2 = Db::getInstance()->getRow('SELECT p.id_product  FROM '._DB_PREFIX_.'product p
-            WHERE p.reference = "'.  pSQL($ref).'"');
+            WHERE p.reference = "'.  pSQL($ref).'" AND pa.id_product!=0');
 
         return array($row2['id_product'], 0);
     }
