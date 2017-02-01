@@ -931,7 +931,8 @@ class ShoppingFluxExport extends Module
             $next_uri .= 'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
             $next_uri .= '&current='.($current + $configuration['PASSES']).'&total='.$total;
             $next_uri .= '&passes='.$configuration['PASSES'].(!empty($no_breadcrumb) ? '&no_breadcrumb=true' : '');
-            $next_uri .= (!empty(Tools::getValue('currency')) ? '&currency='.Tools::getValue('currency') : '');
+            $currency = Tools::getValue('currency'); 
+            $next_uri .= (!empty($currency) ? '&currency='.Tools::getValue('currency') : '');
             $next_uri .= (!empty($lang) ? '&lang='.$lang : '');
             $this->logDebug('-- going to call URL: '.$next_uri);
         
