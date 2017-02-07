@@ -98,7 +98,7 @@ class ShoppingFluxExport extends Module
             ) ENGINE='._MYSQL_ENGINE_.'  DEFAULT CHARSET=utf8;');
 
         $imageName = $this->getMaxImageInformation();
-        
+
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
             foreach (Shop::getShops() as $shop) {
                 if (method_exists('ImageType', 'getFormatedName')) {
@@ -1496,7 +1496,7 @@ class ShoppingFluxExport extends Module
     
                                 Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
                                 $this->_updatePrices($id_order, $order, $reference_order);
-                                
+
                                 // Avoid SoColissimo module to change the address by the one he created
                                 $sql_update = 'UPDATE '._DB_PREFIX_.'orders SET id_address_delivery = '.(int)$id_address_billing.' WHERE id_order = '.(int)$id_order;
                                 Db::getInstance()->execute($sql_update);
@@ -1716,16 +1716,7 @@ class ShoppingFluxExport extends Module
     /* Clean XML strings */
     private function _clean($string)
     {
-        $string = str_replace("\r\n", '', strip_tags($string));
-        $string = str_replace(" ", '_', strip_tags($string));
-        $string = str_replace(array('(', ')', '°', '&', '+', '/', "'", ':', ';', ',', '?'), '', strip_tags($string));
-        
-        //Check if first char is a number
-        if (preg_match('#[0-9]#', substr($string, 0, 1))) {
-            $string = str_replace(substr($string, 0, 1), '_', strip_tags($string));
-        }
-        
-        return $string;
+        return preg_replace('/[^A-Za-z]/', '', $string);
     }
 
     /* Call Shopping Flux Webservices */
@@ -1817,15 +1808,15 @@ class ShoppingFluxExport extends Module
 
         $lastname = (string)$addressNode->LastName;
         $firstname = (string)$addressNode->FirstName;
-        
+
 
         $lastname = preg_replace('/\-?\d+/', '', $lastname);
         $firstname = preg_replace('/\-?\d+/', '', $firstname);
-        
+
         // Avoid Prestashop error on length
         $lastname = substr($lastname, 0, 32);
         $firstname = substr($firstname, 0, 32);
-        
+
         $address->id_customer = (int)$id_customer;
         $address->id_country = (int)Country::getByIso(trim($addressNode->Country));
         $address->alias = pSQL($type);
@@ -1923,10 +1914,10 @@ class ShoppingFluxExport extends Module
                 $tax_rate = $row['rate'];
             }
             $id_order_detail = $row['id_order_detail'];
-            
+
             $total_price_tax_excl = (float)(((float)$product->Price / (1 + ($tax_rate / 100))) * $product->Quantity);
             $total_products_tax_excl += $total_price_tax_excl;
-            
+
             $updateOrderDetail = array(
                 'product_price'        => (float)((float)$product->Price / (1 + ($tax_rate / 100))),
                 'reduction_percent'    => 0,
@@ -1989,7 +1980,7 @@ class ShoppingFluxExport extends Module
         $carrier = is_object($carrier) ? $carrier : new Carrier($carrier_to_load);
 
         $total_products_tax_excl = Tools::ps_round($total_products_tax_excl, 2);
-        
+
         // Carrier tax calculation START
         $ps_order = new Order($id_order);
         if (Configuration::get('PS_TAX_ADDRESS_TYPE') == 'id_address_invoice') {
@@ -1999,10 +1990,10 @@ class ShoppingFluxExport extends Module
         }
         $carrier_tax_rate = $carrier->getTaxesRate($address);
         $total_shipping_tax_excl = Tools::ps_round((float)((float)$order->TotalShipping / (1 + ($carrier_tax_rate / 100))), 2);
-        
+
         // Total paid tax excluded calculation
         $total_paid_tax_excl = $total_products_tax_excl + $total_shipping_tax_excl;
-                
+
         if ((float)$order->TotalFees > 0) {
             $updateOrder = array(
                 'total_paid'              => (float)($order->TotalAmount),
@@ -2076,7 +2067,7 @@ class ShoppingFluxExport extends Module
         $cart->getPackageList(true);
         $cart->getDeliveryOptionList(null, true);
         $cart->getDeliveryOption(null, false, false);
-        
+
         $amount_paid = (float)Tools::ps_round((float)$cart->getOrderTotal(true, Cart::BOTH), 2);
         $payment->validateOrder((int)$cart->id, 2, $amount_paid, Tools::strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key); return $payment;
         return $payment;
@@ -2587,11 +2578,11 @@ class ShoppingFluxExport extends Module
                 WHERE it.products =1
                 ORDER BY area DESC
                 LIMIT 1';
-        
+
         $result = Db::getInstance()->executeS($sql);
         return $result['0']['name'];
-    }    
-  
+    }
+
     /**
      * Manage feed name depending on currency and lang
      */
