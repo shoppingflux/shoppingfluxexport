@@ -560,12 +560,6 @@ class ShoppingFluxExport extends Module
         }
     }
 
-    /* Clean XML tags */
-    private function clean($string)
-    {
-        return str_replace("\r\n", '', strip_tags($string));
-    }
-
     /* Feed content */
     
     private function getSimpleProducts($id_lang, $limit_from, $limit_to)
@@ -931,7 +925,8 @@ class ShoppingFluxExport extends Module
             $next_uri .= 'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
             $next_uri .= '&current='.($current + $configuration['PASSES']).'&total='.$total;
             $next_uri .= '&passes='.$configuration['PASSES'].(!empty($no_breadcrumb) ? '&no_breadcrumb=true' : '');
-            $next_uri .= (!empty(Tools::getValue('currency')) ? '&currency='.Tools::getValue('currency') : '');
+            $currency = Tools::getValue('currency'); 
+            $next_uri .= (!empty($currency) ? '&currency='.Tools::getValue('currency') : '');
             $next_uri .= (!empty($lang) ? '&lang='.$lang : '');
             $this->logDebug('-- going to call URL: '.$next_uri);
         
@@ -1705,16 +1700,7 @@ class ShoppingFluxExport extends Module
     /* Clean XML strings */
     private function _clean($string)
     {
-        $string = str_replace("\r\n", '', strip_tags($string));
-        $string = str_replace(" ", '_', strip_tags($string));
-        $string = str_replace(array('(', ')', '°', '&', '+', '/', "'", ':', ';', ','), '', strip_tags($string));
-        
-        //Check if first char is a number
-        if (preg_match('#[0-9]#', substr($string, 0, 1))) {
-            $string = str_replace(substr($string, 0, 1), '_', strip_tags($string));
-        }
-        
-        return $string;
+        return preg_replace('/[^A-Za-z]/', '', $string);
     }
 
     /* Call Shopping Flux Webservices */
