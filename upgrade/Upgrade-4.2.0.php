@@ -28,7 +28,7 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-function upgrade_module_4_2_0($object)
+function upgrade_module_4_2_0()
 {
     if (Shop::isFeatureActive()) {
         foreach (Shop::getShops() as $shop) {
@@ -37,4 +37,5 @@ function upgrade_module_4_2_0($object)
     } else {
         Configuration::updateValue('SHOPPING_FLUX_REF', false);
     }
+    return true;
 }

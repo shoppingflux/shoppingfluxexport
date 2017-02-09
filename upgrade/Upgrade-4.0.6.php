@@ -40,4 +40,5 @@ function upgrade_module_4_0_6()
     } else {
         Configuration::updateValue('SHOPPING_FLUX_FDG', '');
     }
+    return true;
 }
