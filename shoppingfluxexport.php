@@ -363,7 +363,7 @@ class ShoppingFluxExport extends Module
      */
     private function _getAdvancedParametersContent($configuration)
     {
-        if (!in_array('curl', get_loaded_extensions())) {
+        if (!$this->isCurlInstalled(true)) {
             return;
         }
 
@@ -556,7 +556,7 @@ class ShoppingFluxExport extends Module
         $xml .= '<Lang><![CDATA['.$this->default_country->iso_code.']]></Lang>';
         $xml .= '</AddProspect>';
 
-        if (in_array('curl', get_loaded_extensions())) {
+        if ($this->isCurlInstalled(true)) {
             $this->_callWebService('AddProspectPrestashop', $xml);
         }
     }
@@ -945,9 +945,23 @@ class ShoppingFluxExport extends Module
             // Disconnect DB to avoid reaching max connections
             DB::getInstance()->disconnect();
 
-            Tools::redirect($next_uri);
+            if ($this->isCurlInstalled(true)) {
+                $curl = curl_init();
+                curl_setopt($curl, CURLOPT_URL, $next_uri);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+                curl_setopt($curl, CURLOPT_HEADER, false);
+                curl_setopt($curl, CURLOPT_POST, false);
+                curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 10);
+                curl_setopt($curl, CURLOPT_TIMEOUT, 1);
+                $curl_response = curl_exec($curl);
+                curl_close($curl);
+                die();
+            } else {
+                Tools::redirect($next_uri);
+            }
         }
-        
     }
 
     private function closeFeed()
@@ -1416,9 +1430,10 @@ class ShoppingFluxExport extends Module
             Configuration::updateValue('SHOPPING_BACKOFFICE_CALL', $now);
             $controller = Tools::strtolower(Tools::getValue('controller'));
             $ordersConfig = Configuration::get('SHOPPING_FLUX_ORDERS');
+            $curlInstalled = $this->isCurlInstalled(true);
             if (($controller == 'adminorders' &&
                 $ordersConfig != '' &&
-                in_array('curl', get_loaded_extensions())) ||
+                $curlInstalled) ||
                 $no_cron == false) {
                 $ordersXML = $this->_callWebService('GetOrders');
     
@@ -2546,8 +2561,11 @@ class ShoppingFluxExport extends Module
     /**
      * Function to check if curl is installed
      */
-    private function isCurlInstalled()
+    private function isCurlInstalled($returnBoolean = false)
     {
+        if ($returnBoolean) {
+            return in_array('curl', get_loaded_extensions());
+        }
         if (in_array('curl', get_loaded_extensions())) {
             $response = $this->l('Active (correct)');
         } else {
