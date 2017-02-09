@@ -2523,7 +2523,7 @@ class ShoppingFluxExport extends Module
                 'id_shop' => $currentShop['id_shop'],
                 'name' => $currentShop['name'],
                 'token' => $this->getTokenValue($currentShop['id_shop']),
-                'values' => $values  
+                'values' => $values
             );
         }
         
