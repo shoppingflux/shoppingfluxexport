@@ -937,7 +937,7 @@ class ShoppingFluxExport extends Module
             $next_uri .= 'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
             $next_uri .= '&current='.($current + $configuration['PASSES']).'&total='.$total;
             $next_uri .= '&passes='.$configuration['PASSES'].(!empty($no_breadcrumb) ? '&no_breadcrumb=true' : '');
-            $currency = Tools::getValue('currency'); 
+            $currency = Tools::getValue('currency');
             $next_uri .= (!empty($currency) ? '&currency='.Tools::getValue('currency') : '');
             $next_uri .= (!empty($lang) ? '&lang='.$lang : '');
             $this->logDebug('-- going to call URL: '.$next_uri);
@@ -2048,7 +2048,7 @@ class ShoppingFluxExport extends Module
         $cart->getDeliveryOption(null, false, false);
 
         $amount_paid = (float)Tools::ps_round((float)$cart->getOrderTotal(true, Cart::BOTH), 2);
-        $payment->validateOrder((int)$cart->id, 2, $amount_paid, Tools::strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key); return $payment;
+        $payment->validateOrder((int)$cart->id, 2, $amount_paid, Tools::strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key);
         return $payment;
     }
 
