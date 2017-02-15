@@ -73,10 +73,15 @@ class ShoppingFluxExport extends Module
     /* REGISTER HOOKS */
     private function _initHooks()
     {
+        if (version_compare(_PS_VERSION_, '1.5', '<')) {
+            // Prestashop v1.4
+            $registerHookNewOrder = $this->registerHook('newOrder');
+        } else {
+            $registerHookNewOrder = $this->registerHook('actionObjectAddAfter'); // PS1.5 a monter
+        }
         if (!$this->registerHook('postUpdateOrderStatus') ||
                 !$this->registerHook('backOfficeTop') ||
-                !$this->registerHook('actionProductAdd') ||
-                !$this->registerHook('actionObjectAddAfter') ||
+                !$registerHookNewOrder ||
                 !$this->registerHook('top')) {
             return false;
         }
@@ -2545,6 +2550,16 @@ class ShoppingFluxExport extends Module
             $response = $this->l('Not installed (incorrect)');
         }
         return $response;
+    }
+    
+    /**
+     * Legacy mode for Prestashop 1.4
+     * On order creation, send XML notification to ShoppingFlux
+     */
+    public function hookNewOrder($params)
+    {
+        $params['object'] = $params['order'];
+        $this->hookActionObjectAddAfter($params);
     }
     
     /**
