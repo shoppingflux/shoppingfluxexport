@@ -213,7 +213,7 @@ class ShoppingFluxExport extends Module
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
         $price = is_object($status_xml) ? (float)$status_xml->Response->Price : 0;
 
-        /*switch ($status) {
+        switch ($status) {
             case 'Client':
                 $this->_html .= $this->_clientView();
                 //we do this here for retro compatibility
@@ -226,7 +226,7 @@ class ShoppingFluxExport extends Module
             default:
                 $this->_html .= $this->_defaultView($price);
                 break;
-        }*/
+        }
         $this->_html .= $this->_clientView();
         //we do this here for retro compatibility
         $this->_setShoppingFeedId();
