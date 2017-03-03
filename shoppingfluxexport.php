@@ -73,14 +73,18 @@ class ShoppingFluxExport extends Module
     /* REGISTER HOOKS */
     private function _initHooks()
     {
-        if (!$this->registerHook('newOrder') ||
-                !$this->registerHook('postUpdateOrderStatus') ||
-                !$this->registerHook('backOfficeTop') ||
-                !$this->registerHook('actionProductAdd') ||
-                !$this->registerHook('top')) {
-            return false;
+        if (version_compare(_PS_VERSION_, '1.5', '<')) {
+            // Prestashop v1.4
+            $registerHookNewOrder = $this->registerHook('newOrder');
+        } else {
+            $registerHookNewOrder = $this->registerHook('actionObjectAddAfter'); // PS1.5 a monter
         }
-
+        if (!$this->registerHook('postUpdateOrderStatus') ||
+            !$this->registerHook('backOfficeTop') ||
+            !$registerHookNewOrder ||
+            !$this->registerHook('top')) {
+                return false;
+        }
         return true;
     }
 
@@ -1614,8 +1618,18 @@ class ShoppingFluxExport extends Module
 
         return true;
     }
-
+    
+    /**
+     * Legacy mode for Prestashop 1.4
+     * On order creation, send XML notification to ShoppingFlux
+     */
     public function hookNewOrder($params)
+    {
+        $params['object'] = $params['order'];
+        $this->hookActionObjectAddAfter($params);
+    }
+
+    public function hookActionObjectAddAfter($params)
     {
         $ip = Db::getInstance()->getValue('SELECT `ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$params['order']->id_customer);
         $ip = $this->getIp($ip);
