@@ -1900,7 +1900,7 @@ class ShoppingFluxExport extends Module
         }
 
         $row2 = Db::getInstance()->getRow('SELECT p.id_product  FROM '._DB_PREFIX_.'product p
-            WHERE p.reference = "'.  pSQL($ref).'" AND pa.id_product!=0');
+            WHERE p.reference = "'.  pSQL($ref).'" AND p.id_product!=0');
 
         return array($row2['id_product'], 0);
     }
