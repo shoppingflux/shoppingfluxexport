@@ -2131,11 +2131,7 @@ class ShoppingFluxExport extends Module
             Db::getInstance()->update('orders', $updateOrder, '`id_order` = '.(int)$id_order);
             Db::getInstance()->update('order_invoice', $updateOrderInvoice, '`id_order` = '.(int)$id_order);
             Db::getInstance()->update('order_carrier', $updateOrderTracking, '`id_order` = '.(int)$id_order);
-            if (version_compare(_PS_VERSION_, '1.7.0.0', '>=')) {
-                Db::getInstance()->update('order_payment', $updatePayment, '`id_order_payment` = '.(int)$id_order);
-            } else {
-                Db::getInstance()->update('order_payment', $updatePayment, '`id_order` = '.(int)$id_order);
-            }
+            Db::getInstance()->update('order_payment', $updatePayment, '`order_reference` = "'.$reference_order.'"');
         }
     }
 
