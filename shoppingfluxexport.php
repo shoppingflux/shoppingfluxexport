@@ -231,7 +231,6 @@ class ShoppingFluxExport extends Module
                 $this->_html .= $this->_defaultView($price);
                 break;
         }
-        $this->_html .= $this->_clientView();
         //we do this here for retro compatibility
         $this->_setShoppingFeedId();
 
