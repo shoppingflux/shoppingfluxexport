@@ -1630,27 +1630,29 @@ class ShoppingFluxExport extends Module
 
     public function hookActionObjectAddAfter($params)
     {
-        $ip = Db::getInstance()->getValue('SELECT `ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$params['order']->id_customer);
-        $ip = $this->getIp($ip);
-
-        if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && $params['order']->module != 'sfpayment') {
-            Tools::file_get_contents('https://tag.shopping-flux.com/order/'.base64_encode(Configuration::get('SHOPPING_FLUX_ID').'|'.$params['order']->id.'|'.$params['order']->total_paid).'?ip='.$ip);
-        }
-
-        if (Configuration::get('SHOPPING_FLUX_STOCKS') != '' && $params['order']->module != 'sfpayment') {
-            foreach ($params['cart']->getProducts() as $product) {
-                $id = (isset($product['id_product_attribute'])) ? (int)$product['id_product'].'_'.(int)$product['id_product_attribute'] : (int)$product['id_product'];
-                $qty = (int)$product['stock_quantity'] - (int)$product['quantity'];
-
-                $xml = '<?xml version="1.0" encoding="UTF-8"?>';
-                $xml .= '<UpdateProduct>';
-                $xml .= '<Product>';
-                $xml .= '<SKU>'.$id.'</SKU>';
-                $xml .= '<Quantity>'.$qty.'</Quantity>';
-                $xml .= '</Product>';
-                $xml .= '</UpdateProduct>';
-
-                $this->_callWebService('UpdateProduct', $xml);
+        if ($params['object'] instanceof Order && $params['cart'] instanceof Cart) {
+            $ip = Db::getInstance()->getValue('SELECT `ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$params['object']->id_customer);
+            $ip = $this->getIp($ip);
+    
+            if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && $params['object']->module != 'sfpayment') {
+                Tools::file_get_contents('https://tag.shopping-flux.com/order/'.base64_encode(Configuration::get('SHOPPING_FLUX_ID').'|'.$params['object']->id.'|'.$params['object']->total_paid).'?ip='.$ip);
+            }
+    
+            if (Configuration::get('SHOPPING_FLUX_STOCKS') != '' && $params['object']->module != 'sfpayment') {
+                foreach ($params['cart']->getProducts() as $product) {
+                    $id = (isset($product['id_product_attribute'])) ? (int)$product['id_product'].'_'.(int)$product['id_product_attribute'] : (int)$product['id_product'];
+                    $qty = (int)$product['stock_quantity'] - (int)$product['quantity'];
+    
+                    $xml = '<?xml version="1.0" encoding="UTF-8"?>';
+                    $xml .= '<UpdateProduct>';
+                    $xml .= '<Product>';
+                    $xml .= '<SKU>'.$id.'</SKU>';
+                    $xml .= '<Quantity>'.$qty.'</Quantity>';
+                    $xml .= '</Product>';
+                    $xml .= '</UpdateProduct>';
+    
+                    $this->_callWebService('UpdateProduct', $xml);
+                }
             }
         }
     }
