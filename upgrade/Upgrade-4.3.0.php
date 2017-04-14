@@ -24,21 +24,14 @@
  *  International Registered Trademark & Property of PrestaShop SA
  */
 
-include(dirname(__FILE__).'/../../../config/config.inc.php');
-include(dirname(__FILE__).'/../../../init.php');
-
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-function upgrade_module_4_1_0()
+function upgrade_module_4_3_0($object)
 {
-    if (Shop::isFeatureActive()) {
-        foreach (Shop::getShops() as $shop) {
-            Configuration::updateValue('SHOPPING_FLUX_REF', false, false, null, $shop['id_shop']);
-        }
-    } else {
-        Configuration::updateValue('SHOPPING_FLUX_REF', false);
+    if (version_compare(_PS_VERSION_, '1.5', '>=')) {
+        // Prestashop > v1.5
+        return ($object->registerHook('actionObjectAddAfter') && $object->unregisterHook('newOrder'));
     }
-    return true;
 }

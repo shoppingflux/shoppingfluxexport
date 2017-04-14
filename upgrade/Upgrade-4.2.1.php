@@ -24,21 +24,11 @@
  *  International Registered Trademark & Property of PrestaShop SA
  */
 
-include(dirname(__FILE__).'/../../../config/config.inc.php');
-include(dirname(__FILE__).'/../../../init.php');
-
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-function upgrade_module_4_1_0()
+function upgrade_module_4_2_1()
 {
-    if (Shop::isFeatureActive()) {
-        foreach (Shop::getShops() as $shop) {
-            Configuration::updateValue('SHOPPING_FLUX_REF', false, false, null, $shop['id_shop']);
-        }
-    } else {
-        Configuration::updateValue('SHOPPING_FLUX_REF', false);
-    }
     return true;
 }
