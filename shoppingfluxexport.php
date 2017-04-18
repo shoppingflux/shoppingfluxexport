@@ -1931,6 +1931,7 @@ class ShoppingFluxExport extends Module
         $customer->passwd = md5(pSQL(_COOKIE_KEY_.rand()));
         $customer->id_default_group = 1;
         $customer->email = pSQL($email);
+        $customer->newsletter = 0;
         $customer->add();
 
         return $customer->id;
