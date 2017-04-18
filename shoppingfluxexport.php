@@ -1517,7 +1517,7 @@ class ShoppingFluxExport extends Module
                                     Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => pSQL($email)), 'UPDATE', '`id_customer` = '.(int)$id_customer);
                                     Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
                                 } else {
-                                    Db::getInstance()->update('customer', array('email' => array('email' => pSQL($email))), '`id_customer` = '.(int)$id_customer);
+                                    Db::getInstance()->update('customer',array('email' => pSQL($email)), '`id_customer` = '.(int)$id_customer);
                                     Db::getInstance()->insert('message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')));
                                 }
                                 $this->_updatePrices($id_order, $order, $reference_order);
