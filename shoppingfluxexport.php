@@ -1517,7 +1517,7 @@ class ShoppingFluxExport extends Module
                                     Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => pSQL($email)), 'UPDATE', '`id_customer` = '.(int)$id_customer);
                                     Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
                                 } else {
-                                    Db::getInstance()->update('customer', array('email' => array('email' => pSQL($email))), '`id_customer` = '.(int)$id_customer);
+                                    Db::getInstance()->update('customer',array('email' => pSQL($email)), '`id_customer` = '.(int)$id_customer);
                                     Db::getInstance()->insert('message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')));
                                 }
                                 $this->_updatePrices($id_order, $order, $reference_order);
@@ -1931,6 +1931,7 @@ class ShoppingFluxExport extends Module
         $customer->passwd = md5(pSQL(_COOKIE_KEY_.rand()));
         $customer->id_default_group = 1;
         $customer->email = pSQL($email);
+        $customer->newsletter = 0;
         $customer->add();
 
         return $customer->id;
@@ -1946,7 +1947,7 @@ class ShoppingFluxExport extends Module
         }
 
         $row2 = Db::getInstance()->getRow('SELECT p.id_product  FROM '._DB_PREFIX_.'product p
-            WHERE p.reference = "'.  pSQL($ref).'" AND pa.id_product!=0');
+            WHERE p.reference = "'.  pSQL($ref).'" AND p.id_product!=0');
 
         return array($row2['id_product'], 0);
     }
@@ -2452,7 +2453,7 @@ class ShoppingFluxExport extends Module
             // Retrieve FDG product id after save
             Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
     
-            $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
+            $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, $this->context->shop->id);
             $stock_available = new StockAvailable($id_stock_available);
             $stock_available->out_of_stock = 1;
             $stock_available->update();
