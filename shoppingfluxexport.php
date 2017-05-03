@@ -1697,7 +1697,7 @@ class ShoppingFluxExport extends Module
             $xml .= '</Order>';
             $xml .= '</UpdateOrders>';
 
-            $responseXML = $this->_callWebService('UpdateOrders', $xml);
+            $responseXML = $this->_callWebService('UpdateOrders', $xml, (int)$order->id_shop);
 
             if (!$responseXML->Response->Error) {
                 if (version_compare(_PS_VERSION_, '1.5', '<')) {
@@ -1735,7 +1735,7 @@ class ShoppingFluxExport extends Module
             $xml .= '</Order>';
             $xml .= '</UpdateOrders>';
 
-            $responseXML = $this->_callWebService('UpdateOrders', $xml);
+            $responseXML = $this->_callWebService('UpdateOrders', $xml, (int)$order->id_shop);
 
             if (!$responseXML->Response->Error) {
                 if (version_compare(_PS_VERSION_, '1.5', '<')) {
@@ -1781,9 +1781,15 @@ class ShoppingFluxExport extends Module
     }
 
     /* Call Shopping Flux Webservices */
-    private function _callWebService($call, $xml = false)
+    private function _callWebService($call, $xml = false, $id_shop = null)
     {
-        $token = Configuration::get('SHOPPING_FLUX_TOKEN');
+
+        if (version_compare(_PS_VERSION_, '1.5', '<')) {
+            // Prestashop v1.4
+            $token = Configuration::get('SHOPPING_FLUX_TOKEN');
+        } else {
+            $token = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+        }
         if (empty($token)) {
             return false;
         }
