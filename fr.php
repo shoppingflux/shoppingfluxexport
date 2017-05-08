@@ -32,6 +32,8 @@ $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_30c5a9387fc1f77d125
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_38c09bdd5cfda761cb248efbb20222de'] = 'les commandes annulées depuis votre site seront mises à jour les places de marché';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_bc5511de6a99b0327b2e6981132f09f8'] = 'Synchronisation des stocks';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_70ba2a254ee564674e0576ee1c53d0f1'] = 'chaque mouvement de prix et de stock sera répercuté sur les places de marché';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_9be907743693d374be3e86ee63de5975'] = 'Exporter les Packs';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_753e46372350b4e378287c0617bc4c39'] = 'Exporter aussi les produits packs';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_bff13ed1cd5b83b03f024f1eb6524337'] = 'Transporteur par défaut';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d5b5962b1744f6a98b980859a6bec8cd'] = 'Type d\'image par défaut';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_655b383b53dd593d5ca2b057ee125926'] = 'Notifier l\'expédition aux places de marché lors du passage au statut';
