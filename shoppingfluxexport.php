@@ -674,7 +674,7 @@ class ShoppingFluxExport extends Module
         $link = new Link();
     
         echo '<?xml version="1.0" encoding="utf-8"?>';
-        echo '<products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">';
+        echo '<products version="'.$this->version.'" country="'.$this->default_country->iso_code.'" date="' . date('Y-m-d') . '">';
     
         foreach ($products as $productArray) {
             $product = new Product((int)($productArray['id_product']), true, $configuration['PS_LANG_DEFAULT']);
@@ -774,7 +774,7 @@ class ShoppingFluxExport extends Module
         $this->emptyLog();
         
         $file = fopen($this->getFeedName(), 'w+');
-        fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">');
+        fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'" date="' . date('Y-m-d') . '">');
         fclose($file);
 
         $totalProducts = $this->countProducts();
