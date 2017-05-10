@@ -2205,11 +2205,21 @@ class ShoppingFluxExport extends Module
             $this->logDebugOrders('Loading products by ID');
         }
         
+        $id_warehouse = '';
         foreach ($productsNode->Product as $product) {
             if ($useReference) {
                 $skus = $this->getIDs($product->SKU);
             } else {
                 $skus = explode('_', $product->SKU);
+            }
+            
+            // Check if advanced stock management active and get the warehouse of any other product
+            if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1
+                && $skus[0] != Configuration::get('SHOPPING_FLUX_FDG')) {
+                $warehouseInfos = Warehouse::getWarehousesByProductId($skus[0], (isset($skus[1]) ? $skus[1] : 0));
+                if (count($warehouseInfos) > 0) {
+                    $id_warehouse = $warehouseInfos[0]['id_warehouse'];
+                }
             }
 
             $this->logDebugOrders('Loading product SKU '.(int)($skus[0]).' and adding it to cart');
@@ -2230,6 +2240,12 @@ class ShoppingFluxExport extends Module
         }
 
         if (isset($fees) && $fees > 0 && Configuration::get('SHOPPING_FLUX_FDG') != '') {
+            // Check if advanced stock management active
+            if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1) {
+                // Assign a warehouse to FDG product to avoid double order creation
+                Warehouse::setProductLocation((int) Configuration::get('SHOPPING_FLUX_FDG'), $id_warehouse, '');
+            }
+            
             if (!$cart->updateQty(1, Configuration::get('SHOPPING_FLUX_FDG'), null)) {
                 $this->logDebugOrders('Could not add FDG product to cart');
                 return false;
