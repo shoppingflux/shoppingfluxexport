@@ -50,6 +50,7 @@ $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_6b7edf50a18de3c15d8
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_6c54d1930716bab7eb93609a27f59e33'] = 'Activer les logs des commandes';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_f467ee6e7956b0e1c8024470704340ad'] = 'Activer les logs de création des commandes';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_cf52d2a32c35b9c5a51f60a44c519993'] = 'FDG';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_1f314c1480805fcdd50f9188f930d804'] = 'Nombre de produits sujets à l\'export';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_2bc7d3b3f0665c5c6aacf514a7954b19'] = 'Date de dernière génération intégrale du CRON';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_7d615a3e78cf1d8cd4bf8ea83bf2a3ae'] = 'Nombre de produits à traiter à chaque appel d\'URL du CRON (ne pas modifier)';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_fe4c6a5e7bd6793b37370e4e46daf998'] = 'Paramètres avancés';
