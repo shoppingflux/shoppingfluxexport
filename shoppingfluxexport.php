@@ -1901,6 +1901,12 @@ class ShoppingFluxExport extends Module
             $address->phone_mobile = Tools::substr(pSQL($addressNode->PhoneMobile), 0, 16);
         }
 
+        // Update state (needed for US)
+        $state_iso_code = Tools::strtoupper(trim($addressNode->Street2));
+        if ($id_state = State::getIdByIso($state_iso_code, $address->id_country)) {
+            $address->id_state = $id_state;
+        }
+            
         if ($id_address) {
             $address->update();
         } else {
