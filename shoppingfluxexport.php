@@ -216,7 +216,7 @@ class ShoppingFluxExport extends Module
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
         $price = is_object($status_xml) ? (float)$status_xml->Response->Price : 0;
-
+        
         switch ($status) {
             case 'Client':
                 $this->_html .= $this->_clientView();
@@ -240,17 +240,18 @@ class ShoppingFluxExport extends Module
             Configuration::updateValue('SHOPPINGFLUXEXPORT_CONFIGURED', true); // SHOPPINGFLUXEXPORT_CONFIGURATION_OK
         }
         
-        foreach (Shop::getShops() as $shop) {
-            $lockFile = dirname(__FILE__).'/cron_'.$shop['id_shop'].'.lock';
-            if (file_exists($lockFile)) {
-                // Remove lock
-                $fp = fopen($lockFile, 'r+');
-                fflush($fp);
-                flock($fp, LOCK_UN);
-                fclose($fp);
+        if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
+            foreach (Shop::getShops() as $shop) {
+                $lockFile = dirname(__FILE__).'/cron_'.$shop['id_shop'].'.lock';
+                if (file_exists($lockFile)) {
+                    // Remove lock
+                    $fp = fopen($lockFile, 'r+');
+                    fflush($fp);
+                    flock($fp, LOCK_UN);
+                    fclose($fp);
+                }
             }
         }
-        
         
         return $this->_html;
     }
@@ -335,6 +336,9 @@ class ShoppingFluxExport extends Module
         $html .= $this->_getParametersContent($configuration);
         $html .= $this->_getAdvancedParametersContent($configuration);
         $html .= $this->defaultAdvancedParameterInformationView($configuration);
+        if (version_compare(_PS_VERSION_, '1.5', '>')) {
+            $html .= $this->defaultTokenConfigurationView();
+        }
         $html .= $this->defaultInformationView($configuration);
 
         return $html;
@@ -540,6 +544,44 @@ class ShoppingFluxExport extends Module
                     $passValue = 200;
                 }
                 Configuration::updateValue('SHOPPING_FLUX_PASSES', $passValue);
+            }
+        }
+        
+        // Tokens handling
+        // Check and save default token value ( main Token value )
+        $mainToken = Tools::getValue('SHOPPING_FLUX_TOKEN');
+        if ($mainToken) {
+            $this->setTokenValue($mainToken);
+        }
+        
+        // Loop on shops for multiple token values
+        if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
+            $shops = Shop::getShops();
+            foreach ($shops as &$currentShop) {
+                $shopLanguages = Language::getLanguages(true, $currentShop['id_shop']);
+                $shopCurrencies = Currency::getCurrenciesByIdShop($currentShop['id_shop']);
+            
+                $tokenShop = Tools::getValue('token_'.$currentShop['id_shop']);
+                if ($tokenShop) {
+                    $this->setTokenValue($tokenShop, $currentShop['id_shop']);
+                } else {
+                    $this->setTokenValue('', $currentShop['id_shop']);
+                }
+            
+                // Loop on languages
+                foreach ($shopLanguages as $currentLang) {
+                    $idLang = $currentLang['id_lang'];
+                    // Finally loop on currencies
+                    foreach ($shopCurrencies as $currentCurrency) {
+                        $idCurrency = $currentCurrency['id_currency'];
+                        $token = Tools::getValue('token_'.$currentShop['id_shop'].'_'.$idLang.'_'.$idCurrency);
+                        if ($token) {
+                            $this->setTokenValue($token, $currentShop['id_shop'], $idCurrency, $idLang);
+                        } else {
+                            $this->setTokenValue('', $currentShop['id_shop'], $idCurrency, $idLang);
+                        }
+                    }
+                }
             }
         }
     }
@@ -1438,122 +1480,127 @@ class ShoppingFluxExport extends Module
                 $ordersConfig != '' &&
                 $curlInstalled) ||
                 $no_cron == false) {
-                $ordersXML = $this->_callWebService('GetOrders');
-    
-                if (count($ordersXML->Response->Orders) == 0) {
-                    return;
-                }
-    
-                foreach ($ordersXML->Response->Orders->Order as $order) {
-                    $this->logDebugOrders('----------------- Order creation received');
-                    try {
-                        if ((Tools::strtolower($order->Marketplace) == 'rdc' || Tools::strtolower($order->Marketplace) == 'rueducommerce') && strpos($order->ShippingMethod, 'Mondial Relay') !== false) {
-                            $num = explode(' ', $order->ShippingMethod);
-                            $order->Other = end($num);
-                            $order->ShippingMethod = 'Mondial Relay';
-                        }
-    
-                        $orderExists = Db::getInstance()->getRow('SELECT m.id_message  FROM '._DB_PREFIX_.'message m
-                            WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
-    
-                        if (isset($orderExists['id_message'])) {
-                            $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace);
-                            continue;
-                        }
-    
-                        $check = $this->checkData($order);
-                        if ($check !== true) {
-                            $this->logDebugOrders('Check data incorrect - '.$check);
-                            $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $check);
-                            continue;
-                        }
-    
-                        $mail = (string)$order->BillingAddress->Email;
-                        $email = (empty($mail)) ? pSQL($order->IdOrder.'@'.$order->Marketplace.'.sf') : pSQL($mail);
-    
-                        $id_customer = $this->_getCustomer($email, (string)$order->BillingAddress->LastName, (string)$order->BillingAddress->FirstName);
-                        $this->logDebugOrders('Id customer created or found : '.$id_customer);
-                        //avoid update of old orders by the same merchant with different addresses
-                        $id_address_billing = $this->_getAddress($order->BillingAddress, $id_customer, 'Billing-'.(string)$order->IdOrder);
-                        $this->logDebugOrders('Id adress delivery created or found : '.$id_address_billing);
-                        $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other);
-                        $this->logDebugOrders('Id adress shipping or found : '.$id_address_shipping);
-                        $products_available = $this->_checkProducts($order->Products);
-                        $this->logDebugOrders('Check products availabilityresult : '.$products_available);
-    
-                        $current_customer = new Customer((int)$id_customer);
-    
-                        if ($products_available && $id_address_shipping && $id_address_billing && $id_customer) {
-                            $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees);
-    
-                            if ($cart) {
-                                $this->logDebugOrders('Cart '.$cart->id.' successfully built');
-                              
-                                //compatibylity with socolissmo
-                                $this->context->cart = $cart;
-
-                                if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                                    Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), 'UPDATE', '`id_customer` = '.(int)$id_customer);
-                                } else {
-                                    Db::getInstance()->update('customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), '`id_customer` = '.(int)$id_customer);
-                                }
-                                
-                                $customerClear = new Customer();
-    
-                                if (method_exists($customerClear, 'clearCache')) {
-                                    $customerClear->clearCache(true);
-                                }
-    
-                                $payment = $this->_validateOrder($cart, $order->Marketplace);
-                                $id_order = $payment->currentOrder;
-    
-                                //we valid there
-                                $this->logDebugOrders('Calling validateOrder');
-                                $orderCreation = $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order);
-                                $this->logDebugOrders('ValidateOrder result : '.$orderCreation);
-    
-                                $reference_order = $payment->currentOrderReference;
-                                if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                                    Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => pSQL($email)), 'UPDATE', '`id_customer` = '.(int)$id_customer);
-                                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                                } else {
-                                    Db::getInstance()->update('customer',array('email' => pSQL($email)), '`id_customer` = '.(int)$id_customer);
-                                    Db::getInstance()->insert('message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')));
-                                }
-                                $this->_updatePrices($id_order, $order, $reference_order);
-
-                                // Avoid SoColissimo module to change the address by the one he created
-                                $sql_update = 'UPDATE '._DB_PREFIX_.'orders SET id_address_delivery = '.(int)$id_address_shipping.' WHERE id_order = '.(int)$id_order;
-                                Db::getInstance()->execute($sql_update);
+                    
+                // Get all tokens of this shop
+                $allTokens = $this->getAllTokensOfShop();
+                foreach ($allTokens as $currentToken) {
+                    $ordersXML = $this->_callWebService('GetOrders', false, $currentToken['token']);
+                
+                    if (count($ordersXML->Response->Orders) == 0) {
+                        return;
+                    }
+        
+                    foreach ($ordersXML->Response->Orders->Order as $order) {
+                        $this->logDebugOrders('----------------- Order creation received');
+                        try {
+                            if ((Tools::strtolower($order->Marketplace) == 'rdc' || Tools::strtolower($order->Marketplace) == 'rueducommerce') && strpos($order->ShippingMethod, 'Mondial Relay') !== false) {
+                                $num = explode(' ', $order->ShippingMethod);
+                                $order->Other = end($num);
+                                $order->ShippingMethod = 'Mondial Relay';
                             }
+        
+                            $orderExists = Db::getInstance()->getRow('SELECT m.id_message, m.id_order  FROM '._DB_PREFIX_.'message m
+                                WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
+        
+                            if (isset($orderExists['id_message']) && isset($orderExists['id_order'])) {
+                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int)$orderExists['id_order']);
+                                continue;
+                            }
+        
+                            $check = $this->checkData($order);
+                            if ($check !== true) {
+                                $this->logDebugOrders('Check data incorrect - '.$check);
+                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $check);
+                                continue;
+                            }
+        
+                            $mail = (string)$order->BillingAddress->Email;
+                            $email = (empty($mail)) ? pSQL($order->IdOrder.'@'.$order->Marketplace.'.sf') : pSQL($mail);
+        
+                            $id_customer = $this->_getCustomer($email, (string)$order->BillingAddress->LastName, (string)$order->BillingAddress->FirstName);
+                            $this->logDebugOrders('Id customer created or found : '.$id_customer);
+                            //avoid update of old orders by the same merchant with different addresses
+                            $id_address_billing = $this->_getAddress($order->BillingAddress, $id_customer, 'Billing-'.(string)$order->IdOrder);
+                            $this->logDebugOrders('Id adress delivery created or found : '.$id_address_billing);
+                            $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other);
+                            $this->logDebugOrders('Id adress shipping or found : '.$id_address_shipping);
+                            $products_available = $this->_checkProducts($order->Products);
+                            $this->logDebugOrders('Check products availabilityresult : '.$products_available);
+        
+                            $current_customer = new Customer((int)$id_customer);
+        
+                            if ($products_available && $id_address_shipping && $id_address_billing && $id_customer) {
+                                $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees, $currentToken['id_lang']);
+        
+                                if ($cart) {
+                                    $this->logDebugOrders('Cart '.$cart->id.' successfully built');
+                                  
+                                    //compatibylity with socolissmo
+                                    $this->context->cart = $cart;
+    
+                                    if (version_compare(_PS_VERSION_, '1.5', '<')) {
+                                        Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), 'UPDATE', '`id_customer` = '.(int)$id_customer);
+                                    } else {
+                                        Db::getInstance()->update('customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), '`id_customer` = '.(int)$id_customer);
+                                    }
+                                    
+                                    $customerClear = new Customer();
+        
+                                    if (method_exists($customerClear, 'clearCache')) {
+                                        $customerClear->clearCache(true);
+                                    }
+        
+                                    $payment = $this->_validateOrder($cart, $order->Marketplace);
+                                    $id_order = $payment->currentOrder;
+        
+                                    //we valid there
+                                    $this->logDebugOrders('Calling validateOrder');
+                                    $orderCreation = $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order);
+                                    $this->logDebugOrders('ValidateOrder result : '.$orderCreation);
+        
+                                    $reference_order = $payment->currentOrderReference;
+                                    if (version_compare(_PS_VERSION_, '1.5', '<')) {
+                                        Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => pSQL($email)), 'UPDATE', '`id_customer` = '.(int)$id_customer);
+                                        Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
+                                    } else {
+                                        Db::getInstance()->update('customer',array('email' => pSQL($email)), '`id_customer` = '.(int)$id_customer);
+                                        Db::getInstance()->insert('message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')));
+                                    }
+                                    $this->_updatePrices($id_order, $order, $reference_order);
+    
+                                    // Avoid SoColissimo module to change the address by the one he created
+                                    $sql_update = 'UPDATE '._DB_PREFIX_.'orders SET id_address_delivery = '.(int)$id_address_shipping.' WHERE id_order = '.(int)$id_order;
+                                    Db::getInstance()->execute($sql_update);
+                                }
+                            }
+        
+                            $cartClear = new Cart();
+        
+                            if (method_exists($cartClear, 'clearCache')) {
+                                $cartClear->clearCache(true);
+                            }
+        
+                            $addressClear = new Address();
+        
+                            if (method_exists($addressClear, 'clearCache')) {
+                                $addressClear->clearCache(true);
+                            }
+        
+                            $customerClear = new Customer();
+        
+                            if (method_exists($customerClear, 'clearCache')) {
+                                $customerClear->clearCache(true);
+                            }
+                        } catch (PrestaShopException $pe) {
+                            $this->logDebugOrders('Error on order creation : '.$pe->getMessage());
+                            $this->logDebugOrders('Trace : '.print_r($pe->getTraceAsString(), true));
+                            $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $pe->getMessage());
                         }
-    
-                        $cartClear = new Cart();
-    
-                        if (method_exists($cartClear, 'clearCache')) {
-                            $cartClear->clearCache(true);
-                        }
-    
-                        $addressClear = new Address();
-    
-                        if (method_exists($addressClear, 'clearCache')) {
-                            $addressClear->clearCache(true);
-                        }
-    
-                        $customerClear = new Customer();
-    
-                        if (method_exists($customerClear, 'clearCache')) {
-                            $customerClear->clearCache(true);
-                        }
-                    } catch (PrestaShopException $pe) {
-                        $this->logDebugOrders('Error on order creation : '.$pe->getMessage());
-                        $this->logDebugOrders('Trace : '.print_r($pe->getTraceAsString(), true));
-                        $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $pe->getMessage());
                     }
                 }
             }
         }
-    }
+	}
 
     /**
      * Check Data to avoid errors
@@ -1697,7 +1744,7 @@ class ShoppingFluxExport extends Module
             $xml .= '</Order>';
             $xml .= '</UpdateOrders>';
 
-            $responseXML = $this->_callWebService('UpdateOrders', $xml);
+            $responseXML = $this->_callWebService('UpdateOrders', $xml, $this->getOrderToken((int)$params['id_order']));
 
             if (!$responseXML->Response->Error) {
                 if (version_compare(_PS_VERSION_, '1.5', '<')) {
@@ -1781,17 +1828,21 @@ class ShoppingFluxExport extends Module
     }
 
     /* Call Shopping Flux Webservices */
-    private function _callWebService($call, $xml = false)
+    private function _callWebService($call, $xml = false, $forceToken = false)
     {
         $token = Configuration::get('SHOPPING_FLUX_TOKEN');
-        if (empty($token)) {
+        if (empty($token) && !$forceToken) {
             return false;
         }
 
         $service_url = 'https://ws.shopping-feed.com';
 
+        if ($forceToken) {
+            $token = $forceToken;
+        }
+        
         $curl_post_data = array(
-            'TOKEN' => Configuration::get('SHOPPING_FLUX_TOKEN'),
+            'TOKEN' => $token,
             'CALL' => $call,
             'MODE' => 'Production',
             'REQUEST' => $xml
@@ -2158,14 +2209,18 @@ class ShoppingFluxExport extends Module
      * Fake cart creation
      */
 
-    private function _getCart($id_customer, $id_address_billing, $id_address_shipping, $productsNode, $currency, $shipping_method, $fees)
+    private function _getCart($id_customer, $id_address_billing, $id_address_shipping, $productsNode, $currency, $shipping_method, $fees, $id_lang = false)
     {
         $cart = new Cart();
         $cart->id_customer = $id_customer;
         $cart->id_address_invoice = $id_address_billing;
         $cart->id_address_delivery = $id_address_shipping;
         $cart->id_currency = Currency::getIdByIsoCode((string)$currency == '' ? 'EUR' : (string)$currency);
-        $cart->id_lang = Configuration::get('PS_LANG_DEFAULT');
+        if (! $id_lang) {
+            $cart->id_lang = Configuration::get('PS_LANG_DEFAULT');
+        } else {
+            $cart->id_lang = $id_lang;
+        }
         $cart->recyclable = 0;
         $cart->secure_key = md5(uniqid(rand(), true));
 
@@ -2273,7 +2328,7 @@ class ShoppingFluxExport extends Module
         $xml .= '</Order>';
         $xml .= '</ValidOrders>';
 
-        $this->_callWebService('ValidOrders', $xml);
+        $this->_callWebService('ValidOrders', $xml, $this->getOrderToken($id_order_merchant));
     }
 
     private function _setShoppingFeedId()
@@ -2622,6 +2677,137 @@ class ShoppingFluxExport extends Module
         return $html;
     }
     
+
+    /**
+     * Display the token configuration form
+     */
+    private function defaultTokenConfigurationView()
+    {
+        $shops = Shop::getShops();
+        $tokenTree = array();
+    
+        // Loop on shops
+        foreach ($shops as &$currentShop) {
+            $shopLanguages = Language::getLanguages(true, $currentShop['id_shop']);
+            $shopCurrencies = Currency::getCurrenciesByIdShop($currentShop['id_shop']);
+            $values = array();
+            // Loop on languages
+            foreach ($shopLanguages as $currentLang) {
+                $idLang = $currentLang['id_lang'];
+                $nameLang = $currentLang['name'];
+                // Finally loop on currencies
+                foreach ($shopCurrencies as $currentCurrency) {
+                    $idCurrency = $currentCurrency['id_currency'];
+                    $nameCurrency = $currentCurrency['name'];
+                    $token = $this->getTokenValue($currentShop['id_shop'], $idCurrency, $idLang);
+                    $values[] = array(
+                        'name' => $nameLang.' / '.$nameCurrency,
+                        'id' => $idLang.'_'.$idCurrency,
+                        'token' => $token
+                    );
+                }
+            }
+    
+            $tokenTree[] = array(
+                'id_shop' => $currentShop['id_shop'],
+                'name' => $currentShop['name'],
+                'token' => $this->getTokenValue($currentShop['id_shop']),
+                'values' => $values
+            );
+        }
+    
+        $this->context->smarty->assign(array(
+            'token_tree' => $tokenTree,
+            'postUri' => Tools::safeOutput($_SERVER['REQUEST_URI'])
+        ));
+    
+        $html = '<fieldset>';
+        $html .= '<legend>'.$this->l('Shop\'s tokens').'</legend>';
+        $html .= $this->display(__FILE__, 'views/templates/admin/tokens.tpl');
+        $html .= '</fieldset>';
+        return $html;
+    }
+    
+    /**
+     * Get the configured token
+     * @param int $id_shop the shop context
+     * @param int $id_currency (optionnal) the currency
+     * @param int $id_lang (optionnal) the lang
+     */
+    public function getTokenValue($id_shop, $id_currency = false, $id_lang = false)
+    {
+        $key = 'SHOPPING_FLUX_TOKEN';
+        if ($id_currency && $id_lang) {
+            $key .= '_'.$id_currency.'_'.$id_lang;
+        }
+        if ($id_shop) {
+            return Configuration::get($key, null, null, $id_shop);
+        } else {
+            return Configuration::get($key);
+        }
+    }
+    
+    /**
+     * Gets all token of a given shop
+     * @param int $id_shop
+     */
+    private function getAllTokensOfShop()
+    {
+        $id_shop = $this->context->shop->id;
+        $res = array();
+        $tokenGeneral = $this->getTokenValue($id_shop);
+        if ($tokenGeneral) {
+            $res[] = array(
+                'id_shop' => $id_shop,
+                'token' => $tokenGeneral,
+                'id_lang' => Configuration::get('PS_LANG_DEFAULT'),
+                'id_currency' => false
+            );
+        }
+        
+        $shopLanguages = Language::getLanguages(true, $id_shop);
+        $shopCurrencies = Currency::getCurrenciesByIdShop($id_shop);
+        // Loop on languages
+        foreach ($shopLanguages as $currentLang) {
+            $idLang = $currentLang['id_lang'];
+            // Finally loop on currencies
+            foreach ($shopCurrencies as $currentCurrency) {
+                $idCurrency = $currentCurrency['id_currency'];
+                $token = $this->getTokenValue($id_shop, $idCurrency, $idLang);
+                if ($token) {
+                    $res[] = array(
+                        'id_shop' => $id_shop,
+                        'token' => $token,
+                        'id_lang' => $idLang,
+                        'id_currency' => $idCurrency
+                    );
+                }
+            }
+        }
+        
+        return $res;
+    }
+        
+        
+    /**
+     * Set a token
+     * @param int $id_shop the shop context
+     * @param int $id_currency (optionnal) the currency
+     * @param int $id_lang (optionnal) the lang
+     */
+    private function setTokenValue($value, $id_shop = null, $id_currency = false, $id_lang = false)
+    {
+        $key = 'SHOPPING_FLUX_TOKEN';
+        if ($id_currency && $id_lang) {
+            $key .= '_'.$id_currency.'_'.$id_lang;
+        }
+        if (version_compare(_PS_VERSION_, '1.5', '>')) {
+            return Configuration::updateValue($key, $value, false, null, $id_shop);
+        } else {
+            return Configuration::updateValue($key);
+        }
+    }
+        
     
     /**
      * Function to check if curl is installed
@@ -2687,4 +2873,26 @@ class ShoppingFluxExport extends Module
             return dirname(__FILE__).'/feed'.$name.'.xml';
         }
     }
+    
+    /**
+     * Get the correponding token for this order in multitoken mode
+     */
+    public function getOrderToken($id_order) {
+        $order = new Order($id_order);
+        
+        if (version_compare(_PS_VERSION_, '1.5', '>')) {
+            $id_shop = $order->id_shop;
+        } else {
+            $id_shop = false;
+        }
+        
+        $tokenValue = $this->getTokenValue($id_shop, $order->id_currency, $order->id_lang);
+        // Token is in id_shop of the order
+        if ($tokenValue != '') {
+           return $tokenValue;
+        } else {
+            return $this->getTokenValue($id_shop);
+        }
+    }
+    
 }
