@@ -2459,10 +2459,7 @@ class ShoppingFluxExport extends Module
             // Retrieve FDG product id after save
             Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
     
-            $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, $this->context->shop->id);
-            $stock_available = new StockAvailable($id_stock_available);
-            $stock_available->out_of_stock = 1;
-            $stock_available->update();
+            StockAvailable::setProductOutOfStock($product->id, 1);
         } else {
             $product = new Product($fdg);
     
@@ -2473,10 +2470,7 @@ class ShoppingFluxExport extends Module
                     $product->reference = 'FDG-ShoppingFlux';
                     $product->update();
     
-                    $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
-                    $stock_available = new StockAvailable($id_stock_available);
-                    $stock_available->out_of_stock = 1;
-                    $stock_available->update();
+                    StockAvailable::setProductOutOfStock($product->id, 1);
                 }
             } else {
                 // Create new FDG Product, not visible in front office since it does not exist
@@ -2493,10 +2487,7 @@ class ShoppingFluxExport extends Module
                 $product->reference = 'FDG-ShoppingFlux';
                 $product->add();
     
-                $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
-                $stock_available = new StockAvailable($id_stock_available);
-                $stock_available->out_of_stock = 1;
-                $stock_available->update();
+                StockAvailable::setProductOutOfStock($product->id, 1);
     
                 // Retrieve FDG product id after save
                 Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
