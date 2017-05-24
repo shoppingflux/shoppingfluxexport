@@ -1491,6 +1491,28 @@ class ShoppingFluxExport extends Module
                               
                                 //compatibylity with socolissmo
                                 $this->context->cart = $cart;
+                                
+                                // Compatibility with socolissimo liberté module
+                                $module = Module::getInstanceByName('soliberte');
+                                if ($module && $module->active) {
+                                    $addrSoColissimo = new Address((int)$id_address_shipping);
+                                    $countrySoColissimo = new Country($addrSoColissimo->id_country);
+                                    $socotable_name = 'socolissimo_delivery_info';
+                                    $socovalues = array(
+                                        'id_cart' => (int) $cart->id,
+                                        'id_customer' => (int) $id_customer,
+                                        'prfirstname' => pSQL($addrSoColissimo->firstname),
+                                        'cename' => pSQL($addrSoColissimo->lastname),
+                                        'cefirstname' => pSQL($addrSoColissimo->firstname),
+                                        'cecountry' => pSQL($countrySoColissimo->iso_code),
+                                        'ceemail' => pSQL($email),
+                                    );
+                                    if (version_compare(_PS_VERSION_, '1.5', '>=')) {
+                                        Db::getInstance()->insert($socotable_name, $socovalues);
+                                    } else {
+                                        Db::getInstance()->autoExecute(_DB_PREFIX_ . $socotable_name, $socovalues, 'INSERT');
+                                    }
+                                }
 
                                 if (version_compare(_PS_VERSION_, '1.5', '<')) {
                                     Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), 'UPDATE', '`id_customer` = '.(int)$id_customer);
