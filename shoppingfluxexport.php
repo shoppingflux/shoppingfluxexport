@@ -117,6 +117,7 @@ class ShoppingFluxExport extends Module
                         !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_REF', '', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '', false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', 0, false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_INDEX', Tools::getCurrentUrlProtocolPrefix() . $shop['domain'] . $shop['uri'], false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_STOCKS', '', false, null, $shop['id_shop'] ||
                         !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300', false, null, $shop['id_shop']))
@@ -135,6 +136,7 @@ class ShoppingFluxExport extends Module
                         !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_REF', '', false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '', false, null, $shop['id_shop']) ||
+                        !Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', 0, false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_INDEX', Tools::getCurrentUrlProtocolPrefix() . $shop['domain'] . $shop['uri'], false, null, $shop['id_shop']) ||
                         !Configuration::updateValue('SHOPPING_FLUX_STOCKS', '', false, null, $shop['id_shop'] ||
                         !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300', false, null, $shop['id_shop']))
@@ -158,6 +160,7 @@ class ShoppingFluxExport extends Module
                     !Configuration::updateValue('SHOPPING_FLUX_REF', '') ||
                     !Configuration::updateValue('SHOPPING_FLUX_INDEX', Tools::getCurrentUrlProtocolPrefix().$shop['domain'].$shop['uri']) ||
                     !Configuration::updateValue('SHOPPING_FLUX_STOCKS') ||
+                    !Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', 0) ||
                     !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300')) {
                     return false;
                 }
@@ -175,6 +178,7 @@ class ShoppingFluxExport extends Module
                     !Configuration::updateValue('SHOPPING_FLUX_REF', '') ||
                     !Configuration::updateValue('SHOPPING_FLUX_INDEX', Tools::getCurrentUrlProtocolPrefix().$shop['domain'].$shop['uri']) ||
                     !Configuration::updateValue('SHOPPING_FLUX_STOCKS') ||
+                    !Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', 0) ||
                     !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300')) {
                     return false;
                 }
@@ -200,6 +204,7 @@ class ShoppingFluxExport extends Module
                 !Configuration::deleteByName('SHOPPING_FLUX_STOCKS') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_SHIPPING_MATCHING') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_PASSES') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_MULTITOKEN_ACTIVATION') ||
                 !parent::uninstall()) {
             return false;
         }
@@ -547,15 +552,18 @@ class ShoppingFluxExport extends Module
             }
         }
         
-        // Tokens handling
-        // Check and save default token value ( main Token value )
-        $mainToken = Tools::getValue('SHOPPING_FLUX_TOKEN');
-        if ($mainToken) {
-            $this->setTokenValue($mainToken);
-        }
-        
         // Loop on shops for multiple token values
-        if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
+        if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive() && Tools::isSubmit('rec_config')) {
+            
+            // Tokens handling
+            $sfMultitokenActivation = (int)Tools::getValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION');
+            if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
+                $id_shop = $this->context->shop->id;
+                Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', $sfMultitokenActivation, false, null, $id_shop);
+            } else {
+                Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', $sfMultitokenActivation);
+            }
+            
             $shops = Shop::getShops();
             foreach ($shops as &$currentShop) {
                 $shopLanguages = Language::getLanguages(true, $currentShop['id_shop']);
@@ -582,6 +590,12 @@ class ShoppingFluxExport extends Module
                         }
                     }
                 }
+            }
+            
+            // Check and save default token value (main Token value)
+            $mainToken = Tools::getValue('SHOPPING_FLUX_TOKEN');
+            if ($mainToken) {
+                $this->setTokenValue($mainToken);
             }
         }
     }
@@ -2723,6 +2737,10 @@ class ShoppingFluxExport extends Module
     
         $html = '<fieldset>';
         $html .= '<legend>'.$this->l('Shop\'s tokens').'</legend>';
+        $sfMultitokenActivation = (int)Configuration::get('SHOPPING_FLUX_MULTITOKEN_ACTIVATION');
+        $this->context->smarty->assign(array(
+            'sfMultitokenActivation' => $sfMultitokenActivation,
+        ));
         $html .= $this->display(__FILE__, 'views/templates/admin/tokens.tpl');
         $html .= '</fieldset>';
         return $html;
@@ -2737,7 +2755,7 @@ class ShoppingFluxExport extends Module
     public function getTokenValue($id_shop, $id_currency = false, $id_lang = false)
     {
         $key = 'SHOPPING_FLUX_TOKEN';
-        if ($id_currency && $id_lang) {
+        if ($id_currency && $id_lang && !(int) Configuration::get('SHOPPING_FLUX_MULTITOKEN_ACTIVATION')) {
             $key .= '_'.$id_currency.'_'.$id_lang;
         }
         if ($id_shop) {
