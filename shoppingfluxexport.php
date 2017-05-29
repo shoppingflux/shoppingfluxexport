@@ -2515,13 +2515,16 @@ class ShoppingFluxExport extends Module
     {
         $fdg = Configuration::get('SHOPPING_FLUX_FDG');
         $languages = Language::getLanguages(false);
-    
+        
         if (empty($fdg)) {
             // Create new FDG Product, not visible in front office
             $product = new Product();
             foreach ($languages as $language) {
                 $product->name[$language['id_lang']] = 'CDiscount fees - ShoppingFlux';
                 $product->link_rewrite[$language['id_lang']] = 'cdiscount-fdg-shoppingflux';
+            }
+            if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1) {
+                $product->advanced_stock_management = 1;
             }
             $product->id_category_default = Configuration::get('PS_HOME_CATEGORY');
             $product->active = 1;
@@ -2530,10 +2533,14 @@ class ShoppingFluxExport extends Module
             $product->out_of_stock = 1;
             $product->reference = 'FDG-ShoppingFlux';
             $product->add();
-    
+            if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1) {
+                StockAvailable::setProductDependsOnStock($product->id, true, (int)$this->context->shop->id, 0);
+            }
+            
             // Retrieve FDG product id after save
             Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
-    
+            
+            
             $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, $this->context->shop->id);
             $stock_available = new StockAvailable($id_stock_available);
             $stock_available->out_of_stock = 1;
@@ -2553,12 +2560,20 @@ class ShoppingFluxExport extends Module
                     $stock_available->out_of_stock = 1;
                     $stock_available->update();
                 }
+                if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1 && $product->advanced_stock_management != 1) {
+                    $product->advanced_stock_management = 1;
+                    StockAvailable::setProductDependsOnStock($product->id, true, (int)$this->context->shop->id, 0);
+                    $product->update();
+                }
             } else {
                 // Create new FDG Product, not visible in front office since it does not exist
                 $product = new Product();
                 foreach ($languages as $language) {
                     $product->name[$language['id_lang']] = 'CDiscount fees - ShoppingFlux';
                     $product->link_rewrite[$language['id_lang']] = 'cdiscount-fdg-shoppingflux';
+                }
+                if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1) {
+                    $product->advanced_stock_management = 1;
                 }
                 $product->id_category_default = Configuration::get('PS_HOME_CATEGORY');
                 $product->active = 1;
@@ -2567,12 +2582,15 @@ class ShoppingFluxExport extends Module
                 $product->out_of_stock = 1;
                 $product->reference = 'FDG-ShoppingFlux';
                 $product->add();
-    
+                if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1) {
+                    StockAvailable::setProductDependsOnStock($product->id, true, (int)$this->context->shop->id, 0);
+                }
+                
                 $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
                 $stock_available = new StockAvailable($id_stock_available);
                 $stock_available->out_of_stock = 1;
                 $stock_available->update();
-    
+                
                 // Retrieve FDG product id after save
                 Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
             }
