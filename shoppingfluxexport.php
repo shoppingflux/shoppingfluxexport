@@ -1837,7 +1837,7 @@ class ShoppingFluxExport extends Module
             WHERE `template` = "'.pSQL($type).'"');
     }
 
-    private function _getAddress($addressNode, $id_customer, $type, $other)
+    private function _getAddress($addressNode, $id_customer, $type, $other = '')
     {
         //alias is limited
         $type = Tools::substr($type, 0, 32);
