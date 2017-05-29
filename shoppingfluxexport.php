@@ -2509,6 +2509,10 @@ class ShoppingFluxExport extends Module
         $id_shop = $this->context->shop->id;
         $html = '';
         $html .= '<p style="clear: both"><label>';
+        $html .= '<p style="clear: both"><label>'.$this->l('Number of products to be exported');
+        $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">';
+		$html .= $this->countProducts();
+        $html .= '<p style="clear: both"><label>';
         $html .= '<p style="clear: both"><label>'.$this->l('Cron last generated date');
         $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">';
         if (Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop) != '') {
