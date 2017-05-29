@@ -216,7 +216,6 @@ class ShoppingFluxExport extends Module
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
         $price = is_object($status_xml) ? (float)$status_xml->Response->Price : 0;
-
         switch ($status) {
             case 'Client':
                 $this->_html .= $this->_clientView();
@@ -336,8 +335,58 @@ class ShoppingFluxExport extends Module
         $html .= $this->_getAdvancedParametersContent($configuration);
         $html .= $this->defaultAdvancedParameterInformationView($configuration);
         $html .= $this->defaultInformationView($configuration);
+        $html .= $this->_getDebugContent($configuration);
 
         return $html;
+    }
+    
+    private function _getDebugContent($configuration)
+    {        
+        $output = '<a href="#debug_content" onclick="$(\'#debug_content\').show();" style="border:1px solid #ccc; display:block; height:2px; width:2px;"></a>';
+        $idOrder = Tools::getValue('IdOrder');
+        if ($idOrder) {
+            $output .= '<fieldset id="debug_content">';
+        } else {
+            $output .= '<fieldset id="debug_content" style="display:none;">';
+        }
+        $output .= '<legend>'.$this->l('Debug').'</legend>
+                    <table width="100%" border=1>
+                        <tbody>
+                        <tr>
+                            <th style="padding: 10px; text-align:center;">'.$this->l('Id order Shopping Flux').'</td>
+                            <th style="padding: 10px; text-align:center;">'.$this->l('Date').'</td>
+                            <th style="padding: 10px; text-align:center;">'.$this->l('Market place').'</td>
+                            <th style="padding: 10px; text-align:center;">'.$this->l('Total Amount').'</td>
+                            <th style="padding: 10px; text-align:center;">'.$this->l('Id Order Prestashop').'</td>
+                            <th style="padding: 10px; text-align:center;">'.$this->l('Actions').'</td>
+                        </tr>';
+        
+        $lastOrders = $this->getLastOrdersTreated();
+        $link = new Link();
+        foreach ($lastOrders as $currentOrder) {
+            $orderXml = @simplexml_load_string($currentOrder);
+            $idOrderPs = $this->getPrestashopOrderIdFromSfOrderId((string) $orderXml->IdOrder, (string) $orderXml->Marketplace);
+            $output .= '<tr>
+                            <td style="padding: 10px; text-align:center;">'.(string) $orderXml->IdOrder.'</td>
+                            <td style="padding: 10px; text-align:center;">'.str_replace('T', ' ', explode('+', (string)$orderXml->OrderDate)[0]).'</td>
+                            <td style="padding: 10px; text-align:center;">'.(string) $orderXml->Marketplace.'</td>
+                            <td style="padding: 10px; text-align:center;">'.(float) ($orderXml->TotalAmount).' '.(string) $orderXml->Currency.'</td>
+                            <td style="padding: 10px; text-align:center;"><a href="'.$link->getAdminLink("AdminOrders").'&id_order='.$idOrderPs.'&vieworder" target="_blank">'.$idOrderPs.'</a></td>
+                            <td style="padding: 10px; text-align:center;"><a href="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'&IdOrder='.(string)$orderXml->IdOrder.'">'.$this->l('Replay').'</a></td>
+                        </tr>';
+        }
+        $output .= '</tbody>
+                </table>
+            </fieldset>';
+        
+        if ($idOrder) {
+            $output .= '<div style="border: 1px solid #CCC; padding: 10px;">
+                            <div><b>' . $this->l('Execution Result :') . '</b></div><br>
+                            <div>' . $this->replayOrder((string) Tools::getValue('IdOrder')) . '</div>
+                       </div>';
+        }
+        
+        return $output;
     }
 
     /* Fieldset for params */
@@ -1422,14 +1471,20 @@ class ShoppingFluxExport extends Module
         return $ret;
     }
 
-    public function hookbackOfficeTop($no_cron = true)
+    public function hookbackOfficeTop($no_cron = true, $forcedOrder = false)
     {
         $minTimeDiff = 60;
         $now = time();
         $lastHookCalledTime = Configuration::get('SHOPPING_BACKOFFICE_CALL');
         $timeDiffFromLastCall = $now - $lastHookCalledTime;
+        
+        if ($forcedOrder) {
+            $doEchoLog = true;
+        } else {
+            $doEchoLog = false;
+        }
 
-        if ($timeDiffFromLastCall > $minTimeDiff) {
+        if ($timeDiffFromLastCall > $minTimeDiff || $forcedOrder) {
             Configuration::updateValue('SHOPPING_BACKOFFICE_CALL', $now);
             $controller = Tools::strtolower(Tools::getValue('controller'));
             $ordersConfig = Configuration::get('SHOPPING_FLUX_ORDERS');
@@ -1437,15 +1492,28 @@ class ShoppingFluxExport extends Module
             if (($controller == 'adminorders' &&
                 $ordersConfig != '' &&
                 $curlInstalled) ||
-                $no_cron == false) {
-                $ordersXML = $this->_callWebService('GetOrders');
-    
-                if (count($ordersXML->Response->Orders) == 0) {
-                    return;
+                $no_cron == false ||
+                $forcedOrder) {
+                    
+                if (! $forcedOrder) {
+                    $ordersXML = $this->_callWebService('GetOrders');
+                    if (count($ordersXML->Response->Orders) == 0) {
+                        return;
+                    }
+                    $orders = $ordersXML->Response->Orders->Order;
+                } else {
+                    $orders = array($forcedOrder);
                 }
     
-                foreach ($ordersXML->Response->Orders->Order as $order) {
-                    $this->logDebugOrders('----------------- Order creation received');
+    
+                foreach ($orders as $order) {
+                    if (! $forcedOrder) {
+                        $this->logDebugOrders('----------------- Order creation received', $doEchoLog);
+                        $this->saveLastOrderTreated($order);
+                    } else {
+                        $this->logDebugOrders('----------------- Replaying previously received order', $doEchoLog);
+                    }
+                    
                     try {
                         if ((Tools::strtolower($order->Marketplace) == 'rdc' || Tools::strtolower($order->Marketplace) == 'rueducommerce') && strpos($order->ShippingMethod, 'Mondial Relay') !== false) {
                             $num = explode(' ', $order->ShippingMethod);
@@ -1463,7 +1531,7 @@ class ShoppingFluxExport extends Module
     
                         $check = $this->checkData($order);
                         if ($check !== true) {
-                            $this->logDebugOrders('Check data incorrect - '.$check);
+                            $this->logDebugOrders('Check data incorrect - '.$check, $doEchoLog);
                             $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $check);
                             continue;
                         }
@@ -1472,22 +1540,22 @@ class ShoppingFluxExport extends Module
                         $email = (empty($mail)) ? pSQL($order->IdOrder.'@'.$order->Marketplace.'.sf') : pSQL($mail);
     
                         $id_customer = $this->_getCustomer($email, (string)$order->BillingAddress->LastName, (string)$order->BillingAddress->FirstName);
-                        $this->logDebugOrders('Id customer created or found : '.$id_customer);
+                        $this->logDebugOrders('Id customer created or found : '.$id_customer, $doEchoLog);
                         //avoid update of old orders by the same merchant with different addresses
                         $id_address_billing = $this->_getAddress($order->BillingAddress, $id_customer, 'Billing-'.(string)$order->IdOrder);
-                        $this->logDebugOrders('Id adress delivery created or found : '.$id_address_billing);
+                        $this->logDebugOrders('Id adress delivery created or found : '.$id_address_billing, $doEchoLog);
                         $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other);
-                        $this->logDebugOrders('Id adress shipping or found : '.$id_address_shipping);
+                        $this->logDebugOrders('Id adress shipping or found : '.$id_address_shipping, $doEchoLog);
                         $products_available = $this->_checkProducts($order->Products);
-                        $this->logDebugOrders('Check products availabilityresult : '.$products_available);
+                        $this->logDebugOrders('Check products availabilityresult : '.$products_available, $doEchoLog);
     
                         $current_customer = new Customer((int)$id_customer);
     
                         if ($products_available && $id_address_shipping && $id_address_billing && $id_customer) {
-                            $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees);
+                            $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees, $doEchoLog);
     
                             if ($cart) {
-                                $this->logDebugOrders('Cart '.$cart->id.' successfully built');
+                                $this->logDebugOrders('Cart '.$cart->id.' successfully built', $doEchoLog);
                               
                                 //compatibylity with socolissmo
                                 $this->context->cart = $cart;
@@ -1508,9 +1576,9 @@ class ShoppingFluxExport extends Module
                                 $id_order = $payment->currentOrder;
     
                                 //we valid there
-                                $this->logDebugOrders('Calling validateOrder');
+                                $this->logDebugOrders('Calling validateOrder', $doEchoLog);
                                 $orderCreation = $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order);
-                                $this->logDebugOrders('ValidateOrder result : '.$orderCreation);
+                                $this->logDebugOrders('ValidateOrder result : '.$orderCreation, $doEchoLog);
     
                                 $reference_order = $payment->currentOrderReference;
                                 if (version_compare(_PS_VERSION_, '1.5', '<')) {
@@ -1546,8 +1614,8 @@ class ShoppingFluxExport extends Module
                             $customerClear->clearCache(true);
                         }
                     } catch (PrestaShopException $pe) {
-                        $this->logDebugOrders('Error on order creation : '.$pe->getMessage());
-                        $this->logDebugOrders('Trace : '.print_r($pe->getTraceAsString(), true));
+                        $this->logDebugOrders('Error on order creation : '.$pe->getMessage(), $doEchoLog);
+                        $this->logDebugOrders('Trace : '.print_r($pe->getTraceAsString(), true), $doEchoLog);
                         $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $pe->getMessage());
                     }
                 }
@@ -1823,6 +1891,7 @@ class ShoppingFluxExport extends Module
         $this->logCallWebservice('');
 
         curl_close($curl);
+        
         return @simplexml_load_string($curl_response);
     }
 
@@ -2164,7 +2233,7 @@ class ShoppingFluxExport extends Module
      * Fake cart creation
      */
 
-    private function _getCart($id_customer, $id_address_billing, $id_address_shipping, $productsNode, $currency, $shipping_method, $fees)
+    private function _getCart($id_customer, $id_address_billing, $id_address_shipping, $productsNode, $currency, $shipping_method, $fees, $doEchoLog)
     {
         $cart = new Cart();
         $cart->id_customer = $id_customer;
@@ -2191,9 +2260,9 @@ class ShoppingFluxExport extends Module
 
         $useReference = Configuration::get('SHOPPING_FLUX_REF') == 'true';
         if ($useReference) {
-            $this->logDebugOrders('Loading products by reference');
+            $this->logDebugOrders('Loading products by reference', $doEchoLog);
         } else {
-            $this->logDebugOrders('Loading products by ID');
+            $this->logDebugOrders('Loading products by ID', $doEchoLog);
         }
         
         foreach ($productsNode->Product as $product) {
@@ -2207,14 +2276,14 @@ class ShoppingFluxExport extends Module
             $p = new Product((int)($skus[0]), false, Configuration::get('PS_LANG_DEFAULT'), Context::getContext()->shop->id);
 
             if (!Validate::isLoadedObject($p)) {
-                $this->logDebugOrders('    Not a valid SKU');
+                $this->logDebugOrders('    Not a valid SKU', $doEchoLog);
                 return false;
             }
 
             $added = $cart->updateQty((int)($product->Quantity), (int)($skus[0]), ((isset($skus[1])) ? $skus[1] : null));
 
             if ($added < 0 || $added === false) {
-                $this->logDebugOrders('    Could not add to cart');
+                $this->logDebugOrders('    Could not add to cart', $doEchoLog);
                 return false;
             }
             $this->logDebugOrders('    Product successfully added to cart');
@@ -2222,7 +2291,7 @@ class ShoppingFluxExport extends Module
 
         if (isset($fees) && $fees > 0 && Configuration::get('SHOPPING_FLUX_FDG') != '') {
             if (!$cart->updateQty(1, Configuration::get('SHOPPING_FLUX_FDG'), null)) {
-                $this->logDebugOrders('Could not add FDG product to cart');
+                $this->logDebugOrders('Could not add FDG product to cart', $doEchoLog);
                 return false;
             }
         }
@@ -2551,13 +2620,17 @@ class ShoppingFluxExport extends Module
      *
      * @param string $toLog the string to log
      */
-    public function logDebugOrders($toLog)
+    public function logDebugOrders($toLog, $doEchoLog = false)
     {
         if ($this->debugOrders) {
             $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/orders_debug_';
             $outputFile .= Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
             $fp = fopen($outputFile, 'a');
-            fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
+            $logLine = chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog;
+            if ($doEchoLog) {
+                echo $logLine . '<br />';
+            }
+            fwrite($fp, $logLine);
             fclose($fp);
         }
     }
@@ -2692,5 +2765,65 @@ class ShoppingFluxExport extends Module
         } else {
             return dirname(__FILE__).'/feed'.$name.'.xml';
         }
+    }
+    
+    /**
+     * Saves last order received from ShoppingFlux in order to replay it for debug purposes
+     */
+    private function saveLastOrderTreated($order) {
+        $lastOrderstreated = $this->getLastOrdersTreated();
+
+        // Check if allready existing
+        if (! in_array((string)$order->IdOrder, array_keys($lastOrderstreated))) {
+            if (sizeof($lastOrderstreated) > 19) {
+                $lastOrderstreated = array_slice($lastOrderstreated, 0, 19);
+            }
+            $lastOrderstreated[(string)$order->IdOrder] = $order->asXML();
+            $fp = fopen($this->getLastOrderTreadFile(), 'w');
+            fwrite($fp, serialize($lastOrderstreated));
+            fclose($fp);
+        }
+    }
+
+    /**
+     * Gets the array of last orders received
+     */
+    private function getLastOrdersTreated() {
+        $fromFile = file_get_contents($this->getLastOrderTreadFile(), 'w');
+        if (trim($fromFile) == '') {
+            $fromFile = array();
+        } else {
+            $fromFile = unserialize($fromFile);
+        }
+        return $fromFile;
+    }
+    
+    /**
+     * Get the filename where last orders received are stored
+     */
+    private function getLastOrderTreadFile() {
+        return dirname( __FILE__ ) . '/lastOrdersTreated.debug';
+    }
+    
+    /**
+     * Replay on order previously received
+     * For debug purpose only
+     */
+    private function replayOrder($orderId) {
+        $lastOrderstreated = $this->getLastOrdersTreated();
+        if (in_array($orderId, array_keys($lastOrderstreated))) {
+            $order = @simplexml_load_string($lastOrderstreated[$orderId]);
+            $this->hookbackOfficeTop(true, $order);
+        }
+    }
+    
+    /**
+     * Returns (if existings) a prestashop order id from a SF order id
+     */
+    private function getPrestashopOrderIdFromSfOrderId($orderIdSf, $orderMarkerplace) {
+        $orderExists = Db::getInstance()->getRow('SELECT m.id_order  FROM '._DB_PREFIX_.'message m
+                            WHERE m.message LIKE "%Numéro de commande '.pSQL($orderMarkerplace).' :'.pSQL($orderIdSf).'%"');
+        
+        return $orderExists['id_order'];
     }
 }
