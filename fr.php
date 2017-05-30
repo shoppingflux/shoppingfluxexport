@@ -50,11 +50,14 @@ $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_6b7edf50a18de3c15d8
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_6c54d1930716bab7eb93609a27f59e33'] = 'Activer les logs des commandes';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_f467ee6e7956b0e1c8024470704340ad'] = 'Activer les logs de création des commandes';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_cf52d2a32c35b9c5a51f60a44c519993'] = 'FDG';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_1f314c1480805fcdd50f9188f930d804'] = 'Nombre de produits sujets à l\'export';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_2bc7d3b3f0665c5c6aacf514a7954b19'] = 'Date de dernière génération intégrale du CRON';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_7d615a3e78cf1d8cd4bf8ea83bf2a3ae'] = 'Nombre de produits à traiter à chaque appel d\'URL du CRON (ne pas modifier)';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_fe4c6a5e7bd6793b37370e4e46daf998'] = 'Paramètres avancés';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_ee68e5b99222bbc29a480fcb0d1d6ee2'] = 'Prérequis';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_184478ebb0ec8a25273ca5f484107d8c'] = 'Technologie CURL';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_777cb12b43cac89ac1bce1bbfbe3da7c'] = 'Ouverture d\'URLs';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_349f0c27b46d551cdcae766e143bcac3'] = 'Le module doit être actif sur tout les contextes de boutiques';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d626ffa4139f7f63ddb1e1a513b2ea70'] = 'Le module n\'est pas actif dans certaines boutiques, la création de commandes peux rencontrer des soucis';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_cb15e45b760616ab807f1bbfd9a63a1e'] = 'Activé (correct)';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_b181e62093fe36fac8dbebff2845a439'] = 'Non installée (incorrect)';
