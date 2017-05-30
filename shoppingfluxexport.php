@@ -880,7 +880,7 @@ class ShoppingFluxExport extends Module
         $this->emptyLog();
         
         $file = fopen($this->getFeedName(), 'w+');
-        fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'" date="' . date('Y-m-d') . '">');
+        fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'" date="' . date('Y-m-d H:i:s') . '">');
         fclose($file);
 
         $totalProducts = $this->countProducts();
