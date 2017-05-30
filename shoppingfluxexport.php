@@ -2724,8 +2724,34 @@ class ShoppingFluxExport extends Module
         $html .= '<span style="display: block; padding: 3px 0 0 0;">'.$this->isCurlInstalled().'</span></p>';
         $html .= '<p><label>'.$this->l('Open URL').' : </label><span style="display: block; padding: 3px 0 0 0;">';
         $html .= $this->isFopenAllowed().'</span></p>';
-        $html .= '</fieldset>';
-        
+		
+        // If module is not active on some shop, it can miss orders creations
+		if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
+			$html .= '<p style="clear: both"><label>'.$this->l('Module should be active in all shop\'s context');
+			$html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">';
+			$isModInactive = false;
+			foreach (Shop::getShops() as $shop) { 
+			    // Loop on all shops
+				if($shop['active']) { 
+				    // Check only if in all shops the module is active
+					$sql = 'SELECT id_module FROM `' . _DB_PREFIX_ . 'module_shop` 
+					        WHERE id_module=(SELECT id_module 
+					        FROM `' . _DB_PREFIX_ . 'module` WHERE name="' . pSQL($this->name) . '")
+				            AND id_shop=' . pSQL((int)$shop['id_shop']);
+					$result = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+					if(!count($result)) {
+						$isModInactive = true;
+					}
+				}
+			}
+			if($isModInactive) {
+				$html .= '<span style="color:red;">KO</span>';
+				$html .= '<br/>'.$this->l('Module is not active on some shop, it can miss orders creations!');
+			} else {
+				$html .= '<span>OK</span>';
+			}
+        }
+		$html .= '</fieldset>';
         return $html;
     }
     

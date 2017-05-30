@@ -49,5 +49,7 @@ $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_7d615a3e78cf1d8cd4b
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_ee68e5b99222bbc29a480fcb0d1d6ee2'] = 'Prérequis';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_184478ebb0ec8a25273ca5f484107d8c'] = 'Technologie CURL';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_777cb12b43cac89ac1bce1bbfbe3da7c'] = 'Ouverture d\'URLs';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_349f0c27b46d551cdcae766e143bcac3'] = 'Le module doit être actif sur tout les contextes de boutiques';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d626ffa4139f7f63ddb1e1a513b2ea70'] = 'Le module n\'est pas actif dans certaines boutiques, la création de commandes peux rencontrer des soucis';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_cb15e45b760616ab807f1bbfd9a63a1e'] = 'Activé (correct)';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_b181e62093fe36fac8dbebff2845a439'] = 'Non installée (incorrect)';
