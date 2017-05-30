@@ -1672,6 +1672,11 @@ class ShoppingFluxExport extends Module
                                 } else {
                                     $this->logDebugOrders('ERROR could not load cart');
                                 }
+                                
+                                // Sets the relay information to be able to print with mondial relay module
+                                if ($order->ShippingMethod == 'Mondial Relay')
+                                    $this->setMondialRelayData($order->Other, $id_order);
+                                }
                             }
         
                             $cartClear = new Cart();
@@ -3175,5 +3180,82 @@ class ShoppingFluxExport extends Module
                             WHERE m.message LIKE "%Numéro de commande '.pSQL($orderMarkerplace).' :'.pSQL($orderIdSf).'%"');
         
         return $orderExists['id_order'];
+    }
+    
+    /**
+     * Gets relay data from webservice, and inserts into mondial relay module
+     */
+    private function setMondialRelayData($idRelay, $idOrder) {
+        $order = new Order((int)Tools::getValue('id_order'));
+        $carrier = new Carrier((int)$order->id_carrier);
+
+        $address = new Address($order->id_address_delivery);
+        $isoCountry = Country::getIsoById($address->id_country);
+        // Get relay data
+        $relayData = $this->getPointRelaisData($idRelay, $isoCountry)
+        if ($relayData) {
+            // Get corresonding method
+            $method = Db::getInstance()->getValue("SELECT `id_mr_method` 
+                                                    FROM `" . _DB_PREFIX_ . "mr_method` 
+                                                    WHERE `id_carrier`=" . $carrier->id . " 
+                                                    ORDER BY `id_mr_method` DESC");
+            if ($method) {
+                // Insert data into mondial relay module's table
+                $query = "INSERT INTO `" . _DB_PREFIX_ . "mr_selected` 
+                            (`id_customer`, `id_method`, `id_cart`, `id_order`, `MR_Selected_Num`, `MR_Selected_LgAdr1`, `MR_Selected_LgAdr2`, 
+                             `MR_Selected_LgAdr3`, `MR_Selected_LgAdr4`, `MR_Selected_CP`, `MR_Selected_Ville`, `MR_Selected_Pays`)
+						  VALUES (" . $order->id_customer . ", " . (int)$method . ", " . $order->id_cart . ", " .
+                          $idOrder . ", '" . pSQL($idRelay) . "', '" . pSQL($relayData->LgAdr1) . "', '" . pSQL($relayData->LgAdr2) . "', '".
+                          pSQL($relayData->LgAdr3) . "', '" . pSQL($relayData->LgAdr4) . "', '" . pSQL($relayData->CP) . "', '" . pSQL($relayData->Ville) . "', '" .
+                          pSQL($isoCountry) . "')";
+                if (Db::getInstance()->execute($query)) {
+                    $this->logDebugOrders('MondialRelay - Successfully added relay information');
+                } else {
+                    $this->logDebugOrders('MondialRelay - Could not add relay information');
+                }
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Retrieve relay details from webservice
+     */
+    private function getPointRelaisData($id_relay, $isoCountry) {
+        $urlWebService = 'http://www.mondialrelay.fr/webservice/Web_Services.asmx?WSDL'
+        $mondialRelayConfig = Configuration::get('MR_ACCOUNT_DETAIL');
+        
+        // Mondial relay module not configured
+        if (! $mondialRelayConfig) {
+            $this->logDebugOrders('MondialRelay - Account is not configured');
+            return;
+        }
+        if ($mondialRelayConfig) {
+            $mondialRelayConfig = unserialize($mondialRelayConfig);
+            $client = new SoapClient($urlWebService);
+            if (! is_object($client)) {
+                // Error connecting to webservice
+                $this->logDebugOrders('MondialRelay - Could not create SOAP client for URL ' . $urlWebService);
+                reurn;
+            }
+            $client->soap_defencoding = 'UTF-8';
+            $client->decode_utf8 = false;
+            
+            $enseigne = $mondialRelayConfig['MR_ENSEIGNE_WEBSERVICE'];
+            $apiKey = $mondialRelayConfig['MR_KEY_WEBSERVICE'];
+            $params = array (
+                'Enseigne' => $enseigne,
+                'Num' => $id_relay,
+                'Pays' => $country,
+                'Security' => Tools::strtoupper(md5($enseigne.$id_relay.$isoCountry.$apiKey))
+            );
+            $result = $client->WSI2_AdressePointRelais($params);
+            if (!empty($result->WSI2_AdressePointRelaisResult->STAT)) {
+                // Web service did not return expected data
+                $this->logDebugOrders('MondialRelay - Error getting relay data, id relay = ' . $id_relay);
+            } else {
+                return $result->WSI2_AdressePointRelaisResult;
+            }
+        }
     }
 }
