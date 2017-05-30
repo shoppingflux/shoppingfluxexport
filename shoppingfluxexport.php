@@ -36,7 +36,7 @@ class ShoppingFluxExport extends Module
     private $_html = '';
 
     private $debug = true;
-    private $debugOrders = false;
+    private $debugOrders = true;
 
     public function __construct()
     {
@@ -57,6 +57,7 @@ class ShoppingFluxExport extends Module
         $this->default_country = new Country($id_default_country);
 
         $this->debugOrders = Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG');
+        $this->debug = Configuration::get('SHOPPING_FLUX_DEBUG');
         
         // Set default passes if not existing
         $productsToBeTreated = Configuration::get('SHOPPING_FLUX_PASSES');
@@ -102,82 +103,53 @@ class ShoppingFluxExport extends Module
             ) ENGINE='._MYSQL_ENGINE_.'  DEFAULT CHARSET=utf8;');
 
         $imageName = $this->getMaxImageInformation();
-
+        if (! method_exists('ImageType', 'getFormatedName')) {
+            $imageName = '';
+        }
+        
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
             foreach (Shop::getShops() as $shop) {
-                if (method_exists('ImageType', 'getFormatedName')) {
-                    if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand()), false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED'), false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING'), false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_IMAGE', $imageName, false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT'), false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_TRACKING', 'checked', false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_ORDERS', 'checked', false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_STATUS_SHIPPED', 'checked', false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '', false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_REF', '', false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '', false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_INDEX', Tools::getCurrentUrlProtocolPrefix() . $shop['domain'] . $shop['uri'], false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_STOCKS', '', false, null, $shop['id_shop'] ||
-                        !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300', false, null, $shop['id_shop']))
-                    ) {
-                        return false;
-                    }
-                } else {
-                    if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand()), false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED'), false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING'), false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_IMAGE', '', false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT'), false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_TRACKING', 'checked', false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_ORDERS', 'checked', false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_STATUS_SHIPPED', 'checked', false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '', false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_REF', '', false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '', false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_INDEX', Tools::getCurrentUrlProtocolPrefix() . $shop['domain'] . $shop['uri'], false, null, $shop['id_shop']) ||
-                        !Configuration::updateValue('SHOPPING_FLUX_STOCKS', '', false, null, $shop['id_shop'] ||
-                        !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300', false, null, $shop['id_shop']))
-                    ) {
-                        return false;
-                    }
+                if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand()), false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED'), false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING'), false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_IMAGE', $imageName, false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT'), false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_TRACKING', 'checked', false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_ORDERS', 'checked', false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_STATUS_SHIPPED', 'checked', false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '', false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_REF', '', false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '', false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_INDEX', Tools::getCurrentUrlProtocolPrefix() . $shop['domain'] . $shop['uri'], false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_STOCKS', '', false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_PACKS', '', false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300', false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', true, false, null, $shop['id_shop']) ||
+                    !Configuration::updateValue('SHOPPING_FLUX_DEBUG', true, false, null, $shop['id_shop'])
+                ) {
+                    return false;
                 }
             }
         } else {
-            if (method_exists('ImageType', 'getFormatedName')) {
-                if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand())) ||
-                    !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED')) ||
-                    !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING')) ||
-                    !Configuration::updateValue('SHOPPING_FLUX_IMAGE', $imageName) ||
-                    !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT')) ||
-                    !Configuration::updateValue('SHOPPING_FLUX_TRACKING', 'checked') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_ORDERS', 'checked') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_STATUS_SHIPPED', 'checked') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_REF', '') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_INDEX', Tools::getCurrentUrlProtocolPrefix().$shop['domain'].$shop['uri']) ||
-                    !Configuration::updateValue('SHOPPING_FLUX_STOCKS') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300')) {
-                    return false;
-                }
-            } else {
-                if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand())) ||
-                    !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED')) ||
-                    !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING')) ||
-                    !Configuration::updateValue('SHOPPING_FLUX_IMAGE', '') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT')) ||
-                    !Configuration::updateValue('SHOPPING_FLUX_TRACKING', 'checked') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_ORDERS', 'checked') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_STATUS_SHIPPED', 'checked') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_REF', '') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_INDEX', Tools::getCurrentUrlProtocolPrefix().$shop['domain'].$shop['uri']) ||
-                    !Configuration::updateValue('SHOPPING_FLUX_STOCKS') ||
-                    !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300')) {
-                    return false;
-                }
+            if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand())) ||
+                !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED')) ||
+                !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING')) ||
+                !Configuration::updateValue('SHOPPING_FLUX_IMAGE', $imageName) ||
+                !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT')) ||
+                !Configuration::updateValue('SHOPPING_FLUX_TRACKING', 'checked') ||
+                !Configuration::updateValue('SHOPPING_FLUX_ORDERS', 'checked') ||
+                !Configuration::updateValue('SHOPPING_FLUX_STATUS_SHIPPED', 'checked') ||
+                !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '') ||
+                !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '') ||
+                !Configuration::updateValue('SHOPPING_FLUX_REF', '') ||
+                !Configuration::updateValue('SHOPPING_FLUX_INDEX', Tools::getCurrentUrlProtocolPrefix().$shop['domain'].$shop['uri']) ||
+                !Configuration::updateValue('SHOPPING_FLUX_STOCKS') ||
+                !Configuration::updateValue('SHOPPING_FLUX_PACKS', '', false, null, $shop['id_shop']) ||
+                !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300') ||
+                !Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', true) ||
+                !Configuration::updateValue('SHOPPING_FLUX_DEBUG', true)
+            ) {
+                return false;
             }
         }
 
@@ -198,8 +170,11 @@ class ShoppingFluxExport extends Module
                 !Configuration::deleteByName('SHOPPING_FLUX_REF') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_INDEX') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_STOCKS') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_PACKS') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_SHIPPING_MATCHING') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_PASSES') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_ORDERS_DEBUG') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_DEBUG') ||
                 !parent::uninstall()) {
             return false;
         }
@@ -211,7 +186,6 @@ class ShoppingFluxExport extends Module
     {
         $this->setREF();
         $this->setFDG();
-        $this->setOrdersDebug();
         
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
@@ -320,7 +294,7 @@ class ShoppingFluxExport extends Module
 
         $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TOKEN', 'SHOPPING_FLUX_TRACKING',
                     'SHOPPING_FLUX_ORDERS', 'SHOPPING_FLUX_STATUS_SHIPPED', 'SHOPPING_FLUX_STATUS_CANCELED', 'SHOPPING_FLUX_LOGIN',
-                    'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_INDEX', 'PS_LANG_DEFAULT', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
+                    'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_PACKS', 'SHOPPING_FLUX_INDEX', 'PS_LANG_DEFAULT', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
                     'SHOPPING_FLUX_SHIPPED', 'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPING_MATCHING', 'SHOPPING_FLUX_PASSES'));
         
         
@@ -402,6 +376,7 @@ class ShoppingFluxExport extends Module
                         <p><label>'.$this->l('Order shipment').' : </label><input type="checkbox" name="SHOPPING_FLUX_STATUS_SHIPPED" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STATUS_SHIPPED']).'/> '.$this->l('orders shipped on your Prestashop will be shipped on marketplaces').'.</p>
                         <p><label>'.$this->l('Order cancellation').' : </label><input type="checkbox" name="SHOPPING_FLUX_STATUS_CANCELED" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STATUS_CANCELED']).'/> '.$this->l('orders shipped on your Prestashop will be canceled on marketplaces').'.</p>
                         <p><label>'.$this->l('Sync stock and orders').' : </label><input type="checkbox" name="SHOPPING_FLUX_STOCKS" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STOCKS']).'/> '.$this->l('every stock and price movement will be transfered to marletplaces').'.</p>
+                        <p><label>'.$this->l('Load packs').' : </label><input type="checkbox" name="SHOPPING_FLUX_PACKS" '.Tools::safeOutput($configuration['SHOPPING_FLUX_PACKS']).'/> '.$this->l('Load Product packs too').'</p>
                         <p><label>'.$this->l('Default carrier').' : </label>'.$this->_getCarriersSelect($configuration, $configuration['SHOPPING_FLUX_CARRIER']).'</p>
                         <p><label>'.$this->l('Default image type').' : </label>'.$this->_getImageTypeSelect($configuration).'</p>
                         <p><label>'.$this->l('Call marketplace for shipping when order state become').' : </label>'.$this->_getOrderStateShippedSelect($configuration).'</p>
@@ -548,7 +523,7 @@ class ShoppingFluxExport extends Module
         if ((isset($rec_config) && $rec_config != null)) {
             $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TRACKING',
                         'SHOPPING_FLUX_ORDERS', 'SHOPPING_FLUX_STATUS_SHIPPED', 'SHOPPING_FLUX_STATUS_CANCELED',
-                        'SHOPPING_FLUX_LOGIN', 'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
+                        'SHOPPING_FLUX_LOGIN', 'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_PACKS', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
                         'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPED'));
 
             foreach ($configuration as $key => $val) {
@@ -590,6 +565,20 @@ class ShoppingFluxExport extends Module
                 }
                 Configuration::updateValue('SHOPPING_FLUX_PASSES', $passValue);
             }
+			
+			$doLogDebug = Tools::getValue('SHOPPING_FLUX_DEBUG', 'off');
+			if($doLogDebug == 'on') {
+                Configuration::updateValue('SHOPPING_FLUX_DEBUG', '1');
+			} else {
+			    Configuration::updateValue('SHOPPING_FLUX_DEBUG', '0');
+			}
+			
+			$doLogDebugOrders = Tools::getValue('SHOPPING_FLUX_ORDERS_DEBUG', 'off');
+			if($doLogDebugOrders == 'on') {
+			    Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', '1');
+			} else {
+			    Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', '0');
+			}
         }
     }
 
@@ -631,6 +620,11 @@ class ShoppingFluxExport extends Module
     
     private function getSimpleProducts($id_lang, $limit_from, $limit_to)
     {
+        $packClause = '';
+        if (Configuration::get('SHOPPING_FLUX_PACKS') == 'checked') {
+            $packClause = ' AND p.`cache_is_pack` = 0 ';
+        }
+        
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
             $context = Context::getContext();
 
@@ -650,7 +644,8 @@ class ShoppingFluxExport extends Module
                 '.Shop::addSqlAssociation('product', 'p').'
                 LEFT JOIN `'._DB_PREFIX_.'product_lang` pl ON (p.`id_product` = pl.`id_product` '.Shop::addSqlRestrictionOnLang('pl').')
                 WHERE pl.`id_lang` = '.(int)$id_lang.' AND product_shop.`active`= 1 
-                AND product_shop.`available_for_order`= 1 AND p.`cache_is_pack` = 0
+                AND product_shop.`available_for_order`= 1
+                ' . $packClause . '
                 '.($front ? ' AND product_shop.`visibility` IN ("both", "catalog")' : '').'
                 '.$fixedIdProductClause.'
                 ORDER BY pl.`name`';
@@ -663,7 +658,8 @@ class ShoppingFluxExport extends Module
                 FROM `'._DB_PREFIX_.'product` p
                 LEFT JOIN `'._DB_PREFIX_.'product_lang` pl ON (p.`id_product` = pl.`id_product`)
                 WHERE pl.`id_lang` = '.(int)($id_lang).' 
-                AND p.`active`= 1 AND p.`available_for_order`= 1 AND p.`cache_is_pack` = 0
+                AND p.`active`= 1 AND p.`available_for_order`= 1 
+                ' . $packClause . '
                 '.$fixedIdProductClause.'
                 ORDER BY pl.`name`';
         }
@@ -673,6 +669,11 @@ class ShoppingFluxExport extends Module
 
     private function countProducts()
     {
+        $getPack = '';
+        if (Configuration::get('SHOPPING_FLUX_PACKS') == 'checked') {
+            $getPack = ' AND p.`cache_is_pack` = 0 ';
+        }
+        
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
             $context = Context::getContext();
 
@@ -688,12 +689,14 @@ class ShoppingFluxExport extends Module
             $sql = 'SELECT COUNT(p.`id_product`)
                 FROM `'._DB_PREFIX_.'product` p
                 '.$sql_association.'
-                WHERE '.$table.'.`active`= 1 AND '.$table.'.`available_for_order`= 1 AND p.`cache_is_pack` = 0
+                WHERE '.$table.'.`active`= 1 AND '.$table.'.`available_for_order`= 1 
+                ' . $getPack . '
                 '.($front ? ' AND '.$table.'.`visibility` IN ("both", "catalog")' : '');
         } else {
             $sql = 'SELECT COUNT(p.`id_product`)
                 FROM `'._DB_PREFIX_.'product` p
-                WHERE p.`active`= 1 AND p.`available_for_order`= 1 AND p.`cache_is_pack` = 0';
+                WHERE p.`active`= 1 AND p.`available_for_order`= 1 
+                ' . $getPack;
         }
 
         return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue($sql);
@@ -1053,17 +1056,6 @@ class ShoppingFluxExport extends Module
         }
     }
     
-    /**
-     * Sets the debug mode On or Off for orders creations
-     */
-    public function setOrdersDebug()
-    {
-        $ordersDebug = Tools::getValue('orders_debug');
-        if ($ordersDebug) {
-            Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', 'true');
-        }
-    }
-
     /* Default data, in Product Class */
     private function _getBaseData($product, $configuration, $link, $carrier)
     {
@@ -1505,15 +1497,16 @@ class ShoppingFluxExport extends Module
                     $orders = array($forcedOrder);
                 }
     
+                foreach ($ordersXML->Response->Orders->Order as $order) {
+                    $this->logDebugOrders('----------------- Order creation received for market place : '.Tools::strtolower($order->Marketplace));
     
-                foreach ($orders as $order) {
                     if (! $forcedOrder) {
-                        $this->logDebugOrders('----------------- Order creation received', $doEchoLog);
+                        $this->logDebugOrders('----------------- Order creation received for market place : '.Tools::strtolower($order->Marketplace), $doEchoLog);
                         $this->saveLastOrderTreated($order);
                     } else {
-                        $this->logDebugOrders('----------------- Replaying previously received order', $doEchoLog);
+                        $this->logDebugOrders('----------------- Replaying previously received order for market place : '.Tools::strtolower($order->Marketplace), $doEchoLog);
                     }
-                    
+
                     try {
                         if ((Tools::strtolower($order->Marketplace) == 'rdc' || Tools::strtolower($order->Marketplace) == 'rueducommerce') && strpos($order->ShippingMethod, 'Mondial Relay') !== false) {
                             $num = explode(' ', $order->ShippingMethod);
@@ -1525,6 +1518,7 @@ class ShoppingFluxExport extends Module
                             WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
     
                         if (isset($orderExists['id_message'])) {
+                            $this->logDebugOrders('Order allready exists (id = '.$order->IdOrder.'): notifying ShoppingFlux');
                             $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace);
                             continue;
                         }
@@ -1553,7 +1547,7 @@ class ShoppingFluxExport extends Module
     
                         if ($products_available && $id_address_shipping && $id_address_billing && $id_customer) {
                             $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees, $doEchoLog);
-    
+
                             if ($cart) {
                                 $this->logDebugOrders('Cart '.$cart->id.' successfully built', $doEchoLog);
                               
@@ -1572,13 +1566,21 @@ class ShoppingFluxExport extends Module
                                     $customerClear->clearCache(true);
                                 }
     
+                                $this->logDebugOrders('Calling validateOrder');
                                 $payment = $this->_validateOrder($cart, $order->Marketplace);
                                 $id_order = $payment->currentOrder;
-    
+                                $this->logDebugOrders('validateOrder successfull, id_order = '.$id_order);
+                                
                                 //we valid there
+<<<<<<< HEAD
+                                $this->logDebugOrders('Notifying ShoppingFlux of order creation');
+                                $orderCreation = $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order);
+                                $this->logDebugOrders('Notify result of order creation : '.$orderCreation);
+=======
                                 $this->logDebugOrders('Calling validateOrder', $doEchoLog);
                                 $orderCreation = $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order);
                                 $this->logDebugOrders('ValidateOrder result : '.$orderCreation, $doEchoLog);
+>>>>>>> 71ee4e37b0025e0e1b3ac6f31235690a0ffea1b6
     
                                 $reference_order = $payment->currentOrderReference;
                                 if (version_compare(_PS_VERSION_, '1.5', '<')) {
@@ -1588,11 +1590,15 @@ class ShoppingFluxExport extends Module
                                     Db::getInstance()->update('customer',array('email' => pSQL($email)), '`id_customer` = '.(int)$id_customer);
                                     Db::getInstance()->insert('message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')));
                                 }
+                                $this->logDebugOrders('Real customer email set again : '.$email);
                                 $this->_updatePrices($id_order, $order, $reference_order);
+                                $this->logDebugOrders('Prices of the order successfully set');
 
                                 // Avoid SoColissimo module to change the address by the one he created
                                 $sql_update = 'UPDATE '._DB_PREFIX_.'orders SET id_address_delivery = '.(int)$id_address_shipping.' WHERE id_order = '.(int)$id_order;
                                 Db::getInstance()->execute($sql_update);
+                            } else {
+                                $this->logDebugOrders('ERROR could not load cart');
                             }
                         }
     
@@ -1649,8 +1655,11 @@ class ShoppingFluxExport extends Module
                 FROM '._DB_PREFIX_.'product_shop
                 WHERE id_product ='.(int)$ids[0].' AND id_shop = '.(int)$id_shop);
 
-                if ($res['active'] != 1 || $res['available_for_order'] != 1) {
-                    return 'Product is not active or not available for order, product_id = '.$p->id;
+                if ($res['active'] != 1) {
+                    return 'Product is not active, product_id = '.$p->id;
+                }
+                if ($res['available_for_order'] != 1) {
+                    return 'Product is not available for order, product_id = '.$p->id;
                 }
 
                 $minimalQuantity = $p->minimal_quantity;
@@ -1670,8 +1679,11 @@ class ShoppingFluxExport extends Module
                 FROM '._DB_PREFIX_.'product_shop
                 WHERE id_product ='.(int)$ids[0].' AND id_shop = '.(int)$id_shop);
 
-                if ($res['active'] != 1 || $res['available_for_order'] != 1) {
-                    return 'Product is not active or not available for order, product_id = '.$ids[0];
+                if ($res['active'] != 1) {
+                    return 'Product is not active, product_id = '.$ids[0];
+                }
+                if ($res['available_for_order'] != 1) {
+                    return 'Product is not available for order, product_id = '.$ids[0];
                 }
 
                 $minimalQuantity = (int)Attribute::getAttributeMinimalQty((int)$ids[1]);
@@ -1732,6 +1744,7 @@ class ShoppingFluxExport extends Module
         //set the shop related to the order in the context to avoid empty configurations
         $this->context->shop = new Shop((int)$order->id_shop);
 
+        $this->logDebugOrders('------- Status change of order for order '.$params['id_order']);
         if ((Configuration::get('SHOPPING_FLUX_STATUS_SHIPPED') != '' &&
                 Configuration::get('SHOPPING_FLUX_SHIPPED') == '' &&
                 $this->_getOrderStates(Configuration::get('PS_LANG_DEFAULT'), 'shipped') == $params['newOrderStatus']->name) &&
@@ -1765,6 +1778,7 @@ class ShoppingFluxExport extends Module
             $xml .= '</Order>';
             $xml .= '</UpdateOrders>';
 
+            $this->logDebugOrders('Sending change of status and tracking number ('.$shipping[0]['tracking_number'].') to ShoppingFlux for order '.$params['id_order']);
             $responseXML = $this->_callWebService('UpdateOrders', $xml, (int)$order->id_shop);
 
             if (!$responseXML->Response->Error) {
@@ -1803,6 +1817,7 @@ class ShoppingFluxExport extends Module
             $xml .= '</Order>';
             $xml .= '</UpdateOrders>';
 
+            $this->logDebugOrders('Sending change of status cancelled to ShoppingFlux for order '.$params['id_order']);
             $responseXML = $this->_callWebService('UpdateOrders', $xml, (int)$order->id_shop);
 
             if (!$responseXML->Response->Error) {
@@ -1851,7 +1866,7 @@ class ShoppingFluxExport extends Module
     /* Call Shopping Flux Webservices */
     private function _callWebService($call, $xml = false, $id_shop = null)
     {
-
+        $this->logCallWebservice('------- Start Call Webservice function = '.$call.' -------');
         if (version_compare(_PS_VERSION_, '1.5', '<')) {
             // Prestashop v1.4
             $token = Configuration::get('SHOPPING_FLUX_TOKEN');
@@ -1859,6 +1874,7 @@ class ShoppingFluxExport extends Module
             $token = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
         }
         if (empty($token)) {
+            $this->logCallWebservice('ERROR could not call webservice because of empty token (function = '.$call.')');
             return false;
         }
 
@@ -1872,10 +1888,8 @@ class ShoppingFluxExport extends Module
         );
         
         // Log datas
-        $this->logCallWebservice('');
-        $this->logCallWebservice('------- Start Call Webservice -------');
         $this->logCallWebservice($service_url.'?'.http_build_query($curl_post_data, '', '&amp;'));
-        $this->logCallWebservice('XML Infos');
+        $this->logCallWebservice('XML request :');
         $this->logCallWebservice($xml);
 
         $curl = curl_init();
@@ -1891,10 +1905,9 @@ class ShoppingFluxExport extends Module
         $curl_response = curl_exec($curl);
 
         // Log datas
-        $this->logCallWebservice('XML Infos Curl Response');
+        $this->logCallWebservice('XML response :');
         $this->logCallWebservice($curl_response);
         $this->logCallWebservice('------- End Call Webservice -------');
-        $this->logCallWebservice('');
 
         curl_close($curl);
         
@@ -2231,7 +2244,9 @@ class ShoppingFluxExport extends Module
         
         Context::getContext()->currency = new Currency((int)$cart->id_currency);
         $amount_paid = (float)Tools::ps_round((float)$cart->getOrderTotal(true, Cart::BOTH), 2);
+        $this->logDebugOrders('calling validateOrder, amount = '.$amount_paid.', currency = '.$cart->id_currency.', marketplace = '.Tools::strtolower($marketplace));
         $payment->validateOrder((int)$cart->id, 2, $amount_paid, Tools::strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key); return $payment;
+        $this->logDebugOrders('finished call to validateOrder, order_id = '.$payment->currentOrder);
         return $payment;
     }
 
@@ -2252,12 +2267,13 @@ class ShoppingFluxExport extends Module
 
         $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
 
+        $this->logDebugOrders('Retrieving carrier, shipping method = '.$shipping_method.', configured carrier reference = '.Configuration::get('SHOPPING_FLUX_CARRIER'));
         $carrier_to_load = isset($actual_configuration[base64_encode(Tools::safeOutput($shipping_method))]) ?
             (int)$actual_configuration[base64_encode(Tools::safeOutput($shipping_method))] :
             (int)Configuration::get('SHOPPING_FLUX_CARRIER');
 
+        $this->logDebugOrders('Retrieved carrier reference = '.$carrier_to_load);
         $carrier = Carrier::getCarrierByReference($carrier_to_load);
-
         //manage case PS_CARRIER_DEFAULT is deleted
         $carrier = is_object($carrier) ? $carrier : new Carrier($carrier_to_load);
 
@@ -2493,6 +2509,41 @@ class ShoppingFluxExport extends Module
         return $html;
     }
     
+    /**
+     * Function to activate logs in settings interface
+     *
+     * @param $configuration
+     */
+    private function getLogContent()
+    {
+        $doLogDebug = (int) Configuration::get('SHOPPING_FLUX_DEBUG');
+        $sf_basic_log = '';
+		if ($doLogDebug) {
+			$sf_basic_log = ' checked="checked" ';
+		}
+        
+        $html = '<p style="clear: both"><label>' . $this->l('Enable logs');
+        $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">
+                    <input type="checkbox" name="SHOPPING_FLUX_DEBUG" ' . $sf_basic_log . '>
+                    ' . $this->l('Enable basic module logs.') . '
+                    </span></p>';
+        $html .= '<p style="clear: both"></p>';
+        
+        $doLogDebugOrders = (int) Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG');
+        $sf_order_log = '';
+        if($doLogDebugOrders) {
+            $sf_order_log = ' checked="checked" ';
+		}
+
+        $html .= '<p style="clear: both"><label>' . $this->l('Enable order logs');
+        $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">
+                    <input type="checkbox" name="SHOPPING_FLUX_ORDERS_DEBUG" ' . $sf_order_log . '>
+                    ' . $this->l('Enable order creation logs.') . '
+                    </span></p>';
+        $html .= '<p style="clear: both"></p>';
+        return $html;
+    }
+    
     
     /**
      * Function to create new CDiscount fees product
@@ -2700,6 +2751,7 @@ class ShoppingFluxExport extends Module
         $html = '<form method="post" action="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'">';
         $html .= '<fieldset>';
         $html .= '<legend>'.$this->l('Advanced settings').'</legend>';
+        $html .= $this->getLogContent();
         $html .= $this->getFDGContent($configuration);
         $html .= $this->getCronDetails($configuration);
         $html .= '<p style="margin-top:20px"><input type="submit" value="'.$this->l('Update');
