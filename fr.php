@@ -41,11 +41,17 @@ $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_c9d7eedc8be4380c021
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_944eb62ed1a48750a399825e633f420e'] = 'Matching transporteurs';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_189ef27ecdec3868dbf25f2a8b1650f8'] = 'Associez les transporteurs des places de marché à vos transporteurs Prestashop';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d9b6d613daaa5fee5c15b0af367af6b0'] = 'Votre flux';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_4932a1a59df32d11f06092769a87ff3f'] = 'Aucun champ supplémentaire trouvé sur votre site';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_025fe640fe054b1f626a9c1b058fefee'] = 'Sélectionnez les champs supplémentaires à exporter';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_a11f4833156155211bd7b37e4d5e529c'] = 'Activer les logs';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_6b7edf50a18de3c15d8b2d7d07c865c8'] = 'Activer les logs basiques du module.';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_6c54d1930716bab7eb93609a27f59e33'] = 'Activer les logs des commandes';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_f467ee6e7956b0e1c8024470704340ad'] = 'Activer les logs de création des commandes';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_cf52d2a32c35b9c5a51f60a44c519993'] = 'FDG';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_1f314c1480805fcdd50f9188f930d804'] = 'Nombre de produits sujets à l\'export';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_2bc7d3b3f0665c5c6aacf514a7954b19'] = 'Date de dernière génération intégrale du CRON';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_7d615a3e78cf1d8cd4bf8ea83bf2a3ae'] = 'Nombre de produits à traiter à chaque appel d\'URL du CRON (ne pas modifier)';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_fe4c6a5e7bd6793b37370e4e46daf998'] = 'Paramètres avancés';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_ee68e5b99222bbc29a480fcb0d1d6ee2'] = 'Prérequis';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_184478ebb0ec8a25273ca5f484107d8c'] = 'Technologie CURL';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_777cb12b43cac89ac1bce1bbfbe3da7c'] = 'Ouverture d\'URLs';
