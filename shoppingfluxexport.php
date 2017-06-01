@@ -37,6 +37,7 @@ class ShoppingFluxExport extends Module
 
     private $debug = true;
     private $debugOrders = true;
+    private static $logRotateHours = 24;
 
     public function __construct()
     {
@@ -187,6 +188,7 @@ class ShoppingFluxExport extends Module
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
         $price = is_object($status_xml) ? (float)$status_xml->Response->Price : 0;
+        
         switch ($status) {
             case 'Client':
                 $this->_html .= $this->_clientView();
@@ -320,8 +322,12 @@ class ShoppingFluxExport extends Module
         } else {
             $output .= '<fieldset id="debug_content" style="display:none;">';
         }
-        $output .= '<legend>'.$this->l('Debug').'</legend>
-                    <table width="100%" border=1>
+        $output .= '<legend>'.$this->l('Debug').'</legend>';
+        
+        $output .= $this->getLogContent();
+
+        $output .= '<p><label>' . $this->l('Replay last received orders').' :</label><br />&nbsp;</p>';
+        $output .= '<table width="100%" border=1>
                         <tbody>
                         <tr>
                             <th style="padding: 10px; text-align:center;">'.$this->l('Id order Shopping Flux').'</td>
@@ -513,8 +519,9 @@ class ShoppingFluxExport extends Module
     {
         $rec_config = Tools::getValue('rec_config');
         $rec_shipping_config = Tools::getValue('rec_shipping_config');
-        
+
         $rec_config_adv = Tools::getValue('rec_config_adv');
+        $rec_config_debug = Tools::getValue('rec_config_debug');
 
         if ((isset($rec_config) && $rec_config != null)) {
             $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TRACKING',
@@ -560,19 +567,20 @@ class ShoppingFluxExport extends Module
                     $passValue = 200;
                 }
                 Configuration::updateValue('SHOPPING_FLUX_PASSES', $passValue);
-                $doLogDebug = Tools::getValue('SHOPPING_FLUX_DEBUG', 'off');
-    			if ($doLogDebug == 'on') {
-                    Configuration::updateValue('SHOPPING_FLUX_DEBUG', '1');
-        		} else {
-            	    Configuration::updateValue('SHOPPING_FLUX_DEBUG', '0');
-            	}
+            }
+        } elseif (isset($rec_config_debug) && $rec_config_debug != null) {
+            $doLogDebug = Tools::getValue('SHOPPING_FLUX_DEBUG', 'off');
+            if ($doLogDebug == 'on') {
+                Configuration::updateValue('SHOPPING_FLUX_DEBUG', '1');
+            } else {
+                Configuration::updateValue('SHOPPING_FLUX_DEBUG', '0');
+            }
             
-            	$doLogDebugOrders = Tools::getValue('SHOPPING_FLUX_ORDERS_DEBUG', 'off');
-            	if ($doLogDebugOrders == 'on') {
-                    Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', '1');
-                } else {
-                    Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', '0');
-                }
+            $doLogDebugOrders = Tools::getValue('SHOPPING_FLUX_ORDERS_DEBUG', 'off');
+            if ($doLogDebugOrders == 'on') {
+                Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', '1');
+            } else {
+                Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', '0');
             }
         }
     }
@@ -2633,13 +2641,14 @@ class ShoppingFluxExport extends Module
 			$sf_basic_log = ' checked="checked" ';
 		}
 
-        $html = '<p style="clear: both"><label>' . $this->l('Enable logs');
+		$html = '<form method="post" action="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'">';
+        $html .= '<p style="clear: both"><label>' . $this->l('Enable logs');
         $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">
          <input type="checkbox" name="SHOPPING_FLUX_DEBUG" ' . $sf_basic_log . '>
          ' . $this->l('Enable basic module logs.') . '
          </span></p>';
         $html .= '<p style="clear: both"></p>';
-
+        
         $doLogDebugOrders = (int) Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG');
         $sf_order_log = '';
         if($doLogDebugOrders) {
@@ -2651,6 +2660,9 @@ class ShoppingFluxExport extends Module
         <input type="checkbox" name="SHOPPING_FLUX_ORDERS_DEBUG" ' . $sf_order_log . '>
         ' . $this->l('Enable order creation logs.') . '
         </span></p>';
+        $html .= '<p style="margin-top:20px"><label>&nbsp;</label><input type="submit" value="'.$this->l('Update');
+        $html .= '" name="rec_config_debug" class="button"/></p>';
+        $html .= '</form>';
         $html .= '<p style="clear: both"></p>';
         return $html;
     }
@@ -2664,6 +2676,7 @@ class ShoppingFluxExport extends Module
     {
         if ($this->debug) {
             $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport_'.Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
+            $this->rotateLogFile($outputFile);
             $fp = fopen($outputFile, 'a');
             fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
             fclose($fp);
@@ -2680,6 +2693,7 @@ class ShoppingFluxExport extends Module
         if ($this->debugOrders) {
             $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/orders_debug_';
             $outputFile .= Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
+            $this->rotateLogFile($outputFile);
             $fp = fopen($outputFile, 'a');
             $logLine = chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog;
             if ($doEchoLog) {
@@ -2702,6 +2716,29 @@ class ShoppingFluxExport extends Module
     }
     
     /**
+     * Rotates the logs
+     */
+    private function rotateLogFile($fileName) {
+        if (self::$logRotateHours) {
+            // file age
+            $now = time();
+            $dateGeneration = filemtime($fileName);
+            $age = ($now - $dateGeneration);
+            if ($age > (self::$logRotateHours * 3600)) {
+                $filePieces = explode('.', $fileName);
+                $extension = $filePieces['1'];
+                if (file_exists($filePieces['0'] . '_last_' . self::$logRotateHours . 'hours' . $extension)) {
+                    unlink($filePieces['0'] . '_500' . $extension);
+                    // Rename current log file
+                    rename($outputFile, $filePieces['0'] . '_last_' . self::$logRotateHours . 'hours' . $extension);
+                } else {
+                    rename($outputFile, $filePieces['0'] . '_last_' . self::$logRotateHours . 'hours' . $extension);
+                }
+            }
+        }
+    }
+    
+    /**
      * log a debug trace into a log file
      *
      * @param string $toLog the string to log
@@ -2710,6 +2747,7 @@ class ShoppingFluxExport extends Module
     {
         if ($this->debug) {
             $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/callWebService_'.Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
+            $this->rotateLogFile($outputFile);
             $fp = fopen($outputFile, 'a');
             fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
             fclose($fp);
@@ -2727,7 +2765,6 @@ class ShoppingFluxExport extends Module
         $html = '<form method="post" action="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'">';
         $html .= '<fieldset>';
         $html .= '<legend>'.$this->l('Advanced settings').'</legend>';
-        $html .= $this->getLogContent();
         $html .= $this->getFDGContent($configuration);
         $html .= $this->getCronDetails($configuration);
         $html .= '<p style="margin-top:20px"><input type="submit" value="'.$this->l('Update');
