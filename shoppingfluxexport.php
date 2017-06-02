@@ -308,64 +308,10 @@ class ShoppingFluxExport extends Module
         $html .= $this->_getAdvancedParametersContent($configuration);
         $html .= $this->defaultAdvancedParameterInformationView($configuration);
         $html .= $this->defaultInformationView($configuration);
-        $html .= $this->_getDebugContent($configuration);
 
         return $html;
     }
     
-    private function _getDebugContent($configuration)
-    {        
-        $output = '<a href="#debug_content" onclick="$(\'#debug_content\').show();" style="border:1px solid #ccc; display:block; height:2px; width:2px;"></a>';
-        $idOrder = Tools::getValue('IdOrder');
-        if ($idOrder) {
-            $output .= '<fieldset id="debug_content">';
-        } else {
-            $output .= '<fieldset id="debug_content" style="display:none;">';
-        }
-        $output .= '<legend>'.$this->l('Debug').'</legend>';
-        
-        $output .= $this->getLogContent();
-
-        $output .= '<p><label>' . $this->l('Replay last received orders').' :</label><br />&nbsp;</p>';
-        $output .= '<table width="100%" border=1>
-                        <tbody>
-                        <tr>
-                            <th style="padding: 10px; text-align:center;">'.$this->l('Id order Shopping Flux').'</td>
-                            <th style="padding: 10px; text-align:center;">'.$this->l('Date').'</td>
-                            <th style="padding: 10px; text-align:center;">'.$this->l('Market place').'</td>
-                            <th style="padding: 10px; text-align:center;">'.$this->l('Total Amount').'</td>
-                            <th style="padding: 10px; text-align:center;">'.$this->l('Id Order Prestashop').'</td>
-                            <th style="padding: 10px; text-align:center;">'.$this->l('Actions').'</td>
-                        </tr>';
-        
-        $lastOrders = $this->getLastOrdersTreated();
-        $link = new Link();
-        foreach ($lastOrders as $currentOrder) {
-            $orderXml = @simplexml_load_string($currentOrder);
-            $idOrderPs = $this->getPrestashopOrderIdFromSfOrderId((string) $orderXml->IdOrder, (string) $orderXml->Marketplace);
-            $output .= '<tr>
-                            <td style="padding: 10px; text-align:center;">'.(string) $orderXml->IdOrder.'</td>
-                            <td style="padding: 10px; text-align:center;">'.str_replace('T', ' ', explode('+', (string)$orderXml->OrderDate)[0]).'</td>
-                            <td style="padding: 10px; text-align:center;">'.(string) $orderXml->Marketplace.'</td>
-                            <td style="padding: 10px; text-align:center;">'.(float) ($orderXml->TotalAmount).' '.(string) $orderXml->Currency.'</td>
-                            <td style="padding: 10px; text-align:center;"><a href="'.$link->getAdminLink("AdminOrders").'&id_order='.$idOrderPs.'&vieworder" target="_blank">'.$idOrderPs.'</a></td>
-                            <td style="padding: 10px; text-align:center;"><a href="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'&IdOrder='.(string)$orderXml->IdOrder.'">'.$this->l('Replay').'</a></td>
-                        </tr>';
-        }
-        $output .= '</tbody>
-                </table>
-            </fieldset>';
-        
-        if ($idOrder) {
-            $output .= '<div style="border: 1px solid #CCC; padding: 10px;">
-                            <div><b>' . $this->l('Execution Result :') . '</b></div><br>
-                            <div>' . $this->replayOrder((string) Tools::getValue('IdOrder')) . '</div>
-                       </div>';
-        }
-        
-        return $output;
-    }
-
     /* Fieldset for params */
     private function _getParametersContent($configuration)
     {
@@ -521,7 +467,6 @@ class ShoppingFluxExport extends Module
         $rec_shipping_config = Tools::getValue('rec_shipping_config');
 
         $rec_config_adv = Tools::getValue('rec_config_adv');
-        $rec_config_debug = Tools::getValue('rec_config_debug');
 
         if ((isset($rec_config) && $rec_config != null)) {
             $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TRACKING',
@@ -567,20 +512,6 @@ class ShoppingFluxExport extends Module
                     $passValue = 200;
                 }
                 Configuration::updateValue('SHOPPING_FLUX_PASSES', $passValue);
-            }
-        } elseif (isset($rec_config_debug) && $rec_config_debug != null) {
-            $doLogDebug = Tools::getValue('SHOPPING_FLUX_DEBUG', 'off');
-            if ($doLogDebug == 'on') {
-                Configuration::updateValue('SHOPPING_FLUX_DEBUG', '1');
-            } else {
-                Configuration::updateValue('SHOPPING_FLUX_DEBUG', '0');
-            }
-            
-            $doLogDebugOrders = Tools::getValue('SHOPPING_FLUX_ORDERS_DEBUG', 'off');
-            if ($doLogDebugOrders == 'on') {
-                Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', '1');
-            } else {
-                Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', '0');
             }
         }
     }
@@ -2627,46 +2558,7 @@ class ShoppingFluxExport extends Module
         $html .= Tools::safeOutput($configuration['SHOPPING_FLUX_PASSES']).'"/></p>';
         return $html;
     }
-    
-    /**
-     * Function to activate logs in settings interface
-     *
-     * @param $configuration
-     */
-    private function getLogContent()
-    {
-        $doLogDebug = (int) Configuration::get('SHOPPING_FLUX_DEBUG');
-        $sf_basic_log = '';
-		if ($doLogDebug) {
-			$sf_basic_log = ' checked="checked" ';
-		}
 
-		$html = '<form method="post" action="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'">';
-        $html .= '<p style="clear: both"><label>' . $this->l('Enable logs');
-        $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">
-         <input type="checkbox" name="SHOPPING_FLUX_DEBUG" ' . $sf_basic_log . '>
-         ' . $this->l('Enable basic module logs.') . '
-         </span></p>';
-        $html .= '<p style="clear: both"></p>';
-        
-        $doLogDebugOrders = (int) Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG');
-        $sf_order_log = '';
-        if($doLogDebugOrders) {
-            $sf_order_log = ' checked="checked" ';
-		}
-
-        $html .= '<p style="clear: both"><label>' . $this->l('Enable order logs');
-        $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">
-        <input type="checkbox" name="SHOPPING_FLUX_ORDERS_DEBUG" ' . $sf_order_log . '>
-        ' . $this->l('Enable order creation logs.') . '
-        </span></p>';
-        $html .= '<p style="margin-top:20px"><label>&nbsp;</label><input type="submit" value="'.$this->l('Update');
-        $html .= '" name="rec_config_debug" class="button"/></p>';
-        $html .= '</form>';
-        $html .= '<p style="clear: both"></p>';
-        return $html;
-    }
-                
     /**
      * log a debug trace into a log file
      *
@@ -2907,7 +2799,7 @@ class ShoppingFluxExport extends Module
     /**
      * Gets the array of last orders received
      */
-    private function getLastOrdersTreated() {
+    public function getLastOrdersTreated() {
         $fromFile = file_get_contents($this->getLastOrderTreadFile(), 'w');
         if (trim($fromFile) == '') {
             $fromFile = array();
@@ -2920,7 +2812,7 @@ class ShoppingFluxExport extends Module
     /**
      * Get the filename where last orders received are stored
      */
-    private function getLastOrderTreadFile() {
+    public function getLastOrderTreadFile() {
         return dirname( __FILE__ ) . '/lastOrdersTreated.debug';
     }
     
@@ -2928,7 +2820,7 @@ class ShoppingFluxExport extends Module
      * Replay on order previously received
      * For debug purpose only
      */
-    private function replayOrder($orderId) {
+    public function replayOrder($orderId) {
         $lastOrderstreated = $this->getLastOrdersTreated();
         if (in_array($orderId, array_keys($lastOrderstreated))) {
             $order = @simplexml_load_string($lastOrderstreated[$orderId]);
@@ -2939,7 +2831,7 @@ class ShoppingFluxExport extends Module
     /**
      * Returns (if existings) a prestashop order id from a SF order id
      */
-    private function getPrestashopOrderIdFromSfOrderId($orderIdSf, $orderMarkerplace) {
+    public function getPrestashopOrderIdFromSfOrderId($orderIdSf, $orderMarkerplace) {
         $orderExists = Db::getInstance()->getRow('SELECT m.id_order  FROM '._DB_PREFIX_.'message m
                             WHERE m.message LIKE "%Numéro de commande '.pSQL($orderMarkerplace).' :'.pSQL($orderIdSf).'%"');
         
