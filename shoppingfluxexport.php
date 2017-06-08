@@ -2527,11 +2527,7 @@ class ShoppingFluxExport extends Module
             // Retrieve FDG product id after save
             Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
             
-            
-            $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, $this->context->shop->id);
-            $stock_available = new StockAvailable($id_stock_available);
-            $stock_available->out_of_stock = 1;
-            $stock_available->update();
+            StockAvailable::setProductOutOfStock($product->id, 1);
         } else {
             $product = new Product($fdg);
     
@@ -2542,10 +2538,7 @@ class ShoppingFluxExport extends Module
                     $product->reference = 'FDG-ShoppingFlux';
                     $product->update();
     
-                    $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
-                    $stock_available = new StockAvailable($id_stock_available);
-                    $stock_available->out_of_stock = 1;
-                    $stock_available->update();
+                    StockAvailable::setProductOutOfStock($product->id, 1);
                 }
                 if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1 && $product->advanced_stock_management != 1) {
                     $product->advanced_stock_management = 1;
@@ -2573,10 +2566,7 @@ class ShoppingFluxExport extends Module
                     StockAvailable::setProductDependsOnStock($product->id, true, (int)$this->context->shop->id, 0);
                 }
                 
-                $id_stock_available = (int)StockAvailable::getStockAvailableIdByProductId($product->id, 0, 1);
-                $stock_available = new StockAvailable($id_stock_available);
-                $stock_available->out_of_stock = 1;
-                $stock_available->update();
+                StockAvailable::setProductOutOfStock($product->id, 1);
                 
                 // Retrieve FDG product id after save
                 Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
