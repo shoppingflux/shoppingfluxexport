@@ -1951,7 +1951,7 @@ class ShoppingFluxExport extends Module
         } else {
             $token = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
         }
-        if (empty($token && !$forceToken)) {
+        if (empty($token) && !$forceToken) {
             $this->logCallWebservice('ERROR could not call webservice because of empty token (function = '.$call.')');
             return false;
         }
