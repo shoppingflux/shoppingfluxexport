@@ -1610,7 +1610,7 @@ class ShoppingFluxExport extends Module
                                     Db::getInstance()->execute($sql_update);
                                     
                                     // Sets the relay information to be able to print with mondial relay module
-                                    if ($order->ShippingMethod == 'Mondial Relay')
+                                    if ($order->ShippingMethod == 'Mondial Relay') {
                                         $this->setMondialRelayData($order->Other, $id_order);
                                     }
                                 } else {
@@ -3126,7 +3126,7 @@ class ShoppingFluxExport extends Module
         $address = new Address($order->id_address_delivery);
         $isoCountry = Country::getIsoById($address->id_country);
         // Get relay data
-        $relayData = $this->getPointRelaisData($idRelay, $isoCountry)
+        $relayData = $this->getPointRelaisData($idRelay, $isoCountry);
         if ($relayData) {
             // Get corresonding method
             $method = Db::getInstance()->getValue("SELECT `id_mr_method`
@@ -3156,7 +3156,7 @@ class ShoppingFluxExport extends Module
      * Retrieve relay details from webservice
      */
     private function getPointRelaisData($id_relay, $isoCountry) {
-        $urlWebService = 'http://www.mondialrelay.fr/webservice/Web_Services.asmx?WSDL'
+        $urlWebService = 'http://www.mondialrelay.fr/webservice/Web_Services.asmx?WSDL';
         $mondialRelayConfig = Configuration::get('MR_ACCOUNT_DETAIL');
 
         // Mondial relay module not configured
