@@ -178,6 +178,9 @@ class ShoppingFluxExport extends Module
                 !Configuration::deleteByName('SHOPPING_FLUX_PACKS') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_SHIPPING_MATCHING') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_PASSES') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_MULTITOKEN_ACTIVATION') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_ORDERS_DEBUG') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_DEBUG') ||
                 !parent::uninstall()) {
             return false;
         }
@@ -1537,8 +1540,8 @@ class ShoppingFluxExport extends Module
                             $current_customer = new Customer((int)$id_customer);
         
                             if ($products_available && $id_address_shipping && $id_address_billing && $id_customer) {
-                                $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees, $doEchoLog, $currentToken['id_lang']);
-        
+                                $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees, $currentToken['id_lang'], $doEchoLog);
+            
                                 if ($cart) {
                                     $this->logDebugOrders('Cart '.$cart->id.' successfully built', $doEchoLog);
                                   
@@ -1930,6 +1933,7 @@ class ShoppingFluxExport extends Module
         $this->logCallWebservice('XML response : ');
         $this->logCallWebservice($curl_response);
         $this->logCallWebservice('------- End Call Webservice -------');
+        $this->logCallWebservice('');
 
         curl_close($curl);
         
@@ -2253,7 +2257,7 @@ class ShoppingFluxExport extends Module
         }
     }
 
-    private function _validateOrder($cart, $marketplace, $doEchoLog)
+    private function _validateOrder($cart, $marketplace)
     {
         $payment = new sfpayment();
         $payment->name = 'sfpayment';
@@ -2275,7 +2279,8 @@ class ShoppingFluxExport extends Module
     /*
      * Fake cart creation
      */
-    private function _getCart($id_customer, $id_address_billing, $id_address_shipping, $productsNode, $currency, $shipping_method, $fees, $doEchoLog, $id_lang = false)
+
+    private function _getCart($id_customer, $id_address_billing, $id_address_shipping, $productsNode, $currency, $shipping_method, $fees, $id_lang = false, $doEchoLog = false)
     {
         $cart = new Cart();
         $cart->id_customer = $id_customer;
