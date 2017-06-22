@@ -23,6 +23,7 @@
  * @license   http://opensource.org/licenses/afl-3.0.php Academic Free License (AFL 3.0)
  * International Registered Trademark & Property of PrestaShop SA
  */
+define('_PS_MODE_DEV_', true);
 include (dirname(__FILE__) . '/../../config/config.inc.php');
 include (dirname(__FILE__) . '/../../init.php');
 
@@ -40,7 +41,6 @@ if ((Tools::getValue('token') == '' || Tools::getValue('token') != Configuration
 
 function getDebugForm($sf)
 {
-    $idOrder = Tools::getValue('IdOrder');
     $output = '<fieldset id="debug_content">';
     $output .= '<legend>' . $sf->l('Debug') . '</legend>';
     $output .= getLogContent($sf);
@@ -72,7 +72,7 @@ function getConfigForm($sf)
             }
         }
     }
-    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['SERVER_NAME'] . $_SERVER['REWRITEBASE'];
+    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['SERVER_NAME'] . $_SERVER['HOSTNAME'];
     
     $idOrder = Tools::getValue('IdOrder');
     $output = '<fieldset id="debug_content">';
@@ -121,7 +121,6 @@ function getConfigForm($sf)
 
 function getReplayOrdersForm($sf)
 {
-    $idOrder = Tools::getValue('IdOrder');
     $output = '<fieldset id="debug_content">';
     $output .= '<legend>' . $sf->l('Replay last received orders') . '</legend>';
     $output .= '<table width="100%" border=1>
@@ -153,12 +152,14 @@ function getReplayOrdersForm($sf)
                 </table>
             </fieldset>';
     
-    if ($idOrder) {
-        $output .= '<div style="border: 1px solid #CCC; padding: 10px;">
-                            <div><b>' . $sf->l('Execution Result :') . '</b></div><br>
-                            <div>' . $sf->replayOrder((string) Tools::getValue('IdOrder')) . '</div>
-                       </div>';
-    }
+    $output .= '<fieldset id="debug_content">';
+    $output .= '<form method="post" action="' . Tools::safeOutput($_SERVER['REQUEST_URI']) . '">';
+    $output .= '<legend>' . $sf->l('Replay specific order by XML (put only one order XML tag)') . '</legend>';
+    $output .= '<textarea rows="15" cols="150" name="replayXml"></textarea>';
+    $output .= '<br><input type="submit" value="' . $sf->l('Send');
+    $output .= '" name="rec_config_debug" class="button"/></p>';
+    $output .= '</form>';
+    $output .= '</fieldset>';
     
     return $output;
 }
@@ -264,7 +265,7 @@ pre {
     echo getDebugForm($sf);
     echo getConfigForm($sf);
     echo getReplayOrdersForm($sf);
-    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['SERVER_NAME'] . $_SERVER['REWRITEBASE'];
+    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['SERVER_NAME'] . $_SERVER['HOSTNAME'];
     if (isset($_GET['test_homepage']) && $_GET['test_homepage'] != '') {
         $curl_response = curl_file_get_contents($urlBase);
         ?>
@@ -303,6 +304,30 @@ pre {
                 $curl_response = curl_file_get_contents($nextUrl);
             }
         }
+    }
+    
+    $idOrder = Tools::getValue('IdOrder');
+    $replayXml = Tools::getValue('replayXml');
+    if ($idOrder) {
+        ob_start();
+        $sf->replayOrder((string) Tools::getValue('IdOrder'));
+        $result = ob_get_contents();
+        ob_end_clean();
+        
+        $output .= '<div style="border: 1px solid #CCC; padding: 10px;">
+                            <div><b>' . $sf->l('Execution Result of last order replay:') . '</b></div><br>
+                            <div>' . $result . '</div>
+                       </div>';
+    }
+    if ($replayXml) {
+        $replayOrder = @simplexml_load_string($replayXml);
+        ?><div style="border: 1px solid #CCC; padding: 10px;">
+		<div>
+			<b><?php echo $sf->l('Execution Result of XML replay :'); ?></b>
+		</div>
+		<br>
+		<div><?php $sf->replayOrder(false, $replayOrder) ?></div>
+	</div><?php
     }
     ?>
 </body>

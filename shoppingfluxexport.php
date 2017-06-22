@@ -1511,7 +1511,7 @@ class ShoppingFluxExport extends Module
                             $orderExists = Db::getInstance()->getRow('SELECT m.id_message, m.id_order FROM '._DB_PREFIX_.'message m
                                 WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
         
-                            if (isset($orderExists['id_message']) && isset($orderExists['id_order'])) {
+                            if (! $forcedOrder && isset($orderExists['id_message']) && isset($orderExists['id_order'])) {
                                 $this->logDebugOrders('Order allready exists (id = '.$order->IdOrder.'): notifying ShoppingFlux', $doEchoLog);
                                 $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int)$orderExists['id_order']);
                                 continue;
@@ -2330,6 +2330,7 @@ class ShoppingFluxExport extends Module
             if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1
                 && $skus[0] != Configuration::get('SHOPPING_FLUX_FDG')) {
                 $warehouseInfos = Warehouse::getWarehousesByProductId($skus[0], (isset($skus[1]) ? $skus[1] : 0));
+                
                 if (count($warehouseInfos) > 0) {
                     $id_warehouse = $warehouseInfos[0]['id_warehouse'];
                 }
@@ -2704,15 +2705,15 @@ class ShoppingFluxExport extends Module
      */
     public function logDebugOrders($toLog, $doEchoLog = false)
     {
+        $logLine = chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog;
+        if ($doEchoLog) {
+            echo $logLine . '<br />';
+        }
         if ($this->debugOrders) {
             $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/orders_debug_';
             $outputFile .= Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
             $this->rotateLogFile($outputFile);
             $fp = fopen($outputFile, 'a');
-            $logLine = chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog;
-            if ($doEchoLog) {
-                echo $logLine . '<br />';
-            }
             fwrite($fp, $logLine);
             fclose($fp);
         }
@@ -3077,10 +3078,14 @@ class ShoppingFluxExport extends Module
      * Replay on order previously received
      * For debug purpose only
      */
-    public function replayOrder($orderId) {
-        $lastOrderstreated = $this->getLastOrdersTreated();
-        if (in_array($orderId, array_keys($lastOrderstreated))) {
-            $order = @simplexml_load_string($lastOrderstreated[$orderId]);
+    public function replayOrder($orderId, $order = false) {
+        if ($orderId) {
+            $lastOrderstreated = $this->getLastOrdersTreated();
+            if (in_array($orderId, array_keys($lastOrderstreated))) {
+                $order = @simplexml_load_string($lastOrderstreated[$orderId]);
+                $this->hookbackOfficeTop(true, $order);
+            }
+        } else {
             $this->hookbackOfficeTop(true, $order);
         }
     }
