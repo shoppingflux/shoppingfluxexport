@@ -34,7 +34,7 @@ ini_set('display_errors', 'on');
 
 $sf = new ShoppingFluxExport();
 
-if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) {
+if ((Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) && ! (isset($_GET['test_homepage']) || isset($_GET['test_curl']))) {
     die("Invalid Token");
 }
 
@@ -44,8 +44,86 @@ function getDebugForm($sf)
     $output = '<fieldset id="debug_content">';
     $output .= '<legend>' . $sf->l('Debug') . '</legend>';
     $output .= getLogContent($sf);
+    $output .= '</fieldset>';
+    return $output;
+}
+
+function getConfigForm($sf)
+{
+    if (Configuration::get('SHOPPING_FLUX_FDG')) {
+        $product_id = Configuration::get('SHOPPING_FLUX_FDG');
+        $sql = '
+        SELECT `out_of_stock`
+        FROM  `' . _DB_PREFIX_ . 'stock_available`
+        WHERE  `id_product` = ' . $product_id . '
+        GROUP BY `id_product` ';
+        
+        $productStock = Db::getInstance()->getRow($sql);
+        
+        if ($productStock['out_of_stock'] == 0) {
+            $outOfStock = 'Refuser les commandes';
+        } else {
+            if ($productStock['out_of_stock'] == 1) {
+                $outOfStock = 'Accepter les commandes';
+            } else {
+                if ($productStock['out_of_stock'] == 2) {
+                    $outOfStock = 'Par défaut: Accepter les commandes tel que défini dans les préférences produits';
+                }
+            }
+        }
+    }
+    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['SERVER_NAME'] . $_SERVER['REWRITEBASE'];
     
-    $output .= '<p><label>' . $sf->l('Replay last received orders') . ' :</label><br />&nbsp;</p>';
+    $idOrder = Tools::getValue('IdOrder');
+    $output = '<fieldset id="debug_content">';
+    $output .= '<legend>' . $sf->l('Configurations') . '</legend>';
+    
+    $output .= '<label>SHOPPING_FLUX_FDG</label>' . Configuration::get('SHOPPING_FLUX_FDG');
+    $output .= '<p style="clear: both"></p>';
+    
+    $output .= '<label>FDG allow out of stock</label>' . $outOfStock;
+    $output .= '<p style="clear: both"></p>';
+    
+    $output .= '<label>PS_SHOPPINGFLUX_CRON_TIME</label>' . Configuration::get('PS_SHOPPINGFLUX_CRON_TIME');
+    $output .= '<p style="clear: both"></p>';
+    
+    $output .= '<label>SHOPPING_FLUX_STATUS_SHIPPED</label>' . Configuration::get('SHOPPING_FLUX_STATUS_SHIPPED');
+    $output .= '<p style="clear: both"></p>';
+    
+    $output .= '<label>SHOPPING_FLUX_SHIPPED</label>' . Configuration::get('SHOPPING_FLUX_SHIPPED');
+    $output .= '<p style="clear: both"></p>';
+    
+    $output .= '<label>SHOPPING_FLUX_STATUS_CANCELED</label>' . Configuration::get('SHOPPING_FLUX_STATUS_CANCELED');
+    $output .= '<p style="clear: both"></p>';
+    
+    $output .= '<label>SHOPPING_FLUX_CANCELED</label>' . Configuration::get('SHOPPING_FLUX_CANCELED');
+    $output .= '<p style="clear: both"></p>';
+    
+    $output .= '<label>SHOPPING_FLUX_REF</label>' . Configuration::get('SHOPPING_FLUX_REF');
+    $output .= '<p style="clear: both"></p>';
+    
+    $output .= '<label>SHOPPING_FLUX_TOKEN</label>' . Configuration::get('SHOPPING_FLUX_TOKEN');
+    $output .= '<p style="clear: both"></p>';
+    
+    $output .= '<label>getAllTokensOfShop()</label>';
+    $output .= '<pre>' . print_r($sf->getAllTokensOfShop(), true) . '</pre>';
+    $output .= '<p style="clear: both"></p>';
+    
+    $output .= '<label>URL test homepage</label>' . $urlBase . 'modules/shoppingfluxexport/debug.php?test_homepage=1';
+    $output .= '<p style="clear: both"></p>';
+    
+    $output .= '<label>URL test CURL</label>' . $urlBase . 'modules/shoppingfluxexport/debug.php?test_curl=1';
+    $output .= '<p style="clear: both"></p>';
+    
+    $output .= '</fieldset>';
+    return $output;
+}
+
+function getReplayOrdersForm($sf)
+{
+    $idOrder = Tools::getValue('IdOrder');
+    $output = '<fieldset id="debug_content">';
+    $output .= '<legend>' . $sf->l('Replay last received orders') . '</legend>';
     $output .= '<table width="100%" border=1>
                         <tbody>
                         <tr>
@@ -90,31 +168,26 @@ function getDebugForm($sf)
  */
 function getLogContent($sf)
 {
-    $doLogDebug = (int) Configuration::get('SHOPPING_FLUX_DEBUG');
     $sf_basic_log = '';
-    if ($doLogDebug) {
+    if ((int) Configuration::get('SHOPPING_FLUX_DEBUG') || Configuration::get('SHOPPING_FLUX_DEBUG') == 'true') {
         $sf_basic_log = ' checked="checked" ';
     }
     
     $html = '<form method="post" action="' . Tools::safeOutput($_SERVER['REQUEST_URI']) . '">';
-    $html .= '<p style="clear: both"><label>' . $sf->l('Enable logs');
-    $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">
+    $html .= '<label>' . $sf->l('Enable logs');
+    $html .= '</label>
          <input type="checkbox" name="SHOPPING_FLUX_DEBUG" ' . $sf_basic_log . '>
          ' . $sf->l('Enable basic module logs.') . '
-         </span></p>';
-    $html .= '<p style="clear: both"></p>';
-    
-    $doLogDebugOrders = (int) Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG');
+         </span>';
     $sf_order_log = '';
-    if ($doLogDebugOrders) {
+    if ((int) Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG') || Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG') == 'true') {
         $sf_order_log = ' checked="checked" ';
     }
-    
-    $html .= '<p style="clear: both"><label>' . $sf->l('Enable order logs');
-    $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">
+    $html .= '<p style="clear: both"></p>';
+    $html .= '<label>' . $sf->l('Enable order logs');
+    $html .= '</label>
         <input type="checkbox" name="SHOPPING_FLUX_ORDERS_DEBUG" ' . $sf_order_log . '>
-        ' . $sf->l('Enable order creation logs.') . '
-        </span></p>';
+        ' . $sf->l('Enable order creation logs.');
     $html .= '<p style="margin-top:20px"><label>&nbsp;</label><input type="submit" value="' . $sf->l('Update');
     $html .= '" name="rec_config_debug" class="button"/></p>';
     $html .= '</form>';
@@ -143,13 +216,94 @@ if (isset($rec_config_debug) && $rec_config_debug != null) {
     }
 }
 
+function curl_file_get_contents($url)
+{
+    $curl_post_data = array();
+    $curl = curl_init();
+    curl_setopt($curl, CURLOPT_URL, $url);
+    curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($curl, CURLOPT_HEADER, false);
+    curl_setopt($curl, CURLOPT_POST, true);
+    curl_setopt($curl, CURLOPT_POSTFIELDS, $curl_post_data);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 10);
+    curl_setopt($curl, CURLOPT_TIMEOUT, 1);
+    $curl_response = curl_exec($curl);
+    curl_close($curl);
+    return $curl_response;
+}
+
+function logDebug($toLog)
+{
+    $outputFile = dirname(__FILE__) . '/logs/testCurl.txt';
+    $fp = fopen($outputFile, 'a');
+    fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
+    fclose($fp);
+}
 ?>
 <html>
 <head>
+<style type="text/css">
+label {
+	font-weight: bold;
+	display: inline-block;
+	width: 50%;
+	text-align: right;
+	padding-right: 10px;
+	float: left;
+}
+
+pre {
+	float: left;
+}
+</style>
 </head>
 <body>
     <?php
     echo getDebugForm($sf);
+    echo getConfigForm($sf);
+    echo getReplayOrdersForm($sf);
+    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['SERVER_NAME'] . $_SERVER['REWRITEBASE'];
+    if (isset($_GET['test_homepage']) && $_GET['test_homepage'] != '') {
+        $curl_response = curl_file_get_contents($urlBase);
+        ?>
+        <fieldset id="debug_content">
+		<legend>Open page via curl for <?php echo $urlBase; ?>, result :</legend>
+		<?php echo $curl_response; ?>
+	</fieldset>
+	<?php
+    }
+    if (isset($_GET['test_curl']) && $_GET['test_curl'] != '') {
+        $outputFile = dirname(__FILE__) . '/logs/testCurl.txt';
+        // To test timeout
+        sleep(2);
+        if (! isset($_GET['index'])) {
+            // First call
+            logDebug('Starting first call');
+            $fp = fopen($outputFile, 'w');
+            fwrite($fp, '');
+            fclose($fp);
+            $index = 1;
+            $nextUrl = $urlBase . 'modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
+            logDebug('Going to call : ' . $nextUrl);
+            $curl_response = curl_file_get_contents($nextUrl);
+        } else {
+            $index = $_GET['index'];
+            $index ++;
+            if ($index > 100) {
+                // Ended
+                logDebug('Successfully ended');
+                die();
+            } else {
+                // Call next URL
+                $nextUrl = $urlBase . 'modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
+                logDebug('Call received, index = ' . $_GET['index']);
+                logDebug('Going to call : ' . $nextUrl);
+                $curl_response = curl_file_get_contents($nextUrl);
+            }
+        }
+    }
     ?>
 </body>
 </html>

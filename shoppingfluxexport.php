@@ -2912,7 +2912,7 @@ class ShoppingFluxExport extends Module
      * Gets all token of a given shop
      * @param int $id_shop
      */
-    private function getAllTokensOfShop()
+    public function getAllTokensOfShop()
     {
         $id_shop = $this->context->shop->id;
         $res = array();
