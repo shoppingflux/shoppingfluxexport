@@ -2349,9 +2349,9 @@ class ShoppingFluxExport extends Module
 
         if (isset($fees) && $fees > 0 && Configuration::get('SHOPPING_FLUX_FDG') != '') {
             // Check if advanced stock management active
-            if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1) {
+            if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1 && $id_warehouse) {
                 // Assign a warehouse to FDG product to avoid double order creation
-                Warehouse::setProductLocation((int) Configuration::get('SHOPPING_FLUX_FDG'), $id_warehouse, '');
+                Warehouse::setProductLocation((int) Configuration::get('SHOPPING_FLUX_FDG'), 0, $id_warehouse, '');
             }
             
             if (!$cart->updateQty(1, Configuration::get('SHOPPING_FLUX_FDG'), null)) {
