@@ -1494,6 +1494,7 @@ class ShoppingFluxExport extends Module
                     }
                     
                     foreach ($orders as $order) {
+                        set_time_limit(60);
                         if (! $forcedOrder) {
                             $this->logDebugOrders('----------------- Order creation received for market place : '.Tools::strtolower($order->Marketplace), $doEchoLog);
                             $this->saveLastOrderTreated($order);
