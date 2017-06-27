@@ -1469,6 +1469,10 @@ class ShoppingFluxExport extends Module
             $doEchoLog = false;
         }
 
+        ob_start();
+        @ini_set('display_errors', 'on');
+        @error_reporting(E_ALL | E_STRICT);
+
         if ($timeDiffFromLastCall > $minTimeDiff || $forcedOrder) {
             Configuration::updateValue('SHOPPING_BACKOFFICE_CALL', $now);
             $controller = Tools::strtolower(Tools::getValue('controller'));
@@ -1636,7 +1640,7 @@ class ShoppingFluxExport extends Module
                                     $customerClear->clearCache(true);
                                 }
                             }
-                        } catch (PrestaShopException $pe) {
+                        } catch (Exception $pe) {
                             $this->logDebugOrders('Error on order creation : '.$pe->getMessage());
                             $this->logDebugOrders('Trace : '.print_r($pe->getTraceAsString(), true));
                             $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $pe->getMessage());
@@ -1648,6 +1652,11 @@ class ShoppingFluxExport extends Module
                 }
             }
         }
+        $output = ob_get_contents();
+        ob_end_clean();
+        @ini_set('display_errors', 'off');
+        
+        $this->logDebugOrdersCreationWithErrorsOn($output);
     }
 	
 
@@ -2692,6 +2701,22 @@ class ShoppingFluxExport extends Module
     {
         if ($this->debug) {
             $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport_'.Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
+            $this->rotateLogFile($outputFile);
+            $fp = fopen($outputFile, 'a');
+            fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
+            fclose($fp);
+        }
+    }
+    
+    /**
+     * log a debug trace into a log file
+     *
+     * @param string $toLog the string to log
+     */
+    public function logDebugOrdersCreationWithErrorsOn($toLog)
+    {
+        if ($this->debug) {
+            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/orders_debug_errors_on_'.Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
             $this->rotateLogFile($outputFile);
             $fp = fopen($outputFile, 'a');
             fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
