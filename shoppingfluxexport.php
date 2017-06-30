@@ -2617,6 +2617,7 @@ class ShoppingFluxExport extends Module
                 // Poruct exists, we check if it can be ordered when out of stock
                 if ($product->out_of_stock == 0 || $product->out_of_stock == 2) {
                     $product->out_of_stock = 1;
+                    $product->price = 0;
                     $product->reference = 'FDG-ShoppingFlux';
                     $product->update();
     
