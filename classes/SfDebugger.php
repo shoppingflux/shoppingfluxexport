@@ -12,7 +12,7 @@ class SfDebugger
     /**
      * Singleton
      */
-    private static $_instance = null;
+    private static $instance = null;
 
     /**
      * Log PHP errors and warnings
