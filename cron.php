@@ -42,7 +42,7 @@ if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration:
 $current = Tools::getValue('current');
 
 if (empty($current)) {
-    $f->logDebug('CRON CALL - begining of treament');
+    SfLogger::getInstance()->log(SF_LOG_CRON, 'CRON CALL - begining of treament');
     $f->initFeed();
 } else {
     $f->writeFeed(Tools::getValue('total'), Tools::getValue('current'), Tools::getValue('lang'));

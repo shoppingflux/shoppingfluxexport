@@ -157,7 +157,7 @@ function getReplayOrdersForm($sf)
     $output .= '<legend>' . $sf->l('Replay specific order by XML (put only one order XML tag)') . '</legend>';
     $output .= '<textarea rows="15" cols="150" name="replayXml"></textarea>';
     $output .= '<br><input type="submit" value="' . $sf->l('Send');
-    $output .= '" name="rec_config_debug" class="button"/></p>';
+    $output .= '" name="" class="button"/></p>';
     $output .= '</form>';
     $output .= '</fieldset>';
     
@@ -180,6 +180,7 @@ function getLogContent($sf)
          <input type="checkbox" name="SHOPPING_FLUX_DEBUG" ' . $sf_basic_log . '>
          ' . $sf->l('Enable basic module logs.') . '
          </span>';
+    
     $sf_order_log = '';
     if ((int) Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG') || Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG') == 'true') {
         $sf_order_log = ' checked="checked" ';
@@ -189,6 +190,19 @@ function getLogContent($sf)
     $html .= '</label>
         <input type="checkbox" name="SHOPPING_FLUX_ORDERS_DEBUG" ' . $sf_order_log . '>
         ' . $sf->l('Enable order creation logs.');
+    
+
+    $sf_order_debug = '';
+    if ((int) Configuration::get('SHOPPING_FLUX_DEBUG_ERRORS') || Configuration::get('SHOPPING_FLUX_DEBUG_ERRORS') == 'true') {
+        $sf_order_debug = ' checked="checked" ';
+    }
+    $html .= '<p style="clear: both"></p>';
+    $html .= '<label>' . $sf->l('Enable order logs with PHP errors and warnings');
+    $html .= '</label>
+        <input type="checkbox" name="SHOPPING_FLUX_DEBUG_ERRORS" ' . $sf_order_debug . '>
+        ' . $sf->l('Enable order logs with PHP errors and warnings.');
+    
+    
     $html .= '<p style="margin-top:20px"><label>&nbsp;</label><input type="submit" value="' . $sf->l('Update');
     $html .= '" name="rec_config_debug" class="button"/></p>';
     $html .= '</form>';
@@ -214,6 +228,13 @@ if (isset($rec_config_debug) && $rec_config_debug != null) {
         Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', '1');
     } else {
         Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', '0');
+    }
+    
+    $doLogDebugOrders = Tools::getValue('SHOPPING_FLUX_DEBUG_ERRORS', 'off');
+    if ($doLogDebugOrders == 'on') {
+        Configuration::updateValue('SHOPPING_FLUX_DEBUG_ERRORS', '1');
+    } else {
+        Configuration::updateValue('SHOPPING_FLUX_DEBUG_ERRORS', '0');
     }
 }
 

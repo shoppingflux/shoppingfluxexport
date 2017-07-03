@@ -28,16 +28,22 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+$classes_to_load = array(
+    'SfLogger',
+    'SfDebugger',
+);
+
+foreach ($classes_to_load as $classname) {
+    if (file_exists(dirname(__FILE__) . '/classes/' . $classname . '.php')) {
+        require_once(dirname(__FILE__) . '/classes/' . $classname . '.php');
+    }
+}
 include_once(dirname(__FILE__).'/sfpayment.php');
 
 class ShoppingFluxExport extends Module
 {
     private $default_country = null;
     private $_html = '';
-
-    private $debug = true;
-    private $debugOrders = true;
-    private static $logRotateHours = 24;
 
     public function __construct()
     {
@@ -56,10 +62,6 @@ class ShoppingFluxExport extends Module
 
         $id_default_country = Configuration::get('PS_COUNTRY_DEFAULT');
         $this->default_country = new Country($id_default_country);
-
-        $this->debugOrders = Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG');
-        
-        $this->debug = Configuration::get('SHOPPING_FLUX_DEBUG');
         
         // Set default passes if not existing
         $productsToBeTreated = Configuration::get('SHOPPING_FLUX_PASSES');
@@ -129,6 +131,7 @@ class ShoppingFluxExport extends Module
                 !Configuration::updateValue('SHOPPING_FLUX_PACKS', '', false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300', false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', true, false, null, $shop['id_shop']) ||
+                !Configuration::updateValue('SHOPPING_FLUX_DEBUG_ERRORS', false, false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_DEBUG', true, false, null, $shop['id_shop'])
                 ) {
                     return false;
@@ -152,6 +155,7 @@ class ShoppingFluxExport extends Module
                      !Configuration::updateValue('SHOPPING_FLUX_PACKS', '') ||
                      !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300') ||
                      !Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', true) ||
+                     !Configuration::updateValue('SHOPPING_FLUX_DEBUG_ERRORS', false) ||
                      !Configuration::updateValue('SHOPPING_FLUX_DEBUG', true)
                  ) {
                 return false;
@@ -805,7 +809,7 @@ class ShoppingFluxExport extends Module
             ftruncate($fp, 0);
             fwrite($fp, "lock");
         } else {
-            $this->logDebug('Simultaneous CRON, lock activated, we stop execution');
+            SfLogger::getInstance()->log(SF_LOG_CRON, 'Simultaneous CRON, lock activated, we stop execution');
             die();
         }
         
@@ -813,7 +817,7 @@ class ShoppingFluxExport extends Module
         $today =  date('Y-m-d H:i:s');
         Configuration::updateValue('PS_SHOPPINGFLUX_CRON_TIME', $today, false, null, $id_shop);
         
-        $this->emptyLog();
+        SfLogger::getInstance()->emptyLogCron();
         
         $file = fopen($this->getFeedName(), 'w+');
         fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">');
@@ -821,7 +825,7 @@ class ShoppingFluxExport extends Module
 
         $totalProducts = $this->countProducts();
         
-        $this->logDebug('Starting generation of '.$totalProducts.' products');
+        SfLogger::getInstance()->log(SF_LOG_CRON, 'Starting generation of '.$totalProducts.' products');
         $this->writeFeed($totalProducts);
         
         // Release lock
@@ -878,16 +882,16 @@ class ShoppingFluxExport extends Module
         $link = new Link();
 
         $i = 0;
-        $this->logDebug('Last url - '.Configuration::get('PS_SHOPPINGFLUX_LAST_URL'));
+        SfLogger::getInstance()->log(SF_LOG_CRON, 'Last url - '.Configuration::get('PS_SHOPPINGFLUX_LAST_URL'));
         $logMessage = '-- URL call for products from '.($current+1).'/'.$total.' to ';
         $logMessage .= ($current+1+$configuration['PASSES']).'/'.$total.', current URL is: '.$_SERVER['REQUEST_URI'];
-        $this->logDebug($logMessage);
+        SfLogger::getInstance()->log(SF_LOG_CRON, $logMessage);
         
         foreach ($products as $productArray) {
             $i++;
             $logMessage = '----- Product generation '.$i.' / '.$configuration['PASSES'];
             $logMessage .= '(for this URL call) (id_product = '.$productArray['id_product'].')';
-            $this->logDebug($logMessage);
+            SfLogger::getInstance()->log(SF_LOG_CRON, $logMessage);
             
             $str = '';
             $product = new Product((int)($productArray['id_product']), true, $configuration['PS_LANG_DEFAULT']);
@@ -975,7 +979,7 @@ class ShoppingFluxExport extends Module
             rename($this->getFeedName(), $this->getFeedName(false));
             
             // Notify end of cron execution
-            $this->logDebug('EXPORT SUCCESSFULL');
+            SfLogger::getInstance()->log(SF_LOG_CRON, 'EXPORT SUCCESSFULL');
 
             // Empty last known url
             Configuration::updateValue('PS_SHOPPINGFLUX_LAST_URL', '0');
@@ -988,7 +992,8 @@ class ShoppingFluxExport extends Module
             $currency = Tools::getValue('currency'); 
             $next_uri .= (!empty($currency) ? '&currency='.Tools::getValue('currency') : '');
             $next_uri .= (!empty($lang) ? '&lang='.$lang : '');
-            $this->logDebug('-- going to call URL: '.$next_uri);
+            SfLogger::getInstance()->log(SF_LOG_CRON, '-- going to call URL: '.$next_uri);
+            
         
             // Disconnect DB to avoid reaching max connections
             DB::getInstance()->disconnect();
@@ -1304,7 +1309,7 @@ class ShoppingFluxExport extends Module
             $j++;
             $logMessage = '---------- Attribute generation '.$j.' / '.count($combinations);
             $logMessage .= ' (id_product = '.$product->id.')';
-            $this->logDebug($logMessage);
+            SfLogger::getInstance()->log(SF_LOG_CRON, $logMessage);
             
             if ($fileToWrite) {
                 $ret = '';
@@ -1466,9 +1471,7 @@ class ShoppingFluxExport extends Module
             $doEchoLog = false;
         }
 
-        ob_start();
-        @ini_set('display_errors', 'on');
-        @error_reporting(E_ALL | E_STRICT);
+        SfDebugger::getInstance()->startDebug();
 
         if ($timeDiffFromLastCall > $minTimeDiff || $forcedOrder) {
             Configuration::updateValue('SHOPPING_BACKOFFICE_CALL', $now);
@@ -1497,10 +1500,10 @@ class ShoppingFluxExport extends Module
                     foreach ($orders as $order) {
                         set_time_limit(60);
                         if (! $forcedOrder) {
-                            $this->logDebugOrders('----------------- Order creation received for market place : '.Tools::strtolower($order->Marketplace), $doEchoLog);
+                            SfLogger::getInstance()->log(SF_LOG_ORDERS, '----------------- Order creation received for market place : '.Tools::strtolower($order->Marketplace), $doEchoLog);
                             $this->saveLastOrderTreated($order);
                         } else {
-                            $this->logDebugOrders('----------------- Replaying previously received order for market place : '.Tools::strtolower($order->Marketplace), $doEchoLog);
+                            SfLogger::getInstance()->log(SF_LOG_ORDERS, '----------------- Replaying previously received order for market place : '.Tools::strtolower($order->Marketplace), $doEchoLog);
                         }
                         
                         try {
@@ -1514,14 +1517,14 @@ class ShoppingFluxExport extends Module
                                 WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
         
                             if (! $forcedOrder && isset($orderExists['id_message']) && isset($orderExists['id_order'])) {
-                                $this->logDebugOrders('Order allready exists (id = '.$order->IdOrder.'): notifying ShoppingFlux', $doEchoLog);
+                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order allready exists (id = '.$order->IdOrder.'): notifying ShoppingFlux', $doEchoLog);
                                 $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int)$orderExists['id_order']);
                                 continue;
                             }
         
                             $check = $this->checkData($order);
                             if ($check !== true) {
-                                $this->logDebugOrders('Check data incorrect - '.$check, $doEchoLog);
+                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check data incorrect - '.$check, $doEchoLog);
                                 $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $check);
                                 continue;
                             }
@@ -1530,22 +1533,22 @@ class ShoppingFluxExport extends Module
                             $email = (empty($mail)) ? pSQL($order->IdOrder.'@'.$order->Marketplace.'.sf') : pSQL($mail);
         
                             $id_customer = $this->_getCustomer($email, (string)$order->BillingAddress->LastName, (string)$order->BillingAddress->FirstName);
-                            $this->logDebugOrders('Id customer created or found : '.$id_customer, $doEchoLog);
+                            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id customer created or found : '.$id_customer, $doEchoLog);
                             //avoid update of old orders by the same merchant with different addresses
                             $id_address_billing = $this->_getAddress($order->BillingAddress, $id_customer, 'Billing-'.(string)$order->IdOrder);
-                            $this->logDebugOrders('Id adress delivery created or found : '.$id_address_billing, $doEchoLog);
+                            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress delivery created or found : '.$id_address_billing, $doEchoLog);
                             $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other);
-                            $this->logDebugOrders('Id adress shipping or found : '.$id_address_shipping, $doEchoLog);
+                            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress shipping or found : '.$id_address_shipping, $doEchoLog);
                             $products_available = $this->_checkProducts($order->Products);
-                            $this->logDebugOrders('Check products availabilityresult : '.$products_available, $doEchoLog);
-        
+                            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check products availabilityresult : '.$products_available, $doEchoLog);
+                            
                             $current_customer = new Customer((int)$id_customer);
         
                             if ($products_available && $id_address_shipping && $id_address_billing && $id_customer) {
                                 $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees, $doEchoLog, $currentToken['id_lang']);
         
                                 if ($cart) {
-                                    $this->logDebugOrders('Cart '.$cart->id.' successfully built', $doEchoLog);
+                                    SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Cart '.$cart->id.' successfully built', $doEchoLog);
                                   
                                     //compatibylity with socolissmo
                                     $this->context->cart = $cart;
@@ -1584,15 +1587,15 @@ class ShoppingFluxExport extends Module
                                         $customerClear->clearCache(true);
                                     }
         
-                                    $this->logDebugOrders('Calling validateOrder', $doEchoLog);
+                                    SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Calling validateOrder', $doEchoLog);
                                     $payment = $this->_validateOrder($cart, $order->Marketplace, $doEchoLog);
                                     $id_order = $payment->currentOrder;
-                                    $this->logDebugOrders('validateOrder successfull, id_order = '.$id_order, $doEchoLog);
+                                    SfLogger::getInstance()->log(SF_LOG_ORDERS, 'validateOrder successfull, id_order = '.$id_order, $doEchoLog);
         
                                     //we valid there
-                                    $this->logDebugOrders('Notifying ShoppingFlux of order creation', $doEchoLog);
+                                    SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Notifying ShoppingFlux of order creation', $doEchoLog);
                                     $orderCreation = $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order);
-                                    $this->logDebugOrders('Notify result of order creation : ' . $orderCreation, $doEchoLog);
+                                    SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Notify result of order creation : ' . $orderCreation, $doEchoLog);
         
                                     $reference_order = $payment->currentOrderReference;
                                     if (version_compare(_PS_VERSION_, '1.5', '<')) {
@@ -1602,10 +1605,10 @@ class ShoppingFluxExport extends Module
                                         Db::getInstance()->update('customer',array('email' => pSQL($email)), '`id_customer` = '.(int)$id_customer);
                                         Db::getInstance()->insert('message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')));
                                     }
-                                    $this->logDebugOrders('Real customer email set again : ' . $email, $doEchoLog);
+                                    SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Real customer email set again : ' . $email, $doEchoLog);
                                     
                                     $this->_updatePrices($id_order, $order, $reference_order);
-                                    $this->logDebugOrders('Prices of the order successfully set', $doEchoLog);
+                                    SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Prices of the order successfully set', $doEchoLog);
     
                                     // Avoid SoColissimo module to change the address by the one he created
                                     $sql_update = 'UPDATE '._DB_PREFIX_.'orders SET id_address_delivery = '.(int)$id_address_shipping.' WHERE id_order = '.(int)$id_order;
@@ -1616,7 +1619,7 @@ class ShoppingFluxExport extends Module
                                         $this->setMondialRelayData($order->Other, $id_order);
                                     }
                                 } else {
-                                    $this->logDebugOrders('ERROR could not load cart', $doEchoLog);
+                                    SfLogger::getInstance()->log(SF_LOG_ORDERS, 'ERROR could not load cart', $doEchoLog);
                                 }
             
                                 $cartClear = new Cart();
@@ -1638,8 +1641,8 @@ class ShoppingFluxExport extends Module
                                 }
                             }
                         } catch (Exception $pe) {
-                            $this->logDebugOrders('Error on order creation : '.$pe->getMessage());
-                            $this->logDebugOrders('Trace : '.print_r($pe->getTraceAsString(), true));
+                            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Error on order creation : '.$pe->getMessage());
+                            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Trace : '.print_r($pe->getTraceAsString(), true));
                             $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $pe->getMessage());
                         }
                         if ($forcedOrder) {
@@ -1649,11 +1652,7 @@ class ShoppingFluxExport extends Module
                 }
             }
         }
-        $output = ob_get_contents();
-        ob_end_clean();
-        @ini_set('display_errors', 'off');
-        
-        $this->logDebugOrdersCreationWithErrorsOn($output);
+        SfDebugger::getInstance()->endDebug();
     }
 	
 
@@ -1663,7 +1662,7 @@ class ShoppingFluxExport extends Module
      */
     private function checkData($order)
     {
-        $this->logDebugOrders('Checking order data');
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Checking order data');
         
         $id_shop = $this->context->shop->id;
         foreach ($order->Products->Product as $product) {
@@ -1772,7 +1771,7 @@ class ShoppingFluxExport extends Module
         //set the shop related to the order in the context to avoid empty configurations
         $this->context->shop = new Shop((int)$order->id_shop);
 
-        $this->logDebugOrders('------- Status change of order for order ' . $params['id_order']);
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, '------- Status change of order for order ' . $params['id_order']);
         if ((Configuration::get('SHOPPING_FLUX_STATUS_SHIPPED') != '' &&
                 Configuration::get('SHOPPING_FLUX_SHIPPED') == '' &&
                 $this->_getOrderStates(Configuration::get('PS_LANG_DEFAULT'), 'shipped') == $params['newOrderStatus']->name) &&
@@ -1806,7 +1805,7 @@ class ShoppingFluxExport extends Module
             $xml .= '</Order>';
             $xml .= '</UpdateOrders>';
 
-            $this->logDebugOrders('Sending change of status and tracking number (' . $shipping[0]['tracking_number'] . ') to ShoppingFlux for order ' . $params['id_order']);
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Sending change of status and tracking number (' . $shipping[0]['tracking_number'] . ') to ShoppingFlux for order ' . $params['id_order']);
             $responseXML = $this->_callWebService('UpdateOrders', $xml, (int)$order->id_shop, $this->getOrderToken((int)$params['id_order']));
 
             if (!$responseXML->Response->Error) {
@@ -1845,7 +1844,7 @@ class ShoppingFluxExport extends Module
             $xml .= '</Order>';
             $xml .= '</UpdateOrders>';
 
-            $this->logDebugOrders('Sending change of status cancelled to ShoppingFlux for order ' . $params['id_order']);
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Sending change of status cancelled to ShoppingFlux for order ' . $params['id_order']);
             $responseXML = $this->_callWebService('UpdateOrders', $xml, (int)$order->id_shop);
 
             if (!$responseXML->Response->Error) {
@@ -1894,7 +1893,7 @@ class ShoppingFluxExport extends Module
     /* Call Shopping Flux Webservices */
     private function _callWebService($call, $xml = false, $id_shop = null, $forceToken = false)
     {
-        $this->logCallWebservice('------- Start Call Webservice function = '.$call.' -------');
+        SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, '------- Start Call Webservice function = '.$call.' -------');
         if (version_compare(_PS_VERSION_, '1.5', '<')) {
             // Prestashop v1.4
             $token = Configuration::get('SHOPPING_FLUX_TOKEN');
@@ -1902,7 +1901,7 @@ class ShoppingFluxExport extends Module
             $token = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
         }
         if (empty($token) && !$forceToken) {
-            $this->logCallWebservice('ERROR could not call webservice because of empty token (function = ' . $call . ')');
+            SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'ERROR could not call webservice because of empty token (function = ' . $call . ')');
             return false;
         }
 
@@ -1920,9 +1919,9 @@ class ShoppingFluxExport extends Module
         );
         
         // Log datas
-        $this->logCallWebservice($service_url.'?'.http_build_query($curl_post_data, '', '&amp;'));
-        $this->logCallWebservice('XML request : ');
-        $this->logCallWebservice($xml);
+        SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, $service_url.'?'.http_build_query($curl_post_data, '', '&amp;'));
+        SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'XML request : ');
+        SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, $xml);
 
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, $service_url);
@@ -1937,10 +1936,10 @@ class ShoppingFluxExport extends Module
         $curl_response = curl_exec($curl);
 
         // Log datas
-        $this->logCallWebservice('XML response : ');
-        $this->logCallWebservice($curl_response);
-        $this->logCallWebservice('------- End Call Webservice -------');
-
+        SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'XML response : ');
+        SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, $curl_response);
+        SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, '------- End Call Webservice -------');
+        
         curl_close($curl);
         
         return @simplexml_load_string($curl_response);
@@ -2276,9 +2275,9 @@ class ShoppingFluxExport extends Module
         
         Context::getContext()->currency = new Currency((int)$cart->id_currency);
         $amount_paid = (float)Tools::ps_round((float)$cart->getOrderTotal(true, Cart::BOTH), 2);
-        $this->logDebugOrders('calling validateOrder, amount = '.$amount_paid.', currency = '.$cart->id_currency.', marketplace = '.Tools::strtolower($marketplace), $doEchoLog);
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'calling validateOrder, amount = '.$amount_paid.', currency = '.$cart->id_currency.', marketplace = '.Tools::strtolower($marketplace), $doEchoLog);
         $payment->validateOrder((int)$cart->id, 2, $amount_paid, Tools::strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key); return $payment;
-        $this->logDebugOrders('finished call to validateOrder, order_id = '.$payment->currentOrder, $doEchoLog);
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'finished call to validateOrder, order_id = '.$payment->currentOrder, $doEchoLog);
         return $payment;
     }
 
@@ -2302,12 +2301,12 @@ class ShoppingFluxExport extends Module
 
         $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
         
-        $this->logDebugOrders('Retrieving carrier, shipping method = '.$shipping_method.', configured carrier reference = '.Configuration::get('SHOPPING_FLUX_CARRIER'), $doEchoLog);
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Retrieving carrier, shipping method = '.$shipping_method.', configured carrier reference = '.Configuration::get('SHOPPING_FLUX_CARRIER'), $doEchoLog);
         $carrier_to_load = isset($actual_configuration[base64_encode(Tools::safeOutput($shipping_method))]) ?
             (int)$actual_configuration[base64_encode(Tools::safeOutput($shipping_method))] :
             (int)Configuration::get('SHOPPING_FLUX_CARRIER');
-        $this->logDebugOrders('Retrieved carrier reference = '.$carrier_to_load, $doEchoLog);
-            
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Retrieved carrier reference = '.$carrier_to_load, $doEchoLog);
+        
         $carrier = Carrier::getCarrierByReference($carrier_to_load);
 
         //manage case PS_CARRIER_DEFAULT is deleted
@@ -2318,9 +2317,9 @@ class ShoppingFluxExport extends Module
 
         $useReference = Configuration::get('SHOPPING_FLUX_REF') == 'true';
         if ($useReference) {
-            $this->logDebugOrders('Loading products by reference', $doEchoLog);
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Loading products by reference', $doEchoLog);
         } else {
-            $this->logDebugOrders('Loading products by ID', $doEchoLog);
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Loading products by ID', $doEchoLog);
         }
         
         $id_warehouse = '';
@@ -2341,21 +2340,21 @@ class ShoppingFluxExport extends Module
                 }
             }
 
-            $this->logDebugOrders('Loading product SKU '.(int)($skus[0]).' and adding it to cart');
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Loading product SKU '.(int)($skus[0]).' and adding it to cart');
             $p = new Product((int)($skus[0]), false, Configuration::get('PS_LANG_DEFAULT'), Context::getContext()->shop->id);
 
             if (!Validate::isLoadedObject($p)) {
-                $this->logDebugOrders('    Not a valid SKU', $doEchoLog);
+                SfLogger::getInstance()->log(SF_LOG_ORDERS, '    Not a valid SKU', $doEchoLog);
                 return false;
             }
 
             $added = $cart->updateQty((int)($product->Quantity), (int)($skus[0]), ((isset($skus[1])) ? $skus[1] : null));
 
             if ($added < 0 || $added === false) {
-                $this->logDebugOrders('    Could not add to cart', $doEchoLog);
+                SfLogger::getInstance()->log(SF_LOG_ORDERS, '    Could not add to cart', $doEchoLog);
                 return false;
             }
-            $this->logDebugOrders('    Product successfully added to cart');
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, '    Product successfully added to cart');
         }
 
         if (isset($fees) && $fees > 0 && Configuration::get('SHOPPING_FLUX_FDG') != '') {
@@ -2366,7 +2365,7 @@ class ShoppingFluxExport extends Module
             }
             
             if (!$cart->updateQty(1, Configuration::get('SHOPPING_FLUX_FDG'), null)) {
-                $this->logDebugOrders('Could not add FDG product to cart', $doEchoLog);
+                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Could not add FDG product to cart', $doEchoLog);
                 return false;
             }
         }
@@ -2685,109 +2684,6 @@ class ShoppingFluxExport extends Module
         $html .= ' : </label><input type="text" name="SHOPPING_FLUX_PASSES" value="';
         $html .= Tools::safeOutput($configuration['SHOPPING_FLUX_PASSES']).'"/></p>';
         return $html;
-    }
-
-    /**
-     * log a debug trace into a log file
-     *
-     * @param string $toLog the string to log
-     */
-    public function logDebug($toLog)
-    {
-        if ($this->debug) {
-            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport_'.Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
-            $this->rotateLogFile($outputFile);
-            $fp = fopen($outputFile, 'a');
-            fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
-            fclose($fp);
-        }
-    }
-    
-    /**
-     * log a debug trace into a log file
-     *
-     * @param string $toLog the string to log
-     */
-    public function logDebugOrdersCreationWithErrorsOn($toLog)
-    {
-        if ($this->debug) {
-            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/orders_debug_errors_on_'.Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
-            $this->rotateLogFile($outputFile);
-            $fp = fopen($outputFile, 'a');
-            fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
-            fclose($fp);
-        }
-    }
-    
-    /**
-     * log a debug trace about orders into a log file
-     *
-     * @param string $toLog the string to log
-     */
-    public function logDebugOrders($toLog, $doEchoLog = false)
-    {
-        $logLine = chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog;
-        if ($doEchoLog) {
-            echo $logLine . '<br />';
-        }
-        if ($this->debugOrders) {
-            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/orders_debug_';
-            $outputFile .= Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
-            $this->rotateLogFile($outputFile);
-            $fp = fopen($outputFile, 'a');
-            fwrite($fp, $logLine);
-            fclose($fp);
-        }
-    }
-    
-    /**
-     * empty log file
-     */
-    private function emptyLog()
-    {
-        if ($this->debug) {
-            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport_'.Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
-            unlink($outputFile);
-        }
-    }
-    
-    /**
-     * Rotates the logs
-     */
-    private function rotateLogFile($fileName) {
-        if (self::$logRotateHours) {
-            // file age
-            $now = time();
-            $dateGeneration = filemtime($fileName);
-            $age = ($now - $dateGeneration);
-            if ($age > (self::$logRotateHours * 3600)) {
-                $filePieces = explode('.', $fileName);
-                $extension = $filePieces['1'];
-                if (file_exists($filePieces['0'] . '_last_' . self::$logRotateHours . 'hours' . $extension)) {
-                    unlink($filePieces['0'] . '_500' . $extension);
-                    // Rename current log file
-                    rename($outputFile, $filePieces['0'] . '_last_' . self::$logRotateHours . 'hours' . $extension);
-                } else {
-                    rename($outputFile, $filePieces['0'] . '_last_' . self::$logRotateHours . 'hours' . $extension);
-                }
-            }
-        }
-    }
-    
-    /**
-     * log a debug trace into a log file
-     *
-     * @param string $toLog the string to log
-     */
-    public function logCallWebservice($toLog)
-    {
-        if ($this->debug) {
-            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/callWebService_'.Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
-            $this->rotateLogFile($outputFile);
-            $fp = fopen($outputFile, 'a');
-            fwrite($fp, chr(10) . date('d/m/Y h:i:s A') . ' - ' . $toLog);
-            fclose($fp);
-        }
     }
     
     /**
@@ -3168,11 +3064,11 @@ class ShoppingFluxExport extends Module
     						  $idOrder . ", '" . pSQL($idRelay) . "', '" . pSQL($relayData->LgAdr1) . "', '" . pSQL($relayData->LgAdr2) . "', '".
     						  pSQL($relayData->LgAdr3) . "', '" . pSQL($relayData->LgAdr4) . "', '" . pSQL($relayData->CP) . "', '" . pSQL($relayData->Ville) . "', '" .
     						  pSQL($isoCountry) . "')";
-    						  if (Db::getInstance()->execute($query)) {
-    						      $this->logDebugOrders('MondialRelay - Successfully added relay information');
-    						  } else {
-    						      $this->logDebugOrders('MondialRelay - Could not add relay information');
-    						  }
+    			  if (Db::getInstance()->execute($query)) {
+    			      SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Successfully added relay information');
+    			  } else {
+    			      SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Could not add relay information');
+    			  }
             }
         }
         return false;
@@ -3187,7 +3083,7 @@ class ShoppingFluxExport extends Module
 
         // Mondial relay module not configured
         if (! $mondialRelayConfig) {
-            $this->logDebugOrders('MondialRelay - Account is not configured');
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Account is not configured');
             return;
         }
         if ($mondialRelayConfig) {
@@ -3195,8 +3091,8 @@ class ShoppingFluxExport extends Module
             $client = new SoapClient($urlWebService);
             if (! is_object($client)) {
                 // Error connecting to webservice
-                $this->logDebugOrders('MondialRelay - Could not create SOAP client for URL ' . $urlWebService);
-                reurn;
+                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Could not create SOAP client for URL ' . $urlWebService);
+                return;
             }
             $client->soap_defencoding = 'UTF-8';
             $client->decode_utf8 = false;
@@ -3212,7 +3108,7 @@ class ShoppingFluxExport extends Module
             $result = $client->WSI2_AdressePointRelais($params);
             if (!empty($result->WSI2_AdressePointRelaisResult->STAT)) {
                 // Web service did not return expected data
-                $this->logDebugOrders('MondialRelay - Error getting relay data, id relay = ' . $id_relay);
+                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Error getting relay data, id relay = ' . $id_relay);
             } else {
                 return $result->WSI2_AdressePointRelaisResult;
             }
