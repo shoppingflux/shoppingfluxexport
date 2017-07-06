@@ -182,6 +182,9 @@ class ShoppingFluxExport extends Module
                 !Configuration::deleteByName('SHOPPING_FLUX_PACKS') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_SHIPPING_MATCHING') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_PASSES') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_MULTITOKEN_ACTIVATION') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_ORDERS_DEBUG') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_DEBUG') ||
                 !parent::uninstall()) {
             return false;
         }
@@ -539,7 +542,7 @@ class ShoppingFluxExport extends Module
             Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', $sfMultitokenActivation);
         }
  
-        if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
+        if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive() && $sfMultitokenActivation) {
             $shops = Shop::getShops();
             // Loop on shops for multiple token
             foreach ($shops as &$currentShop) {
@@ -1545,8 +1548,8 @@ class ShoppingFluxExport extends Module
                             $current_customer = new Customer((int)$id_customer);
         
                             if ($products_available && $id_address_shipping && $id_address_billing && $id_customer) {
-                                $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees, $doEchoLog, $currentToken['id_lang']);
-        
+                                $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees, $currentToken['id_lang'], $doEchoLog);
+            
                                 if ($cart) {
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Cart '.$cart->id.' successfully built', $doEchoLog);
                                   
@@ -1939,7 +1942,6 @@ class ShoppingFluxExport extends Module
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'XML response : ');
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, $curl_response);
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, '------- End Call Webservice -------');
-        
         curl_close($curl);
         
         return @simplexml_load_string($curl_response);
@@ -2262,7 +2264,7 @@ class ShoppingFluxExport extends Module
         }
     }
 
-    private function _validateOrder($cart, $marketplace, $doEchoLog)
+    private function _validateOrder($cart, $marketplace)
     {
         $payment = new sfpayment();
         $payment->name = 'sfpayment';
@@ -2284,7 +2286,8 @@ class ShoppingFluxExport extends Module
     /*
      * Fake cart creation
      */
-    private function _getCart($id_customer, $id_address_billing, $id_address_shipping, $productsNode, $currency, $shipping_method, $fees, $doEchoLog, $id_lang = false)
+
+    private function _getCart($id_customer, $id_address_billing, $id_address_shipping, $productsNode, $currency, $shipping_method, $fees, $id_lang = false, $doEchoLog = false)
     {
         $cart = new Cart();
         $cart->id_customer = $id_customer;
@@ -2616,6 +2619,7 @@ class ShoppingFluxExport extends Module
                 // Poruct exists, we check if it can be ordered when out of stock
                 if ($product->out_of_stock == 0 || $product->out_of_stock == 2) {
                     $product->out_of_stock = 1;
+                    $product->price = 0;
                     $product->reference = 'FDG-ShoppingFlux';
                     $product->update();
     
