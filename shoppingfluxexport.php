@@ -1652,7 +1652,7 @@ class ShoppingFluxExport extends Module
                 }
             }
         }
-        SfDebugger::getInstance()->endDebug();
+        SfDebugger::getInstance()->endDebug($doEchoLog);
     }
 	
 
