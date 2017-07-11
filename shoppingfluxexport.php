@@ -1655,7 +1655,7 @@ class ShoppingFluxExport extends Module
                 }
             }
         }
-        SfDebugger::getInstance()->endDebug();
+        SfDebugger::getInstance()->endDebug($doEchoLog);
     }
 	
 
@@ -1942,6 +1942,7 @@ class ShoppingFluxExport extends Module
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'XML response : ');
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, $curl_response);
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, '------- End Call Webservice -------');
+
         curl_close($curl);
         
         return @simplexml_load_string($curl_response);

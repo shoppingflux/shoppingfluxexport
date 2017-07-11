@@ -53,13 +53,16 @@ class SfDebugger
     /**
      * Sets errors to off and log the output
      */
-    public function endDebug()
+    public function endDebug($doEchoLog = false)
     {
         if (self::$debugOrdersErrors) {
             $output = ob_get_contents();
             ob_end_clean();
             @ini_set('display_errors', 'off');
             SfLogger::getInstance()->log(SF_LOG_DEBUG, $output);
+            if ($doEchoLog) {
+                echo $output;
+            }
         }
     }
 }
