@@ -24,11 +24,11 @@
  * International Registered Trademark & Property of PrestaShop SA
  */
 define('_PS_MODE_DEV_', true);
-include (dirname(__FILE__) . '/../../config/config.inc.php');
-include (dirname(__FILE__) . '/../../init.php');
+include(dirname(__FILE__) . '/../../config/config.inc.php');
+include(dirname(__FILE__) . '/../../init.php');
 
-include_once (dirname(__FILE__) . '/sfpayment.php');
-include (dirname(__FILE__) . '/shoppingfluxexport.php');
+include_once(dirname(__FILE__) . '/sfpayment.php');
+include(dirname(__FILE__) . '/shoppingfluxexport.php');
 
 ini_set("memory_limit", "2048M");
 ini_set('display_errors', 'on');
@@ -268,16 +268,16 @@ function logDebug($toLog)
 <head>
 <style type="text/css">
 label {
-	font-weight: bold;
-	display: inline-block;
-	width: 50%;
-	text-align: right;
-	padding-right: 10px;
-	float: left;
+    font-weight: bold;
+    display: inline-block;
+    width: 50%;
+    text-align: right;
+    padding-right: 10px;
+    float: left;
 }
 
 pre {
-	float: left;
+    float: left;
 }
 </style>
 </head>
@@ -291,10 +291,10 @@ pre {
         $curl_response = curl_file_get_contents($urlBase);
         ?>
         <fieldset id="debug_content">
-		<legend>Open page via curl for <?php echo $urlBase; ?>, result :</legend>
-		<?php echo $curl_response; ?>
-	</fieldset>
-	<?php
+        <legend>Open page via curl for <?php echo $urlBase; ?>, result :</legend>
+        <?php echo $curl_response; ?>
+    </fieldset>
+    <?php
     }
     if (isset($_GET['test_curl']) && $_GET['test_curl'] != '') {
         $outputFile = dirname(__FILE__) . '/logs/testCurl.txt';
@@ -343,12 +343,12 @@ pre {
     if ($replayXml) {
         $replayOrder = @simplexml_load_string($replayXml);
         ?><div style="border: 1px solid #CCC; padding: 10px;">
-		<div>
-			<b><?php echo $sf->l('Execution Result of XML replay :'); ?></b>
-		</div>
-		<br>
-		<div><?php $sf->replayOrder(false, $replayOrder) ?></div>
-	</div><?php
+        <div>
+            <b><?php echo $sf->l('Execution Result of XML replay :'); ?></b>
+        </div>
+        <br>
+        <div><?php $sf->replayOrder(false, $replayOrder) ?></div>
+    </div><?php
     }
     ?>
 </body>
