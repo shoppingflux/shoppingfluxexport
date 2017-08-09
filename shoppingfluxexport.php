@@ -2206,6 +2206,7 @@ class ShoppingFluxExport extends Module
                 'total_shipping'          => (float)($order->TotalShipping),
                 'total_shipping_tax_incl' => (float)($order->TotalShipping),
                 'total_shipping_tax_excl' => $total_shipping_tax_excl,
+                'carrier_tax_rate'        => $carrier_tax_rate,
                 'id_carrier'              => $carrier->id
             );
         } else {
@@ -2219,6 +2220,7 @@ class ShoppingFluxExport extends Module
                 'total_shipping'          => (float)($order->TotalShipping),
                 'total_shipping_tax_incl' => (float)($order->TotalShipping),
                 'total_shipping_tax_excl' => $total_shipping_tax_excl,
+                'carrier_tax_rate'        => $carrier_tax_rate,
                 'id_carrier'              => $carrier->id
             );
         }
