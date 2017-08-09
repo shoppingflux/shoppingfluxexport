@@ -22,6 +22,13 @@
         </exec>
     </target>
 
+    <target name="test:phpcbf" description="Run php code beautifier">
+        <exec executable="${project.basedir}/vendor/bin/phpcbf" checkreturn="true" passthru="true">
+            <arg value="--standard=${project.basedir}/phpcs.xml"/>
+            <arg path="${project.basedir}" />
+        </exec>
+    </target>
+
     <target name="git:submodule" description="Fetch git submodules">
         <exec executable="git" passthru="true" checkreturn="true">
             <arg value="submodule"/>
