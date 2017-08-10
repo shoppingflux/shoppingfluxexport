@@ -72,7 +72,7 @@ function getConfigForm($sf)
             }
         }
     }
-    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['SERVER_NAME'] . $_SERVER['HOSTNAME'];
+    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['HTTP_HOST'];
     
     $idOrder = Tools::getValue('IdOrder');
     $output = '<fieldset id="debug_content">';
@@ -109,10 +109,10 @@ function getConfigForm($sf)
     $output .= '<pre>' . print_r($sf->getAllTokensOfShop(), true) . '</pre>';
     $output .= '<p style="clear: both"></p>';
     
-    $output .= '<label>URL test homepage</label>' . $urlBase . 'modules/shoppingfluxexport/debug.php?test_homepage=1';
+    $output .= '<label>URL test homepage</label>' . $urlBase . '/modules/shoppingfluxexport/debug.php?test_homepage=1';
     $output .= '<p style="clear: both"></p>';
     
-    $output .= '<label>URL test CURL</label>' . $urlBase . 'modules/shoppingfluxexport/debug.php?test_curl=1';
+    $output .= '<label>URL test CURL</label>' . $urlBase . '/modules/shoppingfluxexport/debug.php?test_curl=1';
     $output .= '<p style="clear: both"></p>';
     
     $output .= '</fieldset>';
@@ -286,7 +286,7 @@ pre {
     echo getDebugForm($sf);
     echo getConfigForm($sf);
     echo getReplayOrdersForm($sf);
-    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['SERVER_NAME'] . $_SERVER['HOSTNAME'];
+    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['HTTP_HOST'];
     if (isset($_GET['test_homepage']) && $_GET['test_homepage'] != '') {
         $curl_response = curl_file_get_contents($urlBase);
         ?>
@@ -307,7 +307,7 @@ pre {
             fwrite($fp, '');
             fclose($fp);
             $index = 1;
-            $nextUrl = $urlBase . 'modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
+            $nextUrl = $urlBase . '/modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
             logDebug('Going to call : ' . $nextUrl);
             $curl_response = curl_file_get_contents($nextUrl);
         } else {
@@ -319,7 +319,7 @@ pre {
                 die();
             } else {
                 // Call next URL
-                $nextUrl = $urlBase . 'modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
+                $nextUrl = $urlBase . '/modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
                 logDebug('Call received, index = ' . $_GET['index']);
                 logDebug('Going to call : ' . $nextUrl);
                 $curl_response = curl_file_get_contents($nextUrl);
