@@ -109,6 +109,9 @@ class SfLogger
     {
         if (self::$logRotateHours) {
             // file age
+            if (! file_exists($fileName)) {
+                return;
+            }
             $now = time();
             $dateGeneration = filemtime($fileName);
             $age = ($now - $dateGeneration);
