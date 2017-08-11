@@ -1182,7 +1182,12 @@ class ShoppingFluxExport extends Module
         if ($images != false) {
             foreach ($images as $image) {
                 $ids = $product->id.'-'.$image['id_image'];
-                $ret .= '<image><![CDATA['.Tools::getCurrentUrlProtocolPrefix().$link->getImageLink($product->link_rewrite, $ids, $configuration['SHOPPING_FLUX_IMAGE']).']]></image>';
+                $img_url = $link->getImageLink($product->link_rewrite, $ids, $configuration['SHOPPING_FLUX_IMAGE']);
+                if (!substr_count($img_url, Tools::getCurrentUrlProtocolPrefix())) { 
+                    // make sure url has http or https
+                    $img_url = Tools::getCurrentUrlProtocolPrefix() . $img_url;
+                }
+                $ret .= '<image><![CDATA[' . $img_url . ']]></image>';
             }
         }
         $ret .= '</images>';
