@@ -2279,6 +2279,15 @@ class ShoppingFluxExport extends Module
         $cart->getDeliveryOption(null, false, false);
         
         Context::getContext()->currency = new Currency((int)$cart->id_currency);
+        
+        if (! Context::getContext()->country->active) {
+            $this->logDebugOrders('Current context country (' . Context::getContext()->country->id . ') not active');
+            $addressDelivery = new Address($cart->id_address_delivery);
+            if (Validate::isLoadedObject($addressDelivery)) {
+                $this->logDebugOrders('Setting context country to ' . $addressDelivery->id_country);
+                Context::getContext()->country = new Country($addressDelivery->id_country);
+            }
+        }
         $amount_paid = (float)Tools::ps_round((float)$cart->getOrderTotal(true, Cart::BOTH), 2);
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'calling validateOrder, amount = '.$amount_paid.', currency = '.$cart->id_currency.', marketplace = '.Tools::strtolower($marketplace), $doEchoLog);
         $payment->validateOrder((int)$cart->id, 2, $amount_paid, Tools::strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key);
