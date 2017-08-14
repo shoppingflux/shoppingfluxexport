@@ -2284,7 +2284,6 @@ class ShoppingFluxExport extends Module
         $amount_paid = (float)Tools::ps_round((float)$cart->getOrderTotal(true, Cart::BOTH), 2);
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'calling validateOrder, amount = '.$amount_paid.', currency = '.$cart->id_currency.', marketplace = '.Tools::strtolower($marketplace), $doEchoLog);
         $payment->validateOrder((int)$cart->id, 2, $amount_paid, Tools::strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key);
-        return $payment;
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'finished call to validateOrder, order_id = '.$payment->currentOrder, $doEchoLog);
         return $payment;
     }
