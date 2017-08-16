@@ -2106,7 +2106,8 @@ class ShoppingFluxExport extends Module
 
             $total_price_tax_excl = (float)(((float)$product->Price / (1 + ($tax_rate / 100))) * $product->Quantity);
             $total_products_tax_excl += $total_price_tax_excl;
-
+            
+            $original_product_price = Product::getPriceStatic((int)$skus[0], false, (int)$skus[1], 6);
             $updateOrderDetail = array(
                 'product_price'        => (float)((float)$product->Price / (1 + ($tax_rate / 100))),
                 'reduction_percent'    => 0,
@@ -2116,6 +2117,7 @@ class ShoppingFluxExport extends Module
                 'total_price_tax_excl' => $total_price_tax_excl,
                 'unit_price_tax_incl'  => (float)$product->Price,
                 'unit_price_tax_excl'  => (float)((float)$product->Price / (1 + ($tax_rate / 100))),
+                'original_product_price' => $original_product_price,
             );
             if (version_compare(_PS_VERSION_, '1.5', '<')) {
                 Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail', $updateOrderDetail, 'UPDATE', '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)$skus[0].' AND `product_attribute_id` = '.(int)$skus[1]);
