@@ -1678,7 +1678,7 @@ class ShoppingFluxExport extends Module
             } else {
                 $ids = explode('_', $product->SKU);
             }
-            if (!$ids[1]) {
+            if (!isset($ids[1]) || !$ids[1]) {
                 $p = new Product($ids[0]);
                 if (empty($p->id)) {
                     return 'Product ID don\'t exist, product_id = '.$ids[0];
@@ -2096,10 +2096,14 @@ class ShoppingFluxExport extends Module
                 $skus = explode('_', $product->SKU);
             }
 
-            $row = Db::getInstance()->getRow('SELECT t.rate, od.id_order_detail  FROM '._DB_PREFIX_.'tax t
+            $sql = 'SELECT t.rate, od.id_order_detail  FROM '._DB_PREFIX_.'tax t
                 LEFT JOIN '._DB_PREFIX_.'order_detail_tax odt ON t.id_tax = odt.id_tax
                 LEFT JOIN '._DB_PREFIX_.'order_detail od ON odt.id_order_detail = od.id_order_detail
-                WHERE od.id_order = '.(int)$id_order.' AND product_id = '.(int)$skus[0].' AND product_attribute_id = '.(int)$skus[1]);
+                WHERE od.id_order = '.(int)$id_order.' AND product_id = '.(int)$skus[0];
+            if (isset($skus[1]) && $skus[1]) {
+                $sql .= ' AND product_attribute_id = '.(int)$skus[1];
+            }
+            $row = Db::getInstance()->getRow($sql);
 
             $tax_rate = $row['rate'];
             
@@ -2118,10 +2122,14 @@ class ShoppingFluxExport extends Module
                 'unit_price_tax_incl'  => (float)$product->Price,
                 'unit_price_tax_excl'  => (float)((float)$product->Price / (1 + ($tax_rate / 100))),
             );
+            $where = '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)$skus[0];
+            if (isset($skus[1]) && $skus[1]) {
+                $where .= ' AND `product_attribute_id` = '.(int)$skus[1];
+            }
             if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail', $updateOrderDetail, 'UPDATE', '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)$skus[0].' AND `product_attribute_id` = '.(int)$skus[1]);
+                Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail', $updateOrderDetail, 'UPDATE', $where);
             } else {
-                Db::getInstance()->update('order_detail', $updateOrderDetail, '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)$skus[0].' AND `product_attribute_id` = '.(int)$skus[1]);
+                Db::getInstance()->update('order_detail', $updateOrderDetail, $where);
             }
             
             $updateOrderDetailTax = array(
@@ -2267,7 +2275,7 @@ class ShoppingFluxExport extends Module
         }
     }
 
-    private function _validateOrder($cart, $marketplace)
+    private function _validateOrder($cart, $marketplace, $doEchoLog)
     {
         $payment = new sfpayment();
         $payment->name = 'sfpayment';
@@ -2400,7 +2408,7 @@ class ShoppingFluxExport extends Module
                 $skus = explode('_', $product->SKU);
             }
 
-            if ($skus[1] !== false) {
+            if (isset($skus[1]) && $skus[1] !== false) {
                 $quantity = StockAvailable::getQuantityAvailableByProduct((int)$skus[0], (int)$skus[1]);
 
                 if ($quantity - $product->Quantity < 0) {
