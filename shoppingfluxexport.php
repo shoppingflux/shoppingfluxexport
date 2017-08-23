@@ -610,7 +610,8 @@ class ShoppingFluxExport extends Module
         $string = str_replace(chr(29), ' ', $string);
         $string = str_replace(chr(30), ' ', $string);
         $string = str_replace(chr(31), ' ', $string);
-        return str_replace("\r\n", '', strip_tags($string));
+        $string = str_replace(array('(', ')', '°', '&', '+', '/', "'", ':', ';', ',', '?', '²', '’', '´'), '', strip_tags($string));
+        return str_replace("\r\n", '', $string);
     }
 
     /* Feed content */
