@@ -1787,10 +1787,7 @@ class ShoppingFluxExport extends Module
                 (int)Configuration::get('SHOPPING_FLUX_SHIPPED') == $params['newOrderStatus']->id && $order->module == 'sfpayment')) {
             $shipping = $order->getShipping();
             $carrier = new Carrier((int)$order->id_carrier);
-            $url = str_replace('http://http://', 'http://', $carrier->url);
-            $url = str_replace('@', $order->shipping_number, $url);
-
-
+            
             $message = $order->getFirstMessage();
             $id_order_marketplace = explode(':', $message);
             $id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
@@ -1804,6 +1801,8 @@ class ShoppingFluxExport extends Module
             $xml .= '<Status>Shipped</Status>';
 
             if (isset($shipping[0])) {
+            	$url = str_replace('http://http://', 'http://', $carrier->url);
+            	$url = str_replace('@', $shipping[0]['tracking_number'], $url);
                 $xml .= '<TrackingNumber><![CDATA['.$shipping[0]['tracking_number'].']]></TrackingNumber>';
                 $xml .= '<CarrierName><![CDATA['.$shipping[0]['state_name'].']]></CarrierName>';
                 $xml .= '<TrackingUrl><![CDATA['.$url.']]></TrackingUrl>';
