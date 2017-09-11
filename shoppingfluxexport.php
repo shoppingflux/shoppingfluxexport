@@ -1582,6 +1582,79 @@ class ShoppingFluxExport extends Module
                                             Db::getInstance()->autoExecute(_DB_PREFIX_ . $socotable_name, $socovalues, 'INSERT');
                                         }
                                     }
+                                    
+                                    // Compatibility with socolissimo flexibilité module
+                                    $soflexibilite = Module::getInstanceByName('soflexibilite');
+                                    if ($soflexibilite && $soflexibilite->active) {
+                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'soflexibilite ACTIVE', $doEchoLog);
+                                        $addrSoColissimo = new Address((int)$id_address_shipping);
+                                        if ($addrSoColissimo->phone_mobile) {
+                                            $phone = $addrSoColissimo->phone_mobile;
+                                        } else {
+                                            $phone = $addrSoColissimo->phone;
+                                        }
+                                        $delivery_country = new Country($addrSoColissimo->id_country);
+                                        $so_delivery = new SoFlexibiliteDelivery();
+                                        $so_delivery->id_cart = (int)$cart->id;
+                                        $so_delivery->id_order = -time();
+                                        $so_delivery->id_point = null;
+                                        $so_delivery->id_customer = (int)$id_customer;
+                                        $so_delivery->firstname = $addrSoColissimo->firstname;
+                                        $so_delivery->lastname = $addrSoColissimo->lastname;
+                                        $so_delivery->company = $addrSoColissimo->company;
+                                        $so_delivery->telephone = $phone;
+                                        $so_delivery->email = $current_customer->email;
+                                        $so_delivery->postcode = $addrSoColissimo->postcode;
+                                        $so_delivery->city = $addrSoColissimo->city;
+                                        $so_delivery->country = $delivery_country->iso_code;
+                                        $so_delivery->address1 = $addrSoColissimo->address1;
+                                        $so_delivery->address2 = $addrSoColissimo->address2;
+                                    
+                                        // determine type
+                                        $soflexibilite_conf_key = array(
+                                            'SOFLEXIBILITE_DOM_ID',
+                                            'SOFLEXIBILITE_DOS_ID',
+                                            'SOFLEXIBILITE_BPR_ID',
+                                            'SOFLEXIBILITE_A2P_ID'
+                                        );
+                                        $conf = Configuration::getMultiple($soflexibilite_conf_key, null, null, null);
+                                        $carrier_obj = new Carrier($cart->id_carrier);
+                                        if (isset($carrier_obj->id_reference)) {
+                                            $id_reference = $carrier_obj->id_reference;
+                                        } else {
+                                            $id_reference = $carrier_obj->id;
+                                        }
+                                        if ($id_reference == $conf['SOFLEXIBILITE_DOM_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOM_ID']
+                                        ) {
+                                            $so_delivery->type = 'DOM';
+                                        }
+                                    
+                                        if ($id_reference == $conf['SOFLEXIBILITE_DOS_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOS_ID']
+                                        ) {
+                                            $so_delivery->type = 'DOS';
+                                        }
+                                    
+                                        if ($id_reference == $conf['SOFLEXIBILITE_BPR_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_BPR_ID']
+                                        ) {
+                                            $so_delivery->type = 'BPR';
+                                        }
+                            
+                                        if ($id_reference == $conf['SOFLEXIBILITE_A2P_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_A2P_ID']
+                                        ) {
+                                            $so_delivery->type = 'A2P';
+                                        }
+                                    
+                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
+                    
+                                        $status_soflexibilite = (bool)$so_delivery->saveDelivery();
+                    
+                                        $log = 'SoFlexibilite > saveDelivery = ' . $status_soflexibilite;
+                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
+                                    }
     
                                     if (version_compare(_PS_VERSION_, '1.5', '<')) {
                                         Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), 'UPDATE', '`id_customer` = '.(int)$id_customer);
