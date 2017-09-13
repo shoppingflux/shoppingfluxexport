@@ -534,47 +534,50 @@ class ShoppingFluxExport extends Module
         }
         
         // Tokens handling
-        $sfMultitokenActivation = (int)Tools::getValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION');
-        if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
-            $id_shop = $this->context->shop->id;
-            Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', $sfMultitokenActivation, false, null, $id_shop);
-        } else {
-            Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', $sfMultitokenActivation);
-        }
- 
-        if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive() && $sfMultitokenActivation) {
-            $shops = Shop::getShops();
-            // Loop on shops for multiple token
-            foreach ($shops as &$currentShop) {
-                $shopLanguages = Language::getLanguages(true, $currentShop['id_shop']);
-                $shopCurrencies = Currency::getCurrenciesByIdShop($currentShop['id_shop']);
-            
-                $tokenShop = Tools::getValue('token_'.$currentShop['id_shop']);
-                if ($tokenShop) {
-                    $this->setTokenValue($tokenShop, $currentShop['id_shop']);
-                } else {
-                    $this->setTokenValue('', $currentShop['id_shop']);
-                }
-            
-                // Loop on languages
-                foreach ($shopLanguages as $currentLang) {
-                    $idLang = $currentLang['id_lang'];
-                    // Finally loop on currencies
-                    foreach ($shopCurrencies as $currentCurrency) {
-                        $idCurrency = $currentCurrency['id_currency'];
-                        $token = Tools::getValue('token_'.$currentShop['id_shop'].'_'.$idLang.'_'.$idCurrency);
-                        if ($token) {
-                            $this->setTokenValue($token, $currentShop['id_shop'], $idCurrency, $idLang);
-                        } else {
-                            $this->setTokenValue('', $currentShop['id_shop'], $idCurrency, $idLang);
+        if (Tools::isSubmit('SHOPPING_FLUX_MULTITOKEN_ACTIVATION')) {
+            $sfMultitokenActivation = (int)Tools::getValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION');
+            if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
+                $id_shop = $this->context->shop->id;
+                $id_shop_group = (int) $this->context->shop->id_shop_group;
+                Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', $sfMultitokenActivation, false, $id_shop_group, $id_shop);
+            } else {
+                Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', $sfMultitokenActivation);
+            }
+     
+            if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive() && $sfMultitokenActivation) {
+                $shops = Shop::getShops();
+                // Loop on shops for multiple token
+                foreach ($shops as &$currentShop) {
+                    $shopLanguages = Language::getLanguages(true, $currentShop['id_shop']);
+                    $shopCurrencies = Currency::getCurrenciesByIdShop($currentShop['id_shop']);
+                
+                    $tokenShop = Tools::getValue('token_'.$currentShop['id_shop']);
+                    if ($tokenShop) {
+                        $this->setTokenValue($tokenShop, $currentShop['id_shop']);
+                    } else {
+                        $this->setTokenValue('', $currentShop['id_shop']);
+                    }
+                
+                    // Loop on languages
+                    foreach ($shopLanguages as $currentLang) {
+                        $idLang = $currentLang['id_lang'];
+                        // Finally loop on currencies
+                        foreach ($shopCurrencies as $currentCurrency) {
+                            $idCurrency = $currentCurrency['id_currency'];
+                            $token = Tools::getValue('token_'.$currentShop['id_shop'].'_'.$idLang.'_'.$idCurrency);
+                            if ($token) {
+                                $this->setTokenValue($token, $currentShop['id_shop'], $idCurrency, $idLang);
+                            } else {
+                                $this->setTokenValue('', $currentShop['id_shop'], $idCurrency, $idLang);
+                            }
                         }
                     }
                 }
-            }
-            // Check and save default token value (main Token value)
-            $mainToken = Tools::getValue('SHOPPING_FLUX_TOKEN');
-            if ($mainToken) {
-                $this->setTokenValue($mainToken);
+                // Check and save default token value (main Token value)
+                $mainToken = Tools::getValue('SHOPPING_FLUX_TOKEN');
+                if ($mainToken) {
+                    $this->setTokenValue($mainToken);
+                }
             }
         }
     }
@@ -703,8 +706,21 @@ class ShoppingFluxExport extends Module
     public function generateFeed()
     {
         $token = Tools::getValue('token');
-        $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
-        if ($token == '' || $token != $tokenInConfig) {
+        if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
+			$id_shop = $this->context->shop->id;
+			$tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+			
+			$allTokens_raw = $this->getAllTokensOfShop();
+			$allTokens = array();
+			foreach ($allTokens_raw as $allTokens_subraw) {
+				$allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
+			}
+		} else {
+			$tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+			$allTokens[$tokenInConfig]=$tokenInConfig;
+		}
+
+        if ($token == '' ||( $token != $tokenInConfig && !in_array($token, $allTokens) ) ) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
         
@@ -841,8 +857,21 @@ class ShoppingFluxExport extends Module
     public function writeFeed($total, $current = 0)
     {
         $token = Tools::getValue('token');
-        $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
-        if ($token == '' || $token != $tokenInConfig) {
+        if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
+			$id_shop = $this->context->shop->id;
+			$tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+			
+			$allTokens_raw = $this->getAllTokensOfShop();
+			$allTokens = array();
+			foreach ($allTokens_raw as $allTokens_subraw) {
+				$allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
+			}
+		} else {
+			$tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+			$allTokens[$tokenInConfig]=$tokenInConfig;
+		}
+
+        if ($token == '' || ($token != $tokenInConfig && !in_array($token, $allTokens))) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
         
@@ -2792,7 +2821,7 @@ class ShoppingFluxExport extends Module
                 foreach ($shopCurrencies as $currentCurrency) {
                     $idCurrency = $currentCurrency['id_currency'];
                     $nameCurrency = $currentCurrency['name'];
-                    $token = $this->getTokenValue($currentShop['id_shop'], $idCurrency, $idLang);
+                    $token = $this->getTokenValue($currentShop['id_shop'], $currentShop['id_shop_group'], $idCurrency, $idLang);
                     $values[] = array(
                         'name' => $nameLang.' / '.$nameCurrency,
                         'id' => $idLang.'_'.$idCurrency,
@@ -2803,6 +2832,7 @@ class ShoppingFluxExport extends Module
     
             $tokenTree[] = array(
                 'id_shop' => $currentShop['id_shop'],
+                'id_shop_group' => $currentShop['id_shop_group'],
                 'name' => $currentShop['name'],
                 'token' => $this->getTokenValue($currentShop['id_shop']),
                 'values' => $values
@@ -2831,14 +2861,14 @@ class ShoppingFluxExport extends Module
      * @param int $id_currency (optionnal) the currency
      * @param int $id_lang (optionnal) the lang
      */
-    public function getTokenValue($id_shop, $id_currency = false, $id_lang = false)
+    public function getTokenValue($id_shop, $id_shop_group = null, $id_currency = false, $id_lang = false)
     {
         $key = 'SHOPPING_FLUX_TOKEN';
-        if ($id_currency && $id_lang && !(int) Configuration::get('SHOPPING_FLUX_MULTITOKEN_ACTIVATION')) {
+        if ($id_currency && $id_lang && (int) Configuration::get('SHOPPING_FLUX_MULTITOKEN_ACTIVATION')) {
             $key .= '_'.$id_currency.'_'.$id_lang;
         }
         if ($id_shop) {
-            return Configuration::get($key, null, null, $id_shop);
+             return Configuration::get($key, null, $id_shop_group, $id_shop);
         } else {
             return Configuration::get($key);
         }
@@ -2851,11 +2881,13 @@ class ShoppingFluxExport extends Module
     public function getAllTokensOfShop()
     {
         $id_shop = $this->context->shop->id;
+        $id_shop_group = (int) $this->context->shop->id_shop_group;
         $res = array();
         $tokenGeneral = $this->getTokenValue($id_shop);
         if ($tokenGeneral) {
             $res[] = array(
                 'id_shop' => $id_shop,
+                'id_shop_group' => null,
                 'token' => $tokenGeneral,
                 'id_lang' => Configuration::get('PS_LANG_DEFAULT'),
                 'id_currency' => false
@@ -2870,10 +2902,11 @@ class ShoppingFluxExport extends Module
             // Finally loop on currencies
             foreach ($shopCurrencies as $currentCurrency) {
                 $idCurrency = $currentCurrency['id_currency'];
-                $token = $this->getTokenValue($id_shop, $idCurrency, $idLang);
+                $token = $this->getTokenValue($id_shop, $id_shop_group, $idCurrency, $idLang);
                 if ($token) {
                     $res[] = array(
                         'id_shop' => $id_shop,
+                        'id_shop_group' => $id_shop_group,
                         'token' => $token,
                         'id_lang' => $idLang,
                         'id_currency' => $idCurrency
@@ -3049,16 +3082,18 @@ class ShoppingFluxExport extends Module
         
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
             $id_shop = $order->id_shop;
+            $id_shop_group = (int)$this->context->shop->id_shop_group;
         } else {
             $id_shop = false;
+            $id_shop_group = null;
         }
         
-        $tokenValue = $this->getTokenValue($id_shop, $order->id_currency, $order->id_lang);
+        $tokenValue = $this->getTokenValue($id_shop, $id_shop_group, $order->id_currency, $order->id_lang);
         // Token is in id_shop of the order
         if ($tokenValue != '') {
             return $tokenValue;
         } else {
-            return $this->getTokenValue($id_shop);
+            return $this->getTokenValue($id_shop, $id_shop_group);
         }
     }
     
