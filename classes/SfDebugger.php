@@ -65,4 +65,29 @@ class SfDebugger
             }
         }
     }
+    
+    /**
+     * Reset amount in table order_payment
+     */
+    public static function recablageOrderPayment()
+    {
+        $sql = 'SELECT `id_order`
+            FROM `' . _DB_PREFIX_ . 'message`
+            WHERE `message` LIKE "%Numéro de commande%"
+            ORDER BY `id_order` DESC
+            LIMIT 10
+        ';
+        $results = Db::getInstance()->executeS($sql);
+        
+        foreach ($results as $result) {
+            $id_order = $result['id_order'];
+            $order = new Order($id_order);
+            
+            $updatePriceSQL = "UPDATE `" . _DB_PREFIX_ . "order_payment`
+                SET `amount` = '" . $order->total_paid . "'
+                WHERE `order_reference` = '$order->reference'
+            ";
+            Db::getInstance()->execute($updatePriceSQL);
+        }
+    }
 }

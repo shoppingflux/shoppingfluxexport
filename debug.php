@@ -48,6 +48,16 @@ function getDebugForm($sf)
     return $output;
 }
 
+function getRecablage($sf)
+{
+    $output = '<fieldset id="recablage">';
+    $output .= '<legend>' . $sf->l('Recablage du montant du bloc paiement dans les commandes') . '</legend>';
+    $output .= '<p>Si le montant dans le bloc paiement ne correspond pas au montant total de la commande, ajoutez la ligne suivante au début de la fonction <b>hookbackOfficeTop</b> : </p>';
+    $output .= '<p>SfDebugger::recablageOrderPayment();</p>';
+    $output .= '</fieldset>';
+    return $output;
+}
+
 function getConfigForm($sf)
 {
     if (Configuration::get('SHOPPING_FLUX_FDG')) {
@@ -285,15 +295,17 @@ pre {
     <?php
     echo getDebugForm($sf);
     echo getConfigForm($sf);
+    echo getRecablage($sf);
     echo getReplayOrdersForm($sf);
     $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['HTTP_HOST'];
+    
     if (isset($_GET['test_homepage']) && $_GET['test_homepage'] != '') {
         $curl_response = curl_file_get_contents($urlBase);
         ?>
         <fieldset id="debug_content">
-        <legend>Open page via curl for <?php echo $urlBase; ?>, result :</legend>
-        <?php echo $curl_response; ?>
-    </fieldset>
+            <legend>Open page via curl for <?php echo $urlBase; ?>, result :</legend>
+            <?php echo $curl_response; ?>
+        </fieldset>
     <?php
     }
     if (isset($_GET['test_curl']) && $_GET['test_curl'] != '') {
