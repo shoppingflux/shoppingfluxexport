@@ -1676,6 +1676,79 @@ class ShoppingFluxExport extends Module
                                         $log = 'SoFlexibilite > saveDelivery = ' . $status_soflexibilite;
                                         SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
                                     }
+                                    
+                                    // Compatibility with socolissimo flexibilité module
+                                    $soflexibilite = Module::getInstanceByName('soflexibilite');
+                                    if ($soflexibilite && $soflexibilite->active) {
+                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'soflexibilite ACTIVE', $doEchoLog);
+                                        $addrSoColissimo = new Address((int)$id_address_shipping);
+                                        if ($addrSoColissimo->phone_mobile) {
+                                            $phone = $addrSoColissimo->phone_mobile;
+                                        } else {
+                                            $phone = $addrSoColissimo->phone;
+                                        }
+                                        $delivery_country = new Country($addrSoColissimo->id_country);
+                                        $so_delivery = new SoFlexibiliteDelivery();
+                                        $so_delivery->id_cart = (int)$cart->id;
+                                        $so_delivery->id_order = -time();
+                                        $so_delivery->id_point = null;
+                                        $so_delivery->id_customer = (int)$id_customer;
+                                        $so_delivery->firstname = $addrSoColissimo->firstname;
+                                        $so_delivery->lastname = $addrSoColissimo->lastname;
+                                        $so_delivery->company = $addrSoColissimo->company;
+                                        $so_delivery->telephone = $phone;
+                                        $so_delivery->email = $current_customer->email;
+                                        $so_delivery->postcode = $addrSoColissimo->postcode;
+                                        $so_delivery->city = $addrSoColissimo->city;
+                                        $so_delivery->country = $delivery_country->iso_code;
+                                        $so_delivery->address1 = $addrSoColissimo->address1;
+                                        $so_delivery->address2 = $addrSoColissimo->address2;
+                                    
+                                        // determine type
+                                        $soflexibilite_conf_key = array(
+                                            'SOFLEXIBILITE_DOM_ID',
+                                            'SOFLEXIBILITE_DOS_ID',
+                                            'SOFLEXIBILITE_BPR_ID',
+                                            'SOFLEXIBILITE_A2P_ID'
+                                        );
+                                        $conf = Configuration::getMultiple($soflexibilite_conf_key, null, null, null);
+                                        $carrier_obj = new Carrier($cart->id_carrier);
+                                        if (isset($carrier_obj->id_reference)) {
+                                            $id_reference = $carrier_obj->id_reference;
+                                        } else {
+                                            $id_reference = $carrier_obj->id;
+                                        }
+                                        if ($id_reference == $conf['SOFLEXIBILITE_DOM_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOM_ID']
+                                        ) {
+                                            $so_delivery->type = 'DOM';
+                                        }
+                                    
+                                        if ($id_reference == $conf['SOFLEXIBILITE_DOS_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOS_ID']
+                                        ) {
+                                            $so_delivery->type = 'DOS';
+                                        }
+                                    
+                                        if ($id_reference == $conf['SOFLEXIBILITE_BPR_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_BPR_ID']
+                                        ) {
+                                            $so_delivery->type = 'BPR';
+                                        }
+                            
+                                        if ($id_reference == $conf['SOFLEXIBILITE_A2P_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_A2P_ID']
+                                        ) {
+                                            $so_delivery->type = 'A2P';
+                                        }
+                                    
+                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
+                    
+                                        $status_soflexibilite = (bool)$so_delivery->saveDelivery();
+                    
+                                        $log = 'SoFlexibilite > saveDelivery = ' . $status_soflexibilite;
+                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
+                                    }
     
                                     Db::getInstance()->update('customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), '`id_customer` = '.(int)$id_customer);
                                     
@@ -1765,7 +1838,7 @@ class ShoppingFluxExport extends Module
             } else {
                 $ids = explode('_', $product->SKU);
             }
-            if (!$ids[1]) {
+            if (!isset($ids[1]) || !$ids[1]) {
                 $p = new Product($ids[0]);
                 if (empty($p->id)) {
                     return 'Product ID don\'t exist, product_id = '.$ids[0];
@@ -2145,10 +2218,14 @@ class ShoppingFluxExport extends Module
                 $skus = explode('_', $product->SKU);
             }
 
-            $row = Db::getInstance()->getRow('SELECT t.rate, od.id_order_detail  FROM '._DB_PREFIX_.'tax t
+            $sql = 'SELECT t.rate, od.id_order_detail  FROM '._DB_PREFIX_.'tax t
                 LEFT JOIN '._DB_PREFIX_.'order_detail_tax odt ON t.id_tax = odt.id_tax
                 LEFT JOIN '._DB_PREFIX_.'order_detail od ON odt.id_order_detail = od.id_order_detail
-                WHERE od.id_order = '.(int)$id_order.' AND product_id = '.(int)$skus[0].' AND product_attribute_id = '.(int)$skus[1]);
+                WHERE od.id_order = '.(int)$id_order.' AND product_id = '.(int)$skus[0];
+            if (isset($skus[1]) && $skus[1]) {
+                $sql .= ' AND product_attribute_id = '.(int)$skus[1];
+            }
+            $row = Db::getInstance()->getRow($sql);
 
             $tax_rate = $row['rate'];
             
@@ -2295,7 +2372,7 @@ class ShoppingFluxExport extends Module
 		Db::getInstance()->update('order_payment', $updatePayment, '`order_reference` = "'.$reference_order.'"');
     }
 
-    private function _validateOrder($cart, $marketplace)
+    private function _validateOrder($cart, $marketplace, $doEchoLog)
     {
         $payment = new sfpayment();
         $payment->name = 'sfpayment';
@@ -2428,7 +2505,7 @@ class ShoppingFluxExport extends Module
                 $skus = explode('_', $product->SKU);
             }
 
-            if ($skus[1] !== false) {
+            if (isset($skus[1]) && $skus[1] !== false) {
                 $quantity = StockAvailable::getQuantityAvailableByProduct((int)$skus[0], (int)$skus[1]);
 
                 if ($quantity - $product->Quantity < 0) {
