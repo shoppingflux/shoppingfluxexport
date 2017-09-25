@@ -78,12 +78,8 @@ class ShoppingFluxExport extends Module
     /* REGISTER HOOKS */
     private function _initHooks()
     {
-        if (version_compare(_PS_VERSION_, '1.5', '<')) {
-            // Prestashop v1.4
-            $registerHookNewOrder = $this->registerHook('newOrder');
-        } else {
-            $registerHookNewOrder = $this->registerHook('actionObjectAddAfter'); // PS1.5 a monter
-        }
+		$registerHookNewOrder = $this->registerHook('actionObjectAddAfter');
+        
         if (!$this->registerHook('postUpdateOrderStatus') ||
             !$this->registerHook('backOfficeTop') ||
             !$registerHookNewOrder ||
@@ -1605,11 +1601,7 @@ class ShoppingFluxExport extends Module
                                             'cecountry' => pSQL($countrySoColissimo->iso_code),
                                             'ceemail' => pSQL($email),
                                         );
-                                        if (version_compare(_PS_VERSION_, '1.5', '>=')) {
-                                            Db::getInstance()->insert($socotable_name, $socovalues);
-                                        } else {
-                                            Db::getInstance()->autoExecute(_DB_PREFIX_ . $socotable_name, $socovalues, 'INSERT');
-                                        }
+                                        Db::getInstance()->insert($socotable_name, $socovalues);
                                     }
                                     
                                     // Compatibility with socolissimo flexibilité module
@@ -1685,11 +1677,7 @@ class ShoppingFluxExport extends Module
                                         SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
                                     }
     
-                                    if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                                        Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), 'UPDATE', '`id_customer` = '.(int)$id_customer);
-                                    } else {
-                                        Db::getInstance()->update('customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), '`id_customer` = '.(int)$id_customer);
-                                    }
+                                    Db::getInstance()->update('customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), '`id_customer` = '.(int)$id_customer);
                                     
                                     $customerClear = new Customer();
         
@@ -1708,13 +1696,9 @@ class ShoppingFluxExport extends Module
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Notify result of order creation : ' . $orderCreation, $doEchoLog);
         
                                     $reference_order = $payment->currentOrderReference;
-                                    if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                                        Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => pSQL($email)), 'UPDATE', '`id_customer` = '.(int)$id_customer);
-                                        Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                                    } else {
-                                        Db::getInstance()->update('customer', array('email' => pSQL($email)), '`id_customer` = '.(int)$id_customer);
-                                        Db::getInstance()->insert('message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')));
-                                    }
+                                    Db::getInstance()->update('customer', array('email' => pSQL($email)), '`id_customer` = '.(int)$id_customer);
+									Db::getInstance()->insert('message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')));
+
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Real customer email set again : ' . $email, $doEchoLog);
                                     
                                     $this->_updatePrices($id_order, $order, $reference_order);
@@ -1834,16 +1818,6 @@ class ShoppingFluxExport extends Module
 
         return true;
     }
-    
-    /**
-     * Legacy mode for Prestashop 1.4
-     * On order creation, send XML notification to ShoppingFlux
-     */
-    public function hookNewOrder($params)
-    {
-        $params['object'] = $params['order'];
-        $this->hookActionObjectAddAfter($params);
-    }
 
     public function hookActionObjectAddAfter($params)
     {
@@ -1918,17 +1892,9 @@ class ShoppingFluxExport extends Module
             $responseXML = $this->_callWebService('UpdateOrders', $xml, (int)$order->id_shop, $this->getOrderToken((int)$params['id_order']));
 
             if (!$responseXML->Response->Error) {
-                if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                } else {
-                    Db::getInstance()->insert('message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')));
-                }
+                Db::getInstance()->insert('message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')));
             } else {
-                if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                } else {
-                    Db::getInstance()->insert('message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')));
-                }
+                Db::getInstance()->insert('message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')));
             }
         } elseif ((Configuration::get('SHOPPING_FLUX_STATUS_CANCELED') != '' &&
                 Configuration::get('SHOPPING_FLUX_CANCELED') == '' &&
@@ -1957,17 +1923,9 @@ class ShoppingFluxExport extends Module
             $responseXML = $this->_callWebService('UpdateOrders', $xml, (int)$order->id_shop);
 
             if (!$responseXML->Response->Error) {
-                if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                } else {
-                    Db::getInstance()->insert('message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')));
-                }
+                Db::getInstance()->insert('message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')));
             } else {
-                if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                } else {
-                    Db::getInstance()->insert('message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')));
-                }
+                Db::getInstance()->insert('message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')));
             }
         }
     }
@@ -1978,18 +1936,10 @@ class ShoppingFluxExport extends Module
         $ip = $this->getIp();
         if ((int)Db::getInstance()->getValue('SELECT `id_customer_ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$this->context->cookie->id_customer) > 0) {
             $updateIp = array('ip' => pSQL($ip));
-            if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                Db::getInstance()->autoExecute(_DB_PREFIX_.'customer_ip', $updateIp, 'UPDATE', '`id_customer` = '.(int)$this->context->cookie->id_customer);
-            } else {
-                Db::getInstance()->update('customer_ip', $updateIp, '`id_customer` = '.(int)$this->context->cookie->id_customer);
-            }
+            Db::getInstance()->update('customer_ip', $updateIp, '`id_customer` = '.(int)$this->context->cookie->id_customer);
         } else {
             $insertIp = array('id_customer' => (int)$this->context->cookie->id_customer, 'ip' => pSQL($ip));
-            if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                Db::getInstance()->autoExecute(_DB_PREFIX_.'customer_ip', $insertIp, 'INSERT');
-            } else {
-                Db::getInstance()->insert('customer_ip', $insertIp);
-            }
+            Db::getInstance()->insert('customer_ip', $insertIp);
         }
     }
 
@@ -2003,13 +1953,10 @@ class ShoppingFluxExport extends Module
     private function _callWebService($call, $xml = false, $id_shop = null, $forceToken = false)
     {
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, '------- Start Call Webservice function = '.$call.' -------');
-        if (version_compare(_PS_VERSION_, '1.5', '<')) {
-            // Prestashop v1.4
-            $token = Configuration::get('SHOPPING_FLUX_TOKEN');
-        } else {
-            $token = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
-        }
-        if (empty($token) && !$forceToken) {
+
+		$token = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+
+		if (empty($token) && !$forceToken) {
             SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'ERROR could not call webservice because of empty token (function = ' . $call . ')');
             return false;
         }
@@ -2222,21 +2169,13 @@ class ShoppingFluxExport extends Module
                 'unit_price_tax_excl'  => (float)((float)$product->Price / (1 + ($tax_rate / 100))),
                 'original_product_price' => $original_product_price,
             );
-            if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail', $updateOrderDetail, 'UPDATE', '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)$skus[0].' AND `product_attribute_id` = '.(int)$skus[1]);
-            } else {
-                Db::getInstance()->update('order_detail', $updateOrderDetail, '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)$skus[0].' AND `product_attribute_id` = '.(int)$skus[1]);
-            }
+            Db::getInstance()->update('order_detail', $updateOrderDetail, '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)$skus[0].' AND `product_attribute_id` = '.(int)$skus[1]);
             
             $updateOrderDetailTax = array(
                 'unit_amount'  => Tools::ps_round((float)((float)$product->Price - ((float)$product->Price / (1 + ($tax_rate / 100)))), 2),
                 'total_amount' => Tools::ps_round((float)(((float)$product->Price - ((float)$product->Price / (1 + ($tax_rate / 100)))) * $product->Quantity), 2),
             );
-            if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail_tax', $updateOrderDetailTax, 'UPDATE', '`id_order_detail` = '.(int)$id_order_detail);
-            } else {
-                Db::getInstance()->update('order_detail_tax', $updateOrderDetailTax, '`id_order_detail` = '.(int)$id_order_detail);
-            }
+            Db::getInstance()->update('order_detail_tax', $updateOrderDetailTax, '`id_order_detail` = '.(int)$id_order_detail);
         }
 
         if ((float)$order->TotalFees > 0 && Configuration::get('SHOPPING_FLUX_FDG') != '') {
@@ -2257,21 +2196,13 @@ class ShoppingFluxExport extends Module
                 'unit_price_tax_incl'  => (float)($order->TotalFees),
                 'unit_price_tax_excl'  => (float)($order->TotalFees) / (1 + $tax_rate / 100),
             );
-            if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail', $updateOrderDetail, 'UPDATE', '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)Configuration::get('SHOPPING_FLUX_FDG').' AND `product_attribute_id` = 0');
-            } else {
-                Db::getInstance()->update('order_detail', $updateOrderDetail, '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)Configuration::get('SHOPPING_FLUX_FDG').' AND `product_attribute_id` = 0');
-            }
+            Db::getInstance()->update('order_detail', $updateOrderDetail, '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)Configuration::get('SHOPPING_FLUX_FDG').' AND `product_attribute_id` = 0');
             
             $updateOrderDetailTax = array(
                 'unit_amount' => 0,
                 'total_amount' => 0,
             );
-            if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail_tax', $updateOrderDetailTax, 'UPDATE', '`id_order_detail` = '.(int)$id_order_detail);
-            } else {
-                Db::getInstance()->update('order_detail_tax', $updateOrderDetailTax, '`id_order_detail` = '.(int)$id_order_detail);
-            }
+            Db::getInstance()->update('order_detail_tax', $updateOrderDetailTax, '`id_order_detail` = '.(int)$id_order_detail);
         }
 
         $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
@@ -2358,17 +2289,10 @@ class ShoppingFluxExport extends Module
         
         $updatePayment = array('amount' => (float)$order->TotalAmount);
         
-        if (version_compare(_PS_VERSION_, '1.5', '<')) {
-            Db::getInstance()->autoExecute(_DB_PREFIX_.'orders', $updateOrder, 'UPDATE', '`id_order` = '.(int)$id_order);
-            Db::getInstance()->autoExecute(_DB_PREFIX_.'order_invoice', $updateOrderInvoice, 'UPDATE', '`id_order` = '.(int)$id_order);
-            Db::getInstance()->autoExecute(_DB_PREFIX_.'order_carrier', $updateOrderTracking, 'UPDATE', '`id_order` = '.(int)$id_order);
-            Db::getInstance()->autoExecute(_DB_PREFIX_.'order_payment', $updatePayment, 'UPDATE', '`order_reference` = "'.$reference_order.'"');
-        } else {
-            Db::getInstance()->update('orders', $updateOrder, '`id_order` = '.(int)$id_order);
-            Db::getInstance()->update('order_invoice', $updateOrderInvoice, '`id_order` = '.(int)$id_order);
-            Db::getInstance()->update('order_carrier', $updateOrderTracking, '`id_order` = '.(int)$id_order);
-            Db::getInstance()->update('order_payment', $updatePayment, '`order_reference` = "'.$reference_order.'"');
-        }
+        Db::getInstance()->update('orders', $updateOrder, '`id_order` = '.(int)$id_order);
+		Db::getInstance()->update('order_invoice', $updateOrderInvoice, '`id_order` = '.(int)$id_order);
+		Db::getInstance()->update('order_carrier', $updateOrderTracking, '`id_order` = '.(int)$id_order);
+		Db::getInstance()->update('order_payment', $updatePayment, '`order_reference` = "'.$reference_order.'"');
     }
 
     private function _validateOrder($cart, $marketplace)
