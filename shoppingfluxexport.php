@@ -191,7 +191,6 @@ class ShoppingFluxExport extends Module
     public function getContent()
     {
         $this->setREF();
-        $this->setFDG();
         
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
@@ -1050,19 +1049,6 @@ class ShoppingFluxExport extends Module
     {
         $file = fopen($this->getFeedName(), 'a+');
         fwrite($file, '</products>');
-    }
-
-    public function setFDG()
-    {
-        $id = Tools::getValue('fdg');
-
-        if ($id == 'del') {
-            Configuration::updateValue('SHOPPING_FLUX_FDG', '');
-            return 'ko';
-        } elseif (is_numeric($id)) {
-            Configuration::updateValue('SHOPPING_FLUX_FDG', (int)$id);
-            return 'ok';
-        }
     }
     
     public function setREF()
@@ -2254,34 +2240,59 @@ class ShoppingFluxExport extends Module
             );
             Db::getInstance()->update('order_detail_tax', $updateOrderDetailTax, '`id_order_detail` = '.(int)$id_order_detail);
         }
-
-        if ((float)$order->TotalFees > 0 && Configuration::get('SHOPPING_FLUX_FDG') != '') {
-            $row = Db::getInstance()->getRow('SELECT t.rate, od.id_order_detail  FROM '._DB_PREFIX_.'tax t
-                LEFT JOIN '._DB_PREFIX_.'order_detail_tax odt ON t.id_tax = odt.id_tax
-                LEFT JOIN '._DB_PREFIX_.'order_detail od ON odt.id_order_detail = od.id_order_detail
-                WHERE od.id_order = '.(int)$id_order.' AND product_id = '.(int)Configuration::get('SHOPPING_FLUX_FDG').' AND product_attribute_id = 0');
-
-            $tax_rate = $row['rate'];
-            $id_order_detail = $row['id_order_detail'];
-
-            $updateOrderDetail = array(
-                'product_price'        => (float)($order->TotalFees),
-                'reduction_percent'    => 0,
-                'reduction_amount'     => 0,
-                'total_price_tax_incl' => (float)($order->TotalFees),
-                'total_price_tax_excl' => (float)($order->TotalFees) / (1 + $tax_rate / 100),
-                'unit_price_tax_incl'  => (float)($order->TotalFees),
-                'unit_price_tax_excl'  => (float)($order->TotalFees) / (1 + $tax_rate / 100),
+        
+        // Cdsicount fees handling
+        if ((float) $order->TotalFees > 0 ) {
+            $orderLoaded = new Order((int)$id_order);
+            $fdgInsertFields = array(
+                'id_order' => (int) $id_order,
+                'id_order_invoice' => 0,
+                'id_warehouse' => 0,
+                'id_shop' => (int) $orderLoaded->id_shop,
+                'product_id' => 0,
+                'product_attribute_id' => 0,
+                'product_name' => 'CDiscount fees - ShoppingFlux',
+                'product_quantity' => 1,
+                'product_quantity_in_stock' => 1,
+                'product_quantity_refunded' => 0,
+                'product_quantity_return' => 0,
+                'product_quantity_reinjected' => 0,
+                'product_price' => (float) $order->TotalFees,
+                'reduction_percent' => 0,
+                'reduction_amount' => 0,
+                'reduction_amount_tax_incl' => 0,
+                'reduction_amount_tax_excl' => 0,
+                'group_reduction' => 0,
+                'product_quantity_discount' => 0,
+                'product_ean13' => null,
+                'product_upc' => null,
+                'product_reference' => 'FDG-ShoppingFlux',
+                'product_supplier_reference' => null,
+                'product_weight' => 0,
+                'id_tax_rules_group' => 0,
+                'tax_computation_method' => 0,
+                'tax_name' => 0,
+                'tax_rate' => 0,
+                'ecotax' => 0,
+                'ecotax_tax_rate' => 0,
+                'discount_quantity_applied' => 0,
+                'download_hash' => null,
+                'download_nb' => 0,
+                'download_deadline' => null,
+                'total_price_tax_incl' => (float) $order->TotalFees,
+                'total_price_tax_excl' => (float) $order->TotalFees,
+                'unit_price_tax_incl' => (float) $order->TotalFees,
+                'unit_price_tax_excl' => (float) $order->TotalFees,
+                'total_shipping_price_tax_incl' => 0,
+                'total_shipping_price_tax_excl' => 0,
+                'purchase_supplier_price' => 0,
+                'original_product_price' => 0,
+                'original_wholesale_price' => 0,
             );
-            Db::getInstance()->update('order_detail', $updateOrderDetail, '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)Configuration::get('SHOPPING_FLUX_FDG').' AND `product_attribute_id` = 0');
-            
-            $updateOrderDetailTax = array(
-                'unit_amount' => 0,
-                'total_amount' => 0,
-            );
-            Db::getInstance()->update('order_detail_tax', $updateOrderDetailTax, '`id_order_detail` = '.(int)$id_order_detail);
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Inserting Cdiscount fees, total fees = ' . $order->TotalFees, $doEchoLog);
+            Db::getInstance()->insert('order_detail', $FDGInsertFields);
         }
-
+        
         $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
 
         $carrier_to_load = isset($actual_configuration[base64_encode(Tools::safeOutput((string)$order->ShippingMethod))]) ?
@@ -2442,24 +2453,13 @@ class ShoppingFluxExport extends Module
             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Loading products by ID', $doEchoLog);
         }
         
-        $id_warehouse = '';
         foreach ($productsNode->Product as $product) {
             if ($useReference) {
                 $skus = $this->getIDs($product->SKU);
             } else {
                 $skus = explode('_', $product->SKU);
             }
-            
-            // Check if advanced stock management active and get the warehouse of any other product
-            if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1
-                && $skus[0] != Configuration::get('SHOPPING_FLUX_FDG')) {
-                $warehouseInfos = Warehouse::getWarehousesByProductId($skus[0], (isset($skus[1]) ? $skus[1] : 0));
-                
-                if (count($warehouseInfos) > 0) {
-                    $id_warehouse = $warehouseInfos[0]['id_warehouse'];
-                }
-            }
-
+        
             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Loading product SKU '.(int)($skus[0]).' and adding it to cart');
             $p = new Product((int)($skus[0]), false, Configuration::get('PS_LANG_DEFAULT'), Context::getContext()->shop->id);
 
@@ -2475,19 +2475,6 @@ class ShoppingFluxExport extends Module
                 return false;
             }
             SfLogger::getInstance()->log(SF_LOG_ORDERS, '    Product successfully added to cart');
-        }
-
-        if (isset($fees) && $fees > 0 && Configuration::get('SHOPPING_FLUX_FDG') != '') {
-            // Check if advanced stock management active
-            if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1 && $id_warehouse) {
-                // Assign a warehouse to FDG product to avoid double order creation
-                Warehouse::setProductLocation((int) Configuration::get('SHOPPING_FLUX_FDG'), 0, $id_warehouse, '');
-            }
-            
-            if (!$cart->updateQty(1, Configuration::get('SHOPPING_FLUX_FDG'), null)) {
-                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Could not add FDG product to cart', $doEchoLog);
-                return false;
-            }
         }
 
         $cart->update();
@@ -2681,103 +2668,6 @@ class ShoppingFluxExport extends Module
         return $html;
     }
     
-    
-    /**
-     * Function to create new CDiscount fees product
-     *
-     * @param $configuration
-     */
-    private function getFDGContent($configuration)
-    {
-        $html = '';
-        $html .= '<p style="clear: both"><label>'.$this->l('FDG');
-        $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">'.$this->getOrCreateFdgProduct().'</span></p>';
-        $html .= '<p style="clear: both"></p>';
-        return $html;
-    }
-    
-    /**
-     * Returns the FDG product, if not existing we create it
-     */
-    private function getOrCreateFdgProduct()
-    {
-        $fdg = Configuration::get('SHOPPING_FLUX_FDG');
-        $languages = Language::getLanguages(false);
-        
-        if (empty($fdg)) {
-            // Create new FDG Product, not visible in front office
-            $product = new Product();
-            foreach ($languages as $language) {
-                $product->name[$language['id_lang']] = 'CDiscount fees - ShoppingFlux';
-                $product->link_rewrite[$language['id_lang']] = 'cdiscount-fdg-shoppingflux';
-            }
-            if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1) {
-                $product->advanced_stock_management = 1;
-            }
-            $product->id_category_default = Configuration::get('PS_HOME_CATEGORY');
-            $product->active = 1;
-            $product->visibility = 'none';
-            $product->price = 0;
-            $product->out_of_stock = 1;
-            $product->reference = 'FDG-ShoppingFlux';
-            $product->add();
-            if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1) {
-                StockAvailable::setProductDependsOnStock($product->id, true, (int)$this->context->shop->id, 0);
-            }
-            
-            // Retrieve FDG product id after save
-            Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
-            
-            StockAvailable::setProductOutOfStock($product->id, 1);
-        } else {
-            $product = new Product($fdg);
-    
-            if (Validate::isLoadedObject($product)) {
-                // Poruct exists, we check if it can be ordered when out of stock
-                if ($product->out_of_stock == 0 || $product->out_of_stock == 2) {
-                    $product->out_of_stock = 1;
-                    $product->price = 0;
-                    $product->reference = 'FDG-ShoppingFlux';
-                    $product->update();
-    
-                    StockAvailable::setProductOutOfStock($product->id, 1);
-                }
-                if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1 && $product->advanced_stock_management != 1) {
-                    $product->advanced_stock_management = 1;
-                    StockAvailable::setProductDependsOnStock($product->id, true, (int)$this->context->shop->id, 0);
-                    $product->update();
-                }
-            } else {
-                // Create new FDG Product, not visible in front office since it does not exist
-                $product = new Product();
-                foreach ($languages as $language) {
-                    $product->name[$language['id_lang']] = 'CDiscount fees - ShoppingFlux';
-                    $product->link_rewrite[$language['id_lang']] = 'cdiscount-fdg-shoppingflux';
-                }
-                if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1) {
-                    $product->advanced_stock_management = 1;
-                }
-                $product->id_category_default = Configuration::get('PS_HOME_CATEGORY');
-                $product->active = 1;
-                $product->visibility = 'none';
-                $product->price = 0;
-                $product->out_of_stock = 1;
-                $product->reference = 'FDG-ShoppingFlux';
-                $product->add();
-                if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1) {
-                    StockAvailable::setProductDependsOnStock($product->id, true, (int)$this->context->shop->id, 0);
-                }
-                
-                StockAvailable::setProductOutOfStock($product->id, 1);
-                
-                // Retrieve FDG product id after save
-                Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
-            }
-        }
-    
-        return Configuration::get('SHOPPING_FLUX_FDG');
-    }
-    
     /**
      * Function to display cron information
      * @param $configuration
@@ -2818,7 +2708,6 @@ class ShoppingFluxExport extends Module
         $html = '<form method="post" action="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'">';
         $html .= '<fieldset>';
         $html .= '<legend>'.$this->l('Advanced settings').'</legend>';
-        $html .= $this->getFDGContent($configuration);
         $html .= $this->getCronDetails($configuration);
         $html .= '<p style="margin-top:20px"><input type="submit" value="'.$this->l('Update');
         $html .= '" name="rec_config_adv" class="button"/></p>';
