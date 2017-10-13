@@ -540,7 +540,7 @@ class ShoppingFluxExport extends Module
                 Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', $sfMultitokenActivation);
             }
      
-            if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive() && $sfMultitokenActivation) {
+            if (version_compare(_PS_VERSION_, '1.5', '>') && $sfMultitokenActivation) {
                 $shops = Shop::getShops();
                 // Loop on shops for multiple token
                 foreach ($shops as &$currentShop) {
@@ -3008,7 +3008,7 @@ class ShoppingFluxExport extends Module
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
             return Configuration::updateValue($key, $value, false, null, $id_shop);
         } else {
-            return Configuration::updateValue($key);
+            return Configuration::updateValue($key, $value);
         }
     }
         
