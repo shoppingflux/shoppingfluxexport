@@ -70,7 +70,7 @@ $hours = ($timestamp_today - $timestamp_last_exec) / (60 * 60);
 if (empty($current)) {
     if ($hours >= $frequency_in_hours) {
         SfLogger::getInstance()->log(SF_LOG_CRON, 'CRON CALL - begining of treament');
-        $f->initFeed();
+        $sf->initFeed();
     } else {
         $logMessage = 'CRON CALL - Not initiated SHOULD NOT HAVE BEEN CALLED. ';
         $logMessage .= 'Cron call has already been called at ' . $last_executed;
@@ -81,5 +81,5 @@ if (empty($current)) {
         SfLogger::getInstance()->log(SF_LOG_CRON, $logMessage);
     }
 } else {
-    $f->writeFeed(Tools::getValue('total'), Tools::getValue('current'), Tools::getValue('lang'));
+    $sf->writeFeed(Tools::getValue('total'), Tools::getValue('current'), Tools::getValue('lang'));
 }
