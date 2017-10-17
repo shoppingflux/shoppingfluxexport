@@ -107,11 +107,11 @@ class ShoppingFluxExport extends Module
         if (! method_exists('ImageType', 'getFormatedName')) {
             $imageName = '';
         }
-            
+        
+        $installResult = true;
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
             foreach (Shop::getShops() as $shop) {
-                if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand()), false, null, $shop['id_shop']) ||
-                !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED'), false, null, $shop['id_shop']) ||
+                if (!Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED'), false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING'), false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_IMAGE', $imageName, false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT'), false, null, $shop['id_shop']) ||
@@ -130,12 +130,11 @@ class ShoppingFluxExport extends Module
                 !Configuration::updateValue('SHOPPING_FLUX_DEBUG_ERRORS', false, false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_DEBUG', true, false, null, $shop['id_shop'])
                 ) {
-                    return false;
+                    $installResult = false;
                 }
             }
         } else {
-            if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand())) ||
-                     !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED')) ||
+            if (!Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED')) ||
                      !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING')) ||
                      !Configuration::updateValue('SHOPPING_FLUX_IMAGE', $imageName) ||
                      !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT')) ||
@@ -154,11 +153,50 @@ class ShoppingFluxExport extends Module
                      !Configuration::updateValue('SHOPPING_FLUX_DEBUG_ERRORS', false) ||
                      !Configuration::updateValue('SHOPPING_FLUX_DEBUG', true)
                  ) {
-                return false;
+                $installResult = false;
+            }
+        }
+        
+        // Generate multitoken default values
+        if (version_compare(_PS_VERSION_, '1.5', '>')) {
+            $shops = Shop::getShops();
+            // Loop on shops for multiple token
+            foreach ($shops as &$currentShop) {
+                $tokenShop = md5(rand());
+                if (! $this->getTokenValue($currentShop['id_shop'])) {
+                    $this->setTokenValue($tokenShop, $currentShop['id_shop']);
+                    
+                    $shopLanguages = Language::getLanguages(true, $currentShop['id_shop']);
+                    $shopCurrencies = Currency::getCurrenciesByIdShop($currentShop['id_shop']);
+
+                    // Loop on languages
+                    foreach ($shopLanguages as $currentLang) {
+                        $idLang = $currentLang['id_lang'];
+                        // Finally loop on currencies
+                        foreach ($shopCurrencies as $currentCurrency) {
+                            $idCurrency = $currentCurrency['id_currency'];
+                            if (! $this->getTokenValue($currentShop['id_shop'], null, $idCurrency, $idLang)) {
+                                $this->setTokenValue($tokenShop, $currentShop['id_shop'], $idCurrency, $idLang);
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            if (Shop::isFeatureActive()) {
+                foreach (Shop::getShops() as $shop) {
+                    if (! Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand()), false, null, $shop['id_shop'])) {
+                        $installResult = false;
+                    }
+                }
+            } else {
+                if (! Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand()))) {
+                    $installResult = false;
+                }
             }
         }
 
-        return true;
+        return $installResult;
     }
 
     public function uninstall()
@@ -479,9 +517,8 @@ class ShoppingFluxExport extends Module
         $rec_config = Tools::getValue('rec_config');
         $rec_shipping_config = Tools::getValue('rec_shipping_config');
 
-        $rec_config_adv = Tools::getValue('rec_config_adv');
-
-        if ((isset($rec_config) && $rec_config != null)) {
+        $rec_config2 = Tools::getValue('SHOPPING_FLUX_TOKEN');
+        if ((isset($rec_config2) && $rec_config2 != null)) {
             $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TRACKING',
                         'SHOPPING_FLUX_ORDERS', 'SHOPPING_FLUX_STATUS_SHIPPED', 'SHOPPING_FLUX_STATUS_CANCELED',
                         'SHOPPING_FLUX_LOGIN', 'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
@@ -531,7 +568,7 @@ class ShoppingFluxExport extends Module
         // Tokens handling
         if (Tools::isSubmit('SHOPPING_FLUX_MULTITOKEN')) {
             $sfMultitokenActivation = (int)Tools::getValue('SHOPPING_FLUX_MULTITOKEN');
-            if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
+            if (version_compare(_PS_VERSION_, '1.5', '>')) {
                 $id_shop = $this->context->shop->id;
                 $id_shop_group = (int) $this->context->shop->id_shop_group;
                 Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN', $sfMultitokenActivation, false, $id_shop_group, $id_shop);
@@ -2290,7 +2327,7 @@ class ShoppingFluxExport extends Module
                 'original_wholesale_price' => 0,
             );
             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Inserting Cdiscount fees, total fees = ' . $order->TotalFees, $doEchoLog);
-            Db::getInstance()->insert('order_detail', $FDGInsertFields);
+            Db::getInstance()->insert('order_detail', $fdgInsertFields);
         }
         
         $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
@@ -2827,7 +2864,7 @@ class ShoppingFluxExport extends Module
     public function getTokenValue($id_shop, $id_shop_group = null, $id_currency = false, $id_lang = false)
     {
         $key = 'SHOPPING_FLUX_TOKEN';
-        if ($id_currency && $id_lang && (int) Configuration::get('SHOPPING_FLUX_MULTITOKEN')) {
+        if ($id_currency && $id_lang) {
             $key .= '_'.$id_currency.'_'.$id_lang;
         }
         if ($id_shop) {
