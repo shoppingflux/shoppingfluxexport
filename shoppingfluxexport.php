@@ -2327,6 +2327,8 @@ class ShoppingFluxExport extends Module
                 'original_wholesale_price' => 0,
             );
             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Inserting Cdiscount fees, total fees = ' . $order->TotalFees, $doEchoLog);
+
+
             Db::getInstance()->insert('order_detail', $fdgInsertFields);
         }
         
