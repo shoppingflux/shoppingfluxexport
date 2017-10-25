@@ -149,9 +149,10 @@ function getReplayOrdersForm($sf)
     foreach ($lastOrders as $currentOrder) {
         $orderXml = @simplexml_load_string($currentOrder);
         $idOrderPs = $sf->getPrestashopOrderIdFromSfOrderId((string) $orderXml->IdOrder, (string) $orderXml->Marketplace);
+        $exploded = explode('+', (string) $orderXml->OrderDate);
         $output .= '<tr>
                             <td style="padding: 10px; text-align:center;">' . (string) $orderXml->IdOrder . '</td>
-                            <td style="padding: 10px; text-align:center;">' . str_replace('T', ' ', explode('+', (string) $orderXml->OrderDate)[0]) . '</td>
+                            <td style="padding: 10px; text-align:center;">' . str_replace('T', ' ', $exploded[0]) . '</td>
                             <td style="padding: 10px; text-align:center;">' . (string) $orderXml->Marketplace . '</td>
                             <td style="padding: 10px; text-align:center;">' . (float) ($orderXml->TotalAmount) . ' ' . (string) $orderXml->Currency . '</td>
                             <td style="padding: 10px; text-align:center;"><a href="' . $link->getAdminLink("AdminOrders") . '&id_order=' . $idOrderPs . '&vieworder" target="_blank">' . $idOrderPs . '</a></td>
