@@ -2278,7 +2278,7 @@ class ShoppingFluxExport extends Module
             Db::getInstance()->update('order_detail_tax', $updateOrderDetailTax, '`id_order_detail` = '.(int)$id_order_detail);
         }
         
-        // Cdsicount fees handling
+        // Cdiscount fees handling
         if ((float) $order->TotalFees > 0 ) {
             $orderLoaded = new Order((int)$id_order);
             $fdgInsertFields = array(
@@ -2306,7 +2306,6 @@ class ShoppingFluxExport extends Module
                 'product_reference' => 'FDG-ShoppingFlux',
                 'product_supplier_reference' => null,
                 'product_weight' => 0,
-                'id_tax_rules_group' => 0,
                 'tax_computation_method' => 0,
                 'tax_name' => 0,
                 'tax_rate' => 0,
