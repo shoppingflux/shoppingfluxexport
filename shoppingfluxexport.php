@@ -49,7 +49,7 @@ class ShoppingFluxExport extends Module
     {
         $this->name = 'shoppingfluxexport';
         $this->tab = 'smart_shopping';
-        $this->version = '4.4.0';
+        $this->version = '4.5.0';
         $this->author = 'PrestaShop';
         $this->limited_countries = array('fr', 'us');
         $this->module_key = '08b3cf6b1a86256e876b485ff9bd4135';
@@ -78,12 +78,8 @@ class ShoppingFluxExport extends Module
     /* REGISTER HOOKS */
     private function _initHooks()
     {
-        if (version_compare(_PS_VERSION_, '1.5', '<')) {
-            // Prestashop v1.4
-            $registerHookNewOrder = $this->registerHook('newOrder');
-        } else {
-            $registerHookNewOrder = $this->registerHook('actionObjectAddAfter'); // PS1.5 a monter
-        }
+        $registerHookNewOrder = $this->registerHook('actionObjectAddAfter');
+        
         if (!$this->registerHook('postUpdateOrderStatus') ||
             !$this->registerHook('backOfficeTop') ||
             !$registerHookNewOrder ||
@@ -111,11 +107,11 @@ class ShoppingFluxExport extends Module
         if (! method_exists('ImageType', 'getFormatedName')) {
             $imageName = '';
         }
-            
+        
+        $installResult = true;
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
             foreach (Shop::getShops() as $shop) {
-                if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand()), false, null, $shop['id_shop']) ||
-                !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED'), false, null, $shop['id_shop']) ||
+                if (!Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED'), false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING'), false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_IMAGE', $imageName, false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT'), false, null, $shop['id_shop']) ||
@@ -125,7 +121,7 @@ class ShoppingFluxExport extends Module
                 !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '', false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_REF', '', false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '', false, null, $shop['id_shop']) ||
-                !Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', 0, false, null, $shop['id_shop']) ||
+                !Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN', 0, false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_INDEX', Tools::getCurrentUrlProtocolPrefix() . $shop['domain'] . $shop['uri'], false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_STOCKS', '', false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_PACKS', '', false, null, $shop['id_shop']) ||
@@ -134,12 +130,11 @@ class ShoppingFluxExport extends Module
                 !Configuration::updateValue('SHOPPING_FLUX_DEBUG_ERRORS', false, false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_DEBUG', true, false, null, $shop['id_shop'])
                 ) {
-                    return false;
+                    $installResult = false;
                 }
             }
         } else {
-            if (!Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand())) ||
-                     !Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED')) ||
+            if (!Configuration::updateValue('SHOPPING_FLUX_CANCELED', Configuration::get('PS_OS_CANCELED')) ||
                      !Configuration::updateValue('SHOPPING_FLUX_SHIPPED', Configuration::get('PS_OS_SHIPPING')) ||
                      !Configuration::updateValue('SHOPPING_FLUX_IMAGE', $imageName) ||
                      !Configuration::updateValue('SHOPPING_FLUX_CARRIER', Configuration::get('PS_CARRIER_DEFAULT')) ||
@@ -149,7 +144,7 @@ class ShoppingFluxExport extends Module
                      !Configuration::updateValue('SHOPPING_FLUX_STATUS_CANCELED', '') ||
                      !Configuration::updateValue('SHOPPING_FLUX_LOGIN', '') ||
                      !Configuration::updateValue('SHOPPING_FLUX_REF', '') ||
-                     !Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', 0) ||
+                     !Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN', 0) ||
                      !Configuration::updateValue('SHOPPING_FLUX_INDEX', Tools::getCurrentUrlProtocolPrefix().$shop['domain'].$shop['uri']) ||
                      !Configuration::updateValue('SHOPPING_FLUX_STOCKS') ||
                      !Configuration::updateValue('SHOPPING_FLUX_PACKS', '') ||
@@ -158,11 +153,50 @@ class ShoppingFluxExport extends Module
                      !Configuration::updateValue('SHOPPING_FLUX_DEBUG_ERRORS', false) ||
                      !Configuration::updateValue('SHOPPING_FLUX_DEBUG', true)
                  ) {
-                return false;
+                $installResult = false;
+            }
+        }
+        
+        // Generate multitoken default values
+        if (version_compare(_PS_VERSION_, '1.5', '>')) {
+            $shops = Shop::getShops();
+            // Loop on shops for multiple token
+            foreach ($shops as &$currentShop) {
+                $tokenShop = md5(rand());
+                if (! $this->getTokenValue($currentShop['id_shop'])) {
+                    $this->setTokenValue($tokenShop, $currentShop['id_shop']);
+                    
+                    $shopLanguages = Language::getLanguages(true, $currentShop['id_shop']);
+                    $shopCurrencies = Currency::getCurrenciesByIdShop($currentShop['id_shop']);
+
+                    // Loop on languages
+                    foreach ($shopLanguages as $currentLang) {
+                        $idLang = $currentLang['id_lang'];
+                        // Finally loop on currencies
+                        foreach ($shopCurrencies as $currentCurrency) {
+                            $idCurrency = $currentCurrency['id_currency'];
+                            if (! $this->getTokenValue($currentShop['id_shop'], null, $idCurrency, $idLang)) {
+                                $this->setTokenValue($tokenShop, $currentShop['id_shop'], $idCurrency, $idLang);
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            if (Shop::isFeatureActive()) {
+                foreach (Shop::getShops() as $shop) {
+                    if (! Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand()), false, null, $shop['id_shop'])) {
+                        $installResult = false;
+                    }
+                }
+            } else {
+                if (! Configuration::updateValue('SHOPPING_FLUX_TOKEN', md5(rand()))) {
+                    $installResult = false;
+                }
             }
         }
 
-        return true;
+        return $installResult;
     }
 
     public function uninstall()
@@ -182,7 +216,7 @@ class ShoppingFluxExport extends Module
                 !Configuration::deleteByName('SHOPPING_FLUX_PACKS') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_SHIPPING_MATCHING') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_PASSES') ||
-                !Configuration::deleteByName('SHOPPING_FLUX_MULTITOKEN_ACTIVATION') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_MULTITOKEN') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_ORDERS_DEBUG') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_DEBUG') ||
                 !parent::uninstall()) {
@@ -195,7 +229,6 @@ class ShoppingFluxExport extends Module
     public function getContent()
     {
         $this->setREF();
-        $this->setFDG();
         
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
@@ -484,9 +517,8 @@ class ShoppingFluxExport extends Module
         $rec_config = Tools::getValue('rec_config');
         $rec_shipping_config = Tools::getValue('rec_shipping_config');
 
-        $rec_config_adv = Tools::getValue('rec_config_adv');
-
-        if ((isset($rec_config) && $rec_config != null)) {
+        $rec_config2 = Tools::getValue('SHOPPING_FLUX_TOKEN');
+        if ((isset($rec_config2) && $rec_config2 != null)) {
             $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TRACKING',
                         'SHOPPING_FLUX_ORDERS', 'SHOPPING_FLUX_STATUS_SHIPPED', 'SHOPPING_FLUX_STATUS_CANCELED',
                         'SHOPPING_FLUX_LOGIN', 'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
@@ -534,47 +566,50 @@ class ShoppingFluxExport extends Module
         }
         
         // Tokens handling
-        $sfMultitokenActivation = (int)Tools::getValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION');
-        if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
-            $id_shop = $this->context->shop->id;
-            Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', $sfMultitokenActivation, false, null, $id_shop);
-        } else {
-            Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN_ACTIVATION', $sfMultitokenActivation);
-        }
- 
-        if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive() && $sfMultitokenActivation) {
-            $shops = Shop::getShops();
-            // Loop on shops for multiple token
-            foreach ($shops as &$currentShop) {
-                $shopLanguages = Language::getLanguages(true, $currentShop['id_shop']);
-                $shopCurrencies = Currency::getCurrenciesByIdShop($currentShop['id_shop']);
-            
-                $tokenShop = Tools::getValue('token_'.$currentShop['id_shop']);
-                if ($tokenShop) {
-                    $this->setTokenValue($tokenShop, $currentShop['id_shop']);
-                } else {
-                    $this->setTokenValue('', $currentShop['id_shop']);
-                }
-            
-                // Loop on languages
-                foreach ($shopLanguages as $currentLang) {
-                    $idLang = $currentLang['id_lang'];
-                    // Finally loop on currencies
-                    foreach ($shopCurrencies as $currentCurrency) {
-                        $idCurrency = $currentCurrency['id_currency'];
-                        $token = Tools::getValue('token_'.$currentShop['id_shop'].'_'.$idLang.'_'.$idCurrency);
-                        if ($token) {
-                            $this->setTokenValue($token, $currentShop['id_shop'], $idCurrency, $idLang);
-                        } else {
-                            $this->setTokenValue('', $currentShop['id_shop'], $idCurrency, $idLang);
+        if (Tools::isSubmit('SHOPPING_FLUX_MULTITOKEN')) {
+            $sfMultitokenActivation = (int)Tools::getValue('SHOPPING_FLUX_MULTITOKEN');
+            if (version_compare(_PS_VERSION_, '1.5', '>')) {
+                $id_shop = $this->context->shop->id;
+                $id_shop_group = (int) $this->context->shop->id_shop_group;
+                Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN', $sfMultitokenActivation, false, $id_shop_group, $id_shop);
+            } else {
+                Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN', $sfMultitokenActivation);
+            }
+     
+            if (version_compare(_PS_VERSION_, '1.5', '>') && $sfMultitokenActivation) {
+                $shops = Shop::getShops();
+                // Loop on shops for multiple token
+                foreach ($shops as &$currentShop) {
+                    $shopLanguages = Language::getLanguages(true, $currentShop['id_shop']);
+                    $shopCurrencies = Currency::getCurrenciesByIdShop($currentShop['id_shop']);
+                
+                    $tokenShop = Tools::getValue('token_'.$currentShop['id_shop']);
+                    if ($tokenShop) {
+                        $this->setTokenValue($tokenShop, $currentShop['id_shop']);
+                    } else {
+                        $this->setTokenValue('', $currentShop['id_shop']);
+                    }
+                
+                    // Loop on languages
+                    foreach ($shopLanguages as $currentLang) {
+                        $idLang = $currentLang['id_lang'];
+                        // Finally loop on currencies
+                        foreach ($shopCurrencies as $currentCurrency) {
+                            $idCurrency = $currentCurrency['id_currency'];
+                            $token = Tools::getValue('token_'.$currentShop['id_shop'].'_'.$idLang.'_'.$idCurrency);
+                            if ($token) {
+                                $this->setTokenValue($token, $currentShop['id_shop'], $idCurrency, $idLang);
+                            } else {
+                                $this->setTokenValue('', $currentShop['id_shop'], $idCurrency, $idLang);
+                            }
                         }
                     }
                 }
-            }
-            // Check and save default token value (main Token value)
-            $mainToken = Tools::getValue('SHOPPING_FLUX_TOKEN');
-            if ($mainToken) {
-                $this->setTokenValue($mainToken);
+                // Check and save default token value (main Token value)
+                $mainToken = Tools::getValue('SHOPPING_FLUX_TOKEN');
+                if ($mainToken) {
+                    $this->setTokenValue($mainToken);
+                }
             }
         }
     }
@@ -610,7 +645,8 @@ class ShoppingFluxExport extends Module
         $string = str_replace(chr(29), ' ', $string);
         $string = str_replace(chr(30), ' ', $string);
         $string = str_replace(chr(31), ' ', $string);
-        return str_replace("\r\n", '', strip_tags($string));
+        $string = str_replace(array('(', ')', '°', '&', '+', '/', "'", ':', ';', ',', '?', '²', '’', '´'), '', strip_tags($string));
+        return str_replace("\r\n", '', $string);
     }
 
     /* Feed content */
@@ -702,8 +738,21 @@ class ShoppingFluxExport extends Module
     public function generateFeed()
     {
         $token = Tools::getValue('token');
-        $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
-        if ($token == '' || $token != $tokenInConfig) {
+        if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
+            $id_shop = $this->context->shop->id;
+            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+            
+            $allTokens_raw = $this->getAllTokensOfShop();
+            $allTokens = array();
+            foreach ($allTokens_raw as $allTokens_subraw) {
+                $allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
+            }
+        } else {
+            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+            $allTokens[$tokenInConfig]=$tokenInConfig;
+        }
+
+        if ($token == '' ||( $token != $tokenInConfig && !in_array($token, $allTokens) )) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
         
@@ -840,8 +889,21 @@ class ShoppingFluxExport extends Module
     public function writeFeed($total, $current = 0)
     {
         $token = Tools::getValue('token');
-        $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
-        if ($token == '' || $token != $tokenInConfig) {
+        if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
+            $id_shop = $this->context->shop->id;
+            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+            
+            $allTokens_raw = $this->getAllTokensOfShop();
+            $allTokens = array();
+            foreach ($allTokens_raw as $allTokens_subraw) {
+                $allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
+            }
+        } else {
+            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+            $allTokens[$tokenInConfig]=$tokenInConfig;
+        }
+
+        if ($token == '' || ($token != $tokenInConfig && !in_array($token, $allTokens))) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
         
@@ -1025,19 +1087,6 @@ class ShoppingFluxExport extends Module
         $file = fopen($this->getFeedName(), 'a+');
         fwrite($file, '</products>');
     }
-
-    public function setFDG()
-    {
-        $id = Tools::getValue('fdg');
-
-        if ($id == 'del') {
-            Configuration::updateValue('SHOPPING_FLUX_FDG', '');
-            return 'ko';
-        } elseif (is_numeric($id)) {
-            Configuration::updateValue('SHOPPING_FLUX_FDG', (int)$id);
-            return 'ok';
-        }
-    }
     
     public function setREF()
     {
@@ -1182,7 +1231,12 @@ class ShoppingFluxExport extends Module
         if ($images != false) {
             foreach ($images as $image) {
                 $ids = $product->id.'-'.$image['id_image'];
-                $ret .= '<image><![CDATA['.Tools::getCurrentUrlProtocolPrefix().$link->getImageLink($product->link_rewrite, $ids, $configuration['SHOPPING_FLUX_IMAGE']).']]></image>';
+                $img_url = $link->getImageLink($product->link_rewrite, $ids, $configuration['SHOPPING_FLUX_IMAGE']);
+                if (!substr_count($img_url, Tools::getCurrentUrlProtocolPrefix())) {
+                    // make sure url has http or https
+                    $img_url = Tools::getCurrentUrlProtocolPrefix() . $img_url;
+                }
+                $ret .= '<image><![CDATA[' . $img_url . ']]></image>';
             }
         }
         $ret .= '</images>';
@@ -1570,18 +1624,156 @@ class ShoppingFluxExport extends Module
                                             'cecountry' => pSQL($countrySoColissimo->iso_code),
                                             'ceemail' => pSQL($email),
                                         );
-                                        if (version_compare(_PS_VERSION_, '1.5', '>=')) {
-                                            Db::getInstance()->insert($socotable_name, $socovalues);
+                                        Db::getInstance()->insert($socotable_name, $socovalues);
+                                    }
+                                    
+                                    // Compatibility with socolissimo flexibilité module
+                                    $soflexibilite = Module::getInstanceByName('soflexibilite');
+                                    if ($soflexibilite && $soflexibilite->active) {
+                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'soflexibilite ACTIVE', $doEchoLog);
+                                        $addrSoColissimo = new Address((int)$id_address_shipping);
+                                        if ($addrSoColissimo->phone_mobile) {
+                                            $phone = $addrSoColissimo->phone_mobile;
                                         } else {
-                                            Db::getInstance()->autoExecute(_DB_PREFIX_ . $socotable_name, $socovalues, 'INSERT');
+                                            $phone = $addrSoColissimo->phone;
                                         }
+                                        $delivery_country = new Country($addrSoColissimo->id_country);
+                                        $so_delivery = new SoFlexibiliteDelivery();
+                                        $so_delivery->id_cart = (int)$cart->id;
+                                        $so_delivery->id_order = -time();
+                                        $so_delivery->id_point = null;
+                                        $so_delivery->id_customer = (int)$id_customer;
+                                        $so_delivery->firstname = $addrSoColissimo->firstname;
+                                        $so_delivery->lastname = $addrSoColissimo->lastname;
+                                        $so_delivery->company = $addrSoColissimo->company;
+                                        $so_delivery->telephone = $phone;
+                                        $so_delivery->email = $current_customer->email;
+                                        $so_delivery->postcode = $addrSoColissimo->postcode;
+                                        $so_delivery->city = $addrSoColissimo->city;
+                                        $so_delivery->country = $delivery_country->iso_code;
+                                        $so_delivery->address1 = $addrSoColissimo->address1;
+                                        $so_delivery->address2 = $addrSoColissimo->address2;
+                                    
+                                        // determine type
+                                        $soflexibilite_conf_key = array(
+                                            'SOFLEXIBILITE_DOM_ID',
+                                            'SOFLEXIBILITE_DOS_ID',
+                                            'SOFLEXIBILITE_BPR_ID',
+                                            'SOFLEXIBILITE_A2P_ID'
+                                        );
+                                        $conf = Configuration::getMultiple($soflexibilite_conf_key, null, null, null);
+                                        $carrier_obj = new Carrier($cart->id_carrier);
+                                        if (isset($carrier_obj->id_reference)) {
+                                            $id_reference = $carrier_obj->id_reference;
+                                        } else {
+                                            $id_reference = $carrier_obj->id;
+                                        }
+                                        if ($id_reference == $conf['SOFLEXIBILITE_DOM_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOM_ID']
+                                        ) {
+                                            $so_delivery->type = 'DOM';
+                                        }
+                                    
+                                        if ($id_reference == $conf['SOFLEXIBILITE_DOS_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOS_ID']
+                                        ) {
+                                            $so_delivery->type = 'DOS';
+                                        }
+                                    
+                                        if ($id_reference == $conf['SOFLEXIBILITE_BPR_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_BPR_ID']
+                                        ) {
+                                            $so_delivery->type = 'BPR';
+                                        }
+                            
+                                        if ($id_reference == $conf['SOFLEXIBILITE_A2P_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_A2P_ID']
+                                        ) {
+                                            $so_delivery->type = 'A2P';
+                                        }
+                                    
+                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
+                    
+                                        $status_soflexibilite = (bool)$so_delivery->saveDelivery();
+                    
+                                        $log = 'SoFlexibilite > saveDelivery = ' . $status_soflexibilite;
+                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
+                                    }
+                                    
+                                    // Compatibility with socolissimo flexibilité module
+                                    $soflexibilite = Module::getInstanceByName('soflexibilite');
+                                    if ($soflexibilite && $soflexibilite->active) {
+                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'soflexibilite ACTIVE', $doEchoLog);
+                                        $addrSoColissimo = new Address((int)$id_address_shipping);
+                                        if ($addrSoColissimo->phone_mobile) {
+                                            $phone = $addrSoColissimo->phone_mobile;
+                                        } else {
+                                            $phone = $addrSoColissimo->phone;
+                                        }
+                                        $delivery_country = new Country($addrSoColissimo->id_country);
+                                        $so_delivery = new SoFlexibiliteDelivery();
+                                        $so_delivery->id_cart = (int)$cart->id;
+                                        $so_delivery->id_order = -time();
+                                        $so_delivery->id_point = null;
+                                        $so_delivery->id_customer = (int)$id_customer;
+                                        $so_delivery->firstname = $addrSoColissimo->firstname;
+                                        $so_delivery->lastname = $addrSoColissimo->lastname;
+                                        $so_delivery->company = $addrSoColissimo->company;
+                                        $so_delivery->telephone = $phone;
+                                        $so_delivery->email = $current_customer->email;
+                                        $so_delivery->postcode = $addrSoColissimo->postcode;
+                                        $so_delivery->city = $addrSoColissimo->city;
+                                        $so_delivery->country = $delivery_country->iso_code;
+                                        $so_delivery->address1 = $addrSoColissimo->address1;
+                                        $so_delivery->address2 = $addrSoColissimo->address2;
+                                    
+                                        // determine type
+                                        $soflexibilite_conf_key = array(
+                                            'SOFLEXIBILITE_DOM_ID',
+                                            'SOFLEXIBILITE_DOS_ID',
+                                            'SOFLEXIBILITE_BPR_ID',
+                                            'SOFLEXIBILITE_A2P_ID'
+                                        );
+                                        $conf = Configuration::getMultiple($soflexibilite_conf_key, null, null, null);
+                                        $carrier_obj = new Carrier($cart->id_carrier);
+                                        if (isset($carrier_obj->id_reference)) {
+                                            $id_reference = $carrier_obj->id_reference;
+                                        } else {
+                                            $id_reference = $carrier_obj->id;
+                                        }
+                                        if ($id_reference == $conf['SOFLEXIBILITE_DOM_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOM_ID']
+                                        ) {
+                                            $so_delivery->type = 'DOM';
+                                        }
+                                    
+                                        if ($id_reference == $conf['SOFLEXIBILITE_DOS_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOS_ID']
+                                        ) {
+                                            $so_delivery->type = 'DOS';
+                                        }
+                                    
+                                        if ($id_reference == $conf['SOFLEXIBILITE_BPR_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_BPR_ID']
+                                        ) {
+                                            $so_delivery->type = 'BPR';
+                                        }
+                            
+                                        if ($id_reference == $conf['SOFLEXIBILITE_A2P_ID'] ||
+                                            $carrier_obj->id == $conf['SOFLEXIBILITE_A2P_ID']
+                                        ) {
+                                            $so_delivery->type = 'A2P';
+                                        }
+                                    
+                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
+                    
+                                        $status_soflexibilite = (bool)$so_delivery->saveDelivery();
+                    
+                                        $log = 'SoFlexibilite > saveDelivery = ' . $status_soflexibilite;
+                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
                                     }
     
-                                    if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                                        Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), 'UPDATE', '`id_customer` = '.(int)$id_customer);
-                                    } else {
-                                        Db::getInstance()->update('customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), '`id_customer` = '.(int)$id_customer);
-                                    }
+                                    Db::getInstance()->update('customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), '`id_customer` = '.(int)$id_customer);
                                     
                                     $customerClear = new Customer();
         
@@ -1600,13 +1792,9 @@ class ShoppingFluxExport extends Module
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Notify result of order creation : ' . $orderCreation, $doEchoLog);
         
                                     $reference_order = $payment->currentOrderReference;
-                                    if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                                        Db::getInstance()->autoExecute(_DB_PREFIX_.'customer', array('email' => pSQL($email)), 'UPDATE', '`id_customer` = '.(int)$id_customer);
-                                        Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                                    } else {
-                                        Db::getInstance()->update('customer', array('email' => pSQL($email)), '`id_customer` = '.(int)$id_customer);
-                                        Db::getInstance()->insert('message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')));
-                                    }
+                                    Db::getInstance()->update('customer', array('email' => pSQL($email)), '`id_customer` = '.(int)$id_customer);
+                                    Db::getInstance()->insert('message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')));
+
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Real customer email set again : ' . $email, $doEchoLog);
                                     
                                     $this->_updatePrices($id_order, $order, $reference_order);
@@ -1673,7 +1861,7 @@ class ShoppingFluxExport extends Module
             } else {
                 $ids = explode('_', $product->SKU);
             }
-            if (!$ids[1]) {
+            if (!isset($ids[1]) || !$ids[1]) {
                 $p = new Product($ids[0]);
                 if (empty($p->id)) {
                     return 'Product ID don\'t exist, product_id = '.$ids[0];
@@ -1726,16 +1914,6 @@ class ShoppingFluxExport extends Module
 
         return true;
     }
-    
-    /**
-     * Legacy mode for Prestashop 1.4
-     * On order creation, send XML notification to ShoppingFlux
-     */
-    public function hookNewOrder($params)
-    {
-        $params['object'] = $params['order'];
-        $this->hookActionObjectAddAfter($params);
-    }
 
     public function hookActionObjectAddAfter($params)
     {
@@ -1782,10 +1960,7 @@ class ShoppingFluxExport extends Module
                 (int)Configuration::get('SHOPPING_FLUX_SHIPPED') == $params['newOrderStatus']->id && $order->module == 'sfpayment')) {
             $shipping = $order->getShipping();
             $carrier = new Carrier((int)$order->id_carrier);
-            $url = str_replace('http://http://', 'http://', $carrier->url);
-            $url = str_replace('@', $order->shipping_number, $url);
-
-
+            
             $message = $order->getFirstMessage();
             $id_order_marketplace = explode(':', $message);
             $id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
@@ -1799,6 +1974,8 @@ class ShoppingFluxExport extends Module
             $xml .= '<Status>Shipped</Status>';
 
             if (isset($shipping[0])) {
+                $url = str_replace('http://http://', 'http://', $carrier->url);
+                $url = str_replace('@', $shipping[0]['tracking_number'], $url);
                 $xml .= '<TrackingNumber><![CDATA['.$shipping[0]['tracking_number'].']]></TrackingNumber>';
                 $xml .= '<CarrierName><![CDATA['.$shipping[0]['state_name'].']]></CarrierName>';
                 $xml .= '<TrackingUrl><![CDATA['.$url.']]></TrackingUrl>';
@@ -1811,17 +1988,9 @@ class ShoppingFluxExport extends Module
             $responseXML = $this->_callWebService('UpdateOrders', $xml, (int)$order->id_shop, $this->getOrderToken((int)$params['id_order']));
 
             if (!$responseXML->Response->Error) {
-                if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                } else {
-                    Db::getInstance()->insert('message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')));
-                }
+                Db::getInstance()->insert('message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')));
             } else {
-                if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                } else {
-                    Db::getInstance()->insert('message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')));
-                }
+                Db::getInstance()->insert('message', array('id_order' => pSQL((int)$order->id), 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')));
             }
         } elseif ((Configuration::get('SHOPPING_FLUX_STATUS_CANCELED') != '' &&
                 Configuration::get('SHOPPING_FLUX_CANCELED') == '' &&
@@ -1850,17 +2019,9 @@ class ShoppingFluxExport extends Module
             $responseXML = $this->_callWebService('UpdateOrders', $xml, (int)$order->id_shop);
 
             if (!$responseXML->Response->Error) {
-                if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                } else {
-                    Db::getInstance()->insert('message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')));
-                }
+                Db::getInstance()->insert('message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Orders->Order->StatusUpdated), 'date_add' => date('Y-m-d H:i:s')));
             } else {
-                if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                    Db::getInstance()->autoExecute(_DB_PREFIX_.'message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')), 'INSERT');
-                } else {
-                    Db::getInstance()->insert('message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')));
-                }
+                Db::getInstance()->insert('message', array('id_order' => (int)$order->id, 'message' => 'Statut mis à jour sur '.pSQL((string)$order->payment).' : '.pSQL((string)$responseXML->Response->Error->Message), 'date_add' => date('Y-m-d H:i:s')));
             }
         }
     }
@@ -1871,37 +2032,26 @@ class ShoppingFluxExport extends Module
         $ip = $this->getIp();
         if ((int)Db::getInstance()->getValue('SELECT `id_customer_ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$this->context->cookie->id_customer) > 0) {
             $updateIp = array('ip' => pSQL($ip));
-            if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                Db::getInstance()->autoExecute(_DB_PREFIX_.'customer_ip', $updateIp, 'UPDATE', '`id_customer` = '.(int)$this->context->cookie->id_customer);
-            } else {
-                Db::getInstance()->update('customer_ip', $updateIp, '`id_customer` = '.(int)$this->context->cookie->id_customer);
-            }
+            Db::getInstance()->update('customer_ip', $updateIp, '`id_customer` = '.(int)$this->context->cookie->id_customer);
         } else {
             $insertIp = array('id_customer' => (int)$this->context->cookie->id_customer, 'ip' => pSQL($ip));
-            if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                Db::getInstance()->autoExecute(_DB_PREFIX_.'customer_ip', $insertIp, 'INSERT');
-            } else {
-                Db::getInstance()->insert('customer_ip', $insertIp);
-            }
+            Db::getInstance()->insert('customer_ip', $insertIp);
         }
     }
 
     /* Clean XML strings */
     private function _clean($string)
     {
-        return preg_replace('/[^A-Za-z]/', '', $string);
+        return preg_replace('/[^A-Za-z0-9]/', '', $string);
     }
 
     /* Call Shopping Flux Webservices */
     private function _callWebService($call, $xml = false, $id_shop = null, $forceToken = false)
     {
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, '------- Start Call Webservice function = '.$call.' -------');
-        if (version_compare(_PS_VERSION_, '1.5', '<')) {
-            // Prestashop v1.4
-            $token = Configuration::get('SHOPPING_FLUX_TOKEN');
-        } else {
-            $token = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
-        }
+
+        $token = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+
         if (empty($token) && !$forceToken) {
             SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'ERROR could not call webservice because of empty token (function = ' . $call . ')');
             return false;
@@ -2091,22 +2241,23 @@ class ShoppingFluxExport extends Module
                 $skus = explode('_', $product->SKU);
             }
 
-            $row = Db::getInstance()->getRow('SELECT t.rate, od.id_order_detail  FROM '._DB_PREFIX_.'tax t
+            $sql = 'SELECT t.rate, od.id_order_detail  FROM '._DB_PREFIX_.'tax t
                 LEFT JOIN '._DB_PREFIX_.'order_detail_tax odt ON t.id_tax = odt.id_tax
                 LEFT JOIN '._DB_PREFIX_.'order_detail od ON odt.id_order_detail = od.id_order_detail
-                WHERE od.id_order = '.(int)$id_order.' AND product_id = '.(int)$skus[0].' AND product_attribute_id = '.(int)$skus[1]);
-
-            // Tax 0 for FDG product
-            if (Configuration::get('SHOPPING_FLUX_FDG') == (int)$skus[0]) {
-                $tax_rate = 0;
-            } else {
-                $tax_rate = $row['rate'];
+                WHERE od.id_order = '.(int)$id_order.' AND product_id = '.(int)$skus[0];
+            if (isset($skus[1]) && $skus[1]) {
+                $sql .= ' AND product_attribute_id = '.(int)$skus[1];
             }
+            $row = Db::getInstance()->getRow($sql);
+
+            $tax_rate = $row['rate'];
+            
             $id_order_detail = $row['id_order_detail'];
 
             $total_price_tax_excl = (float)(((float)$product->Price / (1 + ($tax_rate / 100))) * $product->Quantity);
             $total_products_tax_excl += $total_price_tax_excl;
-
+            
+            $original_product_price = Product::getPriceStatic((int)$skus[0], false, (int)$skus[1], 6);
             $updateOrderDetail = array(
                 'product_price'        => (float)((float)$product->Price / (1 + ($tax_rate / 100))),
                 'reduction_percent'    => 0,
@@ -2116,59 +2267,70 @@ class ShoppingFluxExport extends Module
                 'total_price_tax_excl' => $total_price_tax_excl,
                 'unit_price_tax_incl'  => (float)$product->Price,
                 'unit_price_tax_excl'  => (float)((float)$product->Price / (1 + ($tax_rate / 100))),
+                'original_product_price' => $original_product_price,
             );
-            if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail', $updateOrderDetail, 'UPDATE', '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)$skus[0].' AND `product_attribute_id` = '.(int)$skus[1]);
-            } else {
-                Db::getInstance()->update('order_detail', $updateOrderDetail, '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)$skus[0].' AND `product_attribute_id` = '.(int)$skus[1]);
-            }
+            Db::getInstance()->update('order_detail', $updateOrderDetail, '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)$skus[0].' AND `product_attribute_id` = '.(int)$skus[1]);
             
             $updateOrderDetailTax = array(
                 'unit_amount'  => Tools::ps_round((float)((float)$product->Price - ((float)$product->Price / (1 + ($tax_rate / 100)))), 2),
                 'total_amount' => Tools::ps_round((float)(((float)$product->Price - ((float)$product->Price / (1 + ($tax_rate / 100)))) * $product->Quantity), 2),
             );
-            if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail_tax', $updateOrderDetailTax, 'UPDATE', '`id_order_detail` = '.(int)$id_order_detail);
-            } else {
-                Db::getInstance()->update('order_detail_tax', $updateOrderDetailTax, '`id_order_detail` = '.(int)$id_order_detail);
-            }
+            Db::getInstance()->update('order_detail_tax', $updateOrderDetailTax, '`id_order_detail` = '.(int)$id_order_detail);
         }
-
-        if ((float)$order->TotalFees > 0 && Configuration::get('SHOPPING_FLUX_FDG') != '') {
-            $row = Db::getInstance()->getRow('SELECT t.rate, od.id_order_detail  FROM '._DB_PREFIX_.'tax t
-                LEFT JOIN '._DB_PREFIX_.'order_detail_tax odt ON t.id_tax = odt.id_tax
-                LEFT JOIN '._DB_PREFIX_.'order_detail od ON odt.id_order_detail = od.id_order_detail
-                WHERE od.id_order = '.(int)$id_order.' AND product_id = '.(int)Configuration::get('SHOPPING_FLUX_FDG').' AND product_attribute_id = 0');
-
-            $tax_rate = $row['rate'];
-            $id_order_detail = $row['id_order_detail'];
-
-            $updateOrderDetail = array(
-                'product_price'        => (float)($order->TotalFees),
-                'reduction_percent'    => 0,
-                'reduction_amount'     => 0,
-                'total_price_tax_incl' => (float)($order->TotalFees),
-                'total_price_tax_excl' => (float)($order->TotalFees),
-                'unit_price_tax_incl'  => (float)($order->TotalFees),
-                'unit_price_tax_excl'  => (float)($order->TotalFees),
+        
+        // Cdiscount fees handling
+        if ((float) $order->TotalFees > 0) {
+            $orderLoaded = new Order((int)$id_order);
+            $fdgInsertFields = array(
+                'id_order' => (int) $id_order,
+                'id_order_invoice' => 0,
+                'id_warehouse' => 0,
+                'id_shop' => (int) $orderLoaded->id_shop,
+                'product_id' => 0,
+                'product_attribute_id' => 0,
+                'product_name' => 'CDiscount fees - ShoppingFlux',
+                'product_quantity' => 1,
+                'product_quantity_in_stock' => 1,
+                'product_quantity_refunded' => 0,
+                'product_quantity_return' => 0,
+                'product_quantity_reinjected' => 0,
+                'product_price' => (float) $order->TotalFees,
+                'reduction_percent' => 0,
+                'reduction_amount' => 0,
+                'reduction_amount_tax_incl' => 0,
+                'reduction_amount_tax_excl' => 0,
+                'group_reduction' => 0,
+                'product_quantity_discount' => 0,
+                'product_ean13' => null,
+                'product_upc' => null,
+                'product_reference' => 'FDG-ShoppingFlux',
+                'product_supplier_reference' => null,
+                'product_weight' => 0,
+                'tax_computation_method' => 0,
+                'tax_name' => 0,
+                'tax_rate' => 0,
+                'ecotax' => 0,
+                'ecotax_tax_rate' => 0,
+                'discount_quantity_applied' => 0,
+                'download_hash' => null,
+                'download_nb' => 0,
+                'download_deadline' => null,
+                'total_price_tax_incl' => (float) $order->TotalFees,
+                'total_price_tax_excl' => (float) $order->TotalFees,
+                'unit_price_tax_incl' => (float) $order->TotalFees,
+                'unit_price_tax_excl' => (float) $order->TotalFees,
+                'total_shipping_price_tax_incl' => 0,
+                'total_shipping_price_tax_excl' => 0,
+                'purchase_supplier_price' => 0,
+                'original_product_price' => 0,
+                'original_wholesale_price' => 0,
             );
-            if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail', $updateOrderDetail, 'UPDATE', '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)Configuration::get('SHOPPING_FLUX_FDG').' AND `product_attribute_id` = 0');
-            } else {
-                Db::getInstance()->update('order_detail', $updateOrderDetail, '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)Configuration::get('SHOPPING_FLUX_FDG').' AND `product_attribute_id` = 0');
-            }
-            
-            $updateOrderDetailTax = array(
-                'unit_amount' => 0,
-                'total_amount' => 0,
-            );
-            if (version_compare(_PS_VERSION_, '1.5', '<')) {
-                Db::getInstance()->autoExecute(_DB_PREFIX_.'order_detail_tax', $updateOrderDetailTax, 'UPDATE', '`id_order_detail` = '.(int)$id_order_detail);
-            } else {
-                Db::getInstance()->update('order_detail_tax', $updateOrderDetailTax, '`id_order_detail` = '.(int)$id_order_detail);
-            }
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Inserting Cdiscount fees, total fees = ' . $order->TotalFees, $doEchoLog);
+
+
+            Db::getInstance()->insert('order_detail', $fdgInsertFields);
         }
-
+        
         $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
 
         $carrier_to_load = isset($actual_configuration[base64_encode(Tools::safeOutput((string)$order->ShippingMethod))]) ?
@@ -2180,7 +2342,7 @@ class ShoppingFluxExport extends Module
         //manage case PS_CARRIER_DEFAULT is deleted
         $carrier = is_object($carrier) ? $carrier : new Carrier($carrier_to_load);
 
-        $total_products_tax_excl = Tools::ps_round($total_products_tax_excl, 2);
+        $total_products_tax_excl = Tools::ps_round($total_products_tax_excl + $order->TotalFees / (1 + ($tax_rate / 100)), 2);
 
         // Carrier tax calculation START
         $ps_order = new Order($id_order);
@@ -2199,26 +2361,28 @@ class ShoppingFluxExport extends Module
             $updateOrder = array(
                 'total_paid'              => (float)($order->TotalAmount),
                 'total_paid_tax_incl'     => (float)($order->TotalAmount),
-                'total_paid_tax_excl'     => $total_paid_tax_excl,
+                'total_paid_tax_excl'     => (float)$total_paid_tax_excl,
                 'total_paid_real'         => (float)($order->TotalAmount),
-                'total_products'          => $total_products_tax_excl,
+                'total_products'          => (float)$total_products_tax_excl,
                 'total_products_wt'       => (float)((float)$order->TotalProducts + (float)$order->TotalFees),
                 'total_shipping'          => (float)($order->TotalShipping),
                 'total_shipping_tax_incl' => (float)($order->TotalShipping),
                 'total_shipping_tax_excl' => $total_shipping_tax_excl,
+                'carrier_tax_rate'        => $carrier_tax_rate,
                 'id_carrier'              => $carrier->id
             );
         } else {
             $updateOrder = array(
                 'total_paid'              => (float)($order->TotalAmount),
                 'total_paid_tax_incl'     => (float)($order->TotalAmount),
-                'total_paid_tax_excl'     => $total_paid_tax_excl,
+                'total_paid_tax_excl'     => (float)$total_paid_tax_excl,
                 'total_paid_real'         => (float)($order->TotalAmount),
-                'total_products'          => $total_products_tax_excl,
+                'total_products'          => (float)$total_products_tax_excl,
                 'total_products_wt'       => (float)($order->TotalProducts),
                 'total_shipping'          => (float)($order->TotalShipping),
                 'total_shipping_tax_incl' => (float)($order->TotalShipping),
                 'total_shipping_tax_excl' => $total_shipping_tax_excl,
+                'carrier_tax_rate'        => $carrier_tax_rate,
                 'id_carrier'              => $carrier->id
             );
         }
@@ -2226,8 +2390,8 @@ class ShoppingFluxExport extends Module
         if ((float)$order->TotalFees > 0) {
             $updateOrderInvoice = array(
                 'total_paid_tax_incl'     => (float)($order->TotalAmount),
-                'total_paid_tax_excl'     => $total_paid_tax_excl,
-                'total_products'          => $total_products_tax_excl,
+                'total_paid_tax_excl'     => (float)$total_paid_tax_excl,
+                'total_products'          => (float)$total_products_tax_excl,
                 'total_products_wt'       => (float)((float)$order->TotalProducts + (float)$order->TotalFees),
                 'total_shipping_tax_incl' => (float)($order->TotalShipping),
                 'total_shipping_tax_excl' => $total_shipping_tax_excl,
@@ -2235,8 +2399,8 @@ class ShoppingFluxExport extends Module
         } else {
             $updateOrderInvoice = array(
                 'total_paid_tax_incl'     => (float)($order->TotalAmount),
-                'total_paid_tax_excl'     => $total_paid_tax_excl,
-                'total_products'          => $total_products_tax_excl,
+                'total_paid_tax_excl'     => (float)$total_paid_tax_excl,
+                'total_products'          => (float)$total_products_tax_excl,
                 'total_products_wt'       => (float)($order->TotalProducts),
                 'total_shipping_tax_incl' => (float)($order->TotalShipping),
                 'total_shipping_tax_excl' => $total_shipping_tax_excl,
@@ -2251,20 +2415,13 @@ class ShoppingFluxExport extends Module
         
         $updatePayment = array('amount' => (float)$order->TotalAmount);
         
-        if (version_compare(_PS_VERSION_, '1.5', '<')) {
-            Db::getInstance()->autoExecute(_DB_PREFIX_.'orders', $updateOrder, 'UPDATE', '`id_order` = '.(int)$id_order);
-            Db::getInstance()->autoExecute(_DB_PREFIX_.'order_invoice', $updateOrderInvoice, 'UPDATE', '`id_order` = '.(int)$id_order);
-            Db::getInstance()->autoExecute(_DB_PREFIX_.'order_carrier', $updateOrderTracking, 'UPDATE', '`id_order` = '.(int)$id_order);
-            Db::getInstance()->autoExecute(_DB_PREFIX_.'order_payment', $updatePayment, 'UPDATE', '`order_reference` = "'.$reference_order.'"');
-        } else {
-            Db::getInstance()->update('orders', $updateOrder, '`id_order` = '.(int)$id_order);
-            Db::getInstance()->update('order_invoice', $updateOrderInvoice, '`id_order` = '.(int)$id_order);
-            Db::getInstance()->update('order_carrier', $updateOrderTracking, '`id_order` = '.(int)$id_order);
-            Db::getInstance()->update('order_payment', $updatePayment, '`order_reference` = "'.$reference_order.'"');
-        }
+        Db::getInstance()->update('orders', $updateOrder, '`id_order` = '.(int)$id_order);
+        Db::getInstance()->update('order_invoice', $updateOrderInvoice, '`id_order` = '.(int)$id_order);
+        Db::getInstance()->update('order_carrier', $updateOrderTracking, '`id_order` = '.(int)$id_order);
+        Db::getInstance()->update('order_payment', $updatePayment, '`order_reference` = "'.$reference_order.'"');
     }
 
-    private function _validateOrder($cart, $marketplace)
+    private function _validateOrder($cart, $marketplace, $doEchoLog)
     {
         $payment = new sfpayment();
         $payment->name = 'sfpayment';
@@ -2276,10 +2433,18 @@ class ShoppingFluxExport extends Module
         $cart->getDeliveryOption(null, false, false);
         
         Context::getContext()->currency = new Currency((int)$cart->id_currency);
+        
+        if (! Context::getContext()->country->active) {
+            $this->logDebugOrders('Current context country (' . Context::getContext()->country->id . ') not active');
+            $addressDelivery = new Address($cart->id_address_delivery);
+            if (Validate::isLoadedObject($addressDelivery)) {
+                $this->logDebugOrders('Setting context country to ' . $addressDelivery->id_country);
+                Context::getContext()->country = new Country($addressDelivery->id_country);
+            }
+        }
         $amount_paid = (float)Tools::ps_round((float)$cart->getOrderTotal(true, Cart::BOTH), 2);
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'calling validateOrder, amount = '.$amount_paid.', currency = '.$cart->id_currency.', marketplace = '.Tools::strtolower($marketplace), $doEchoLog);
         $payment->validateOrder((int)$cart->id, 2, $amount_paid, Tools::strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key);
-        return $payment;
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'finished call to validateOrder, order_id = '.$payment->currentOrder, $doEchoLog);
         return $payment;
     }
@@ -2326,24 +2491,13 @@ class ShoppingFluxExport extends Module
             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Loading products by ID', $doEchoLog);
         }
         
-        $id_warehouse = '';
         foreach ($productsNode->Product as $product) {
             if ($useReference) {
                 $skus = $this->getIDs($product->SKU);
             } else {
                 $skus = explode('_', $product->SKU);
             }
-            
-            // Check if advanced stock management active and get the warehouse of any other product
-            if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1
-                && $skus[0] != Configuration::get('SHOPPING_FLUX_FDG')) {
-                $warehouseInfos = Warehouse::getWarehousesByProductId($skus[0], (isset($skus[1]) ? $skus[1] : 0));
-                
-                if (count($warehouseInfos) > 0) {
-                    $id_warehouse = $warehouseInfos[0]['id_warehouse'];
-                }
-            }
-
+        
             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Loading product SKU '.(int)($skus[0]).' and adding it to cart');
             $p = new Product((int)($skus[0]), false, Configuration::get('PS_LANG_DEFAULT'), Context::getContext()->shop->id);
 
@@ -2361,19 +2515,6 @@ class ShoppingFluxExport extends Module
             SfLogger::getInstance()->log(SF_LOG_ORDERS, '    Product successfully added to cart');
         }
 
-        if (isset($fees) && $fees > 0 && Configuration::get('SHOPPING_FLUX_FDG') != '') {
-            // Check if advanced stock management active
-            if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1 && $id_warehouse) {
-                // Assign a warehouse to FDG product to avoid double order creation
-                Warehouse::setProductLocation((int) Configuration::get('SHOPPING_FLUX_FDG'), 0, $id_warehouse, '');
-            }
-            
-            if (!$cart->updateQty(1, Configuration::get('SHOPPING_FLUX_FDG'), null)) {
-                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Could not add FDG product to cart', $doEchoLog);
-                return false;
-            }
-        }
-
         $cart->update();
         return $cart;
     }
@@ -2389,7 +2530,7 @@ class ShoppingFluxExport extends Module
                 $skus = explode('_', $product->SKU);
             }
 
-            if ($skus[1] !== false) {
+            if (isset($skus[1]) && $skus[1] !== false) {
                 $quantity = StockAvailable::getQuantityAvailableByProduct((int)$skus[0], (int)$skus[1]);
 
                 if ($quantity - $product->Quantity < 0) {
@@ -2565,103 +2706,6 @@ class ShoppingFluxExport extends Module
         return $html;
     }
     
-    
-    /**
-     * Function to create new CDiscount fees product
-     *
-     * @param $configuration
-     */
-    private function getFDGContent($configuration)
-    {
-        $html = '';
-        $html .= '<p style="clear: both"><label>'.$this->l('FDG');
-        $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">'.$this->getOrCreateFdgProduct().'</span></p>';
-        $html .= '<p style="clear: both"></p>';
-        return $html;
-    }
-    
-    /**
-     * Returns the FDG product, if not existing we create it
-     */
-    private function getOrCreateFdgProduct()
-    {
-        $fdg = Configuration::get('SHOPPING_FLUX_FDG');
-        $languages = Language::getLanguages(false);
-        
-        if (empty($fdg)) {
-            // Create new FDG Product, not visible in front office
-            $product = new Product();
-            foreach ($languages as $language) {
-                $product->name[$language['id_lang']] = 'CDiscount fees - ShoppingFlux';
-                $product->link_rewrite[$language['id_lang']] = 'cdiscount-fdg-shoppingflux';
-            }
-            if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1) {
-                $product->advanced_stock_management = 1;
-            }
-            $product->id_category_default = Configuration::get('PS_HOME_CATEGORY');
-            $product->active = 1;
-            $product->visibility = 'none';
-            $product->price = 0;
-            $product->out_of_stock = 1;
-            $product->reference = 'FDG-ShoppingFlux';
-            $product->add();
-            if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1) {
-                StockAvailable::setProductDependsOnStock($product->id, true, (int)$this->context->shop->id, 0);
-            }
-            
-            // Retrieve FDG product id after save
-            Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
-            
-            StockAvailable::setProductOutOfStock($product->id, 1);
-        } else {
-            $product = new Product($fdg);
-    
-            if (Validate::isLoadedObject($product)) {
-                // Poruct exists, we check if it can be ordered when out of stock
-                if ($product->out_of_stock == 0 || $product->out_of_stock == 2) {
-                    $product->out_of_stock = 1;
-                    $product->price = 0;
-                    $product->reference = 'FDG-ShoppingFlux';
-                    $product->update();
-    
-                    StockAvailable::setProductOutOfStock($product->id, 1);
-                }
-                if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1 && $product->advanced_stock_management != 1) {
-                    $product->advanced_stock_management = 1;
-                    StockAvailable::setProductDependsOnStock($product->id, true, (int)$this->context->shop->id, 0);
-                    $product->update();
-                }
-            } else {
-                // Create new FDG Product, not visible in front office since it does not exist
-                $product = new Product();
-                foreach ($languages as $language) {
-                    $product->name[$language['id_lang']] = 'CDiscount fees - ShoppingFlux';
-                    $product->link_rewrite[$language['id_lang']] = 'cdiscount-fdg-shoppingflux';
-                }
-                if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1) {
-                    $product->advanced_stock_management = 1;
-                }
-                $product->id_category_default = Configuration::get('PS_HOME_CATEGORY');
-                $product->active = 1;
-                $product->visibility = 'none';
-                $product->price = 0;
-                $product->out_of_stock = 1;
-                $product->reference = 'FDG-ShoppingFlux';
-                $product->add();
-                if (Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1) {
-                    StockAvailable::setProductDependsOnStock($product->id, true, (int)$this->context->shop->id, 0);
-                }
-                
-                StockAvailable::setProductOutOfStock($product->id, 1);
-                
-                // Retrieve FDG product id after save
-                Configuration::updateValue('SHOPPING_FLUX_FDG', $product->id);
-            }
-        }
-    
-        return Configuration::get('SHOPPING_FLUX_FDG');
-    }
-    
     /**
      * Function to display cron information
      * @param $configuration
@@ -2702,7 +2746,6 @@ class ShoppingFluxExport extends Module
         $html = '<form method="post" action="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'">';
         $html .= '<fieldset>';
         $html .= '<legend>'.$this->l('Advanced settings').'</legend>';
-        $html .= $this->getFDGContent($configuration);
         $html .= $this->getCronDetails($configuration);
         $html .= '<p style="margin-top:20px"><input type="submit" value="'.$this->l('Update');
         $html .= '" name="rec_config_adv" class="button"/></p>';
@@ -2779,7 +2822,7 @@ class ShoppingFluxExport extends Module
                 foreach ($shopCurrencies as $currentCurrency) {
                     $idCurrency = $currentCurrency['id_currency'];
                     $nameCurrency = $currentCurrency['name'];
-                    $token = $this->getTokenValue($currentShop['id_shop'], $idCurrency, $idLang);
+                    $token = $this->getTokenValue($currentShop['id_shop'], $currentShop['id_shop_group'], $idCurrency, $idLang);
                     $values[] = array(
                         'name' => $nameLang.' / '.$nameCurrency,
                         'id' => $idLang.'_'.$idCurrency,
@@ -2790,6 +2833,7 @@ class ShoppingFluxExport extends Module
     
             $tokenTree[] = array(
                 'id_shop' => $currentShop['id_shop'],
+                'id_shop_group' => $currentShop['id_shop_group'],
                 'name' => $currentShop['name'],
                 'token' => $this->getTokenValue($currentShop['id_shop']),
                 'values' => $values
@@ -2803,7 +2847,7 @@ class ShoppingFluxExport extends Module
     
         $html = '<fieldset>';
         $html .= '<legend>'.$this->l('Shop\'s tokens').'</legend>';
-        $sfMultitokenActivation = (int)Configuration::get('SHOPPING_FLUX_MULTITOKEN_ACTIVATION');
+        $sfMultitokenActivation = (int)Configuration::get('SHOPPING_FLUX_MULTITOKEN');
         $this->context->smarty->assign(array(
             'sfMultitokenActivation' => $sfMultitokenActivation,
         ));
@@ -2818,14 +2862,14 @@ class ShoppingFluxExport extends Module
      * @param int $id_currency (optionnal) the currency
      * @param int $id_lang (optionnal) the lang
      */
-    public function getTokenValue($id_shop, $id_currency = false, $id_lang = false)
+    public function getTokenValue($id_shop, $id_shop_group = null, $id_currency = false, $id_lang = false)
     {
         $key = 'SHOPPING_FLUX_TOKEN';
-        if ($id_currency && $id_lang && !(int) Configuration::get('SHOPPING_FLUX_MULTITOKEN_ACTIVATION')) {
+        if ($id_currency && $id_lang) {
             $key .= '_'.$id_currency.'_'.$id_lang;
         }
         if ($id_shop) {
-            return Configuration::get($key, null, null, $id_shop);
+             return Configuration::get($key, null, $id_shop_group, $id_shop);
         } else {
             return Configuration::get($key);
         }
@@ -2838,11 +2882,13 @@ class ShoppingFluxExport extends Module
     public function getAllTokensOfShop()
     {
         $id_shop = $this->context->shop->id;
+        $id_shop_group = (int) $this->context->shop->id_shop_group;
         $res = array();
         $tokenGeneral = $this->getTokenValue($id_shop);
         if ($tokenGeneral) {
             $res[] = array(
                 'id_shop' => $id_shop,
+                'id_shop_group' => null,
                 'token' => $tokenGeneral,
                 'id_lang' => Configuration::get('PS_LANG_DEFAULT'),
                 'id_currency' => false
@@ -2857,10 +2903,11 @@ class ShoppingFluxExport extends Module
             // Finally loop on currencies
             foreach ($shopCurrencies as $currentCurrency) {
                 $idCurrency = $currentCurrency['id_currency'];
-                $token = $this->getTokenValue($id_shop, $idCurrency, $idLang);
+                $token = $this->getTokenValue($id_shop, $id_shop_group, $idCurrency, $idLang);
                 if ($token) {
                     $res[] = array(
                         'id_shop' => $id_shop,
+                        'id_shop_group' => $id_shop_group,
                         'token' => $token,
                         'id_lang' => $idLang,
                         'id_currency' => $idCurrency
@@ -2888,7 +2935,7 @@ class ShoppingFluxExport extends Module
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
             return Configuration::updateValue($key, $value, false, null, $id_shop);
         } else {
-            return Configuration::updateValue($key);
+            return Configuration::updateValue($key, $value);
         }
     }
         
@@ -3036,16 +3083,18 @@ class ShoppingFluxExport extends Module
         
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
             $id_shop = $order->id_shop;
+            $id_shop_group = (int)$this->context->shop->id_shop_group;
         } else {
             $id_shop = false;
+            $id_shop_group = null;
         }
         
-        $tokenValue = $this->getTokenValue($id_shop, $order->id_currency, $order->id_lang);
+        $tokenValue = $this->getTokenValue($id_shop, $id_shop_group, $order->id_currency, $order->id_lang);
         // Token is in id_shop of the order
         if ($tokenValue != '') {
             return $tokenValue;
         } else {
-            return $this->getTokenValue($id_shop);
+            return $this->getTokenValue($id_shop, $id_shop_group);
         }
     }
     

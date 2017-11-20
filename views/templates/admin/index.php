@@ -24,5 +24,5 @@
 * International Registered Trademark & Property of PrestaShop SA
 */
 
-header("Location: ../");
-exit;
+ header("Location: ../");
+ exit;

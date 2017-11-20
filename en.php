@@ -2,7 +2,7 @@
 
 global $_MODULE;
 $_MODULE = array();
-$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d29557ce7f62dd1717e2d1515ee11852'] = 'Shopping Feed Official';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d29557ce7f62dd1717e2d1515ee11852'] = 'Advanced Shopping Feed';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_415cdb58377cccc4e1e579148a43863f'] = 'Export all your products to Google Shopping, eBay, Amazon, Rakuten, etc...';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_a0dd68d9b78a8b572ab6ec63206eb3ab'] = 'Delete this plugin ?';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_3d9c89af159c37923696aa905fa32255'] = 'You are now registered for your free trial. Our team will contact you soon.';

@@ -69,9 +69,11 @@ class SfLogger
         // Compute the output file and if we will do a log
         $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/';
         $doLog = false;
+        $outputMode = 'a';
         switch ($level) {
             case SF_LOG_CRON:
                 $outputFile .= 'cronexport_' . Configuration::get('SHOPPING_FLUX_TOKEN') . '.txt';
+                $outputMode = 'w';
                 if (self::$debug) {
                     $doLog = true;
                 }
@@ -97,7 +99,7 @@ class SfLogger
         
         // Rotate logs and write to file
         $this->rotateLogFile($outputFile);
-        $fp = fopen($outputFile, 'a');
+        $fp = fopen($outputFile, $outputMode);
         fwrite($fp, $logLine);
         fclose($fp);
     }
@@ -109,6 +111,9 @@ class SfLogger
     {
         if (self::$logRotateHours) {
             // file age
+            if (! file_exists($fileName)) {
+                return;
+            }
             $now = time();
             $dateGeneration = filemtime($fileName);
             $age = ($now - $dateGeneration);

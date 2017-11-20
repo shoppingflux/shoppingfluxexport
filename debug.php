@@ -48,6 +48,16 @@ function getDebugForm($sf)
     return $output;
 }
 
+function getRecablage($sf)
+{
+    $output = '<fieldset id="recablage">';
+    $output .= '<legend>' . $sf->l('Recablage du montant du bloc paiement dans les commandes') . '</legend>';
+    $output .= '<p>Si le montant dans le bloc paiement ne correspond pas au montant total de la commande, ajoutez la ligne suivante au début de la fonction <b>hookbackOfficeTop</b> : </p>';
+    $output .= '<p>SfDebugger::recablageOrderPayment();</p>';
+    $output .= '</fieldset>';
+    return $output;
+}
+
 function getConfigForm($sf)
 {
     if (Configuration::get('SHOPPING_FLUX_FDG')) {
@@ -72,7 +82,7 @@ function getConfigForm($sf)
             }
         }
     }
-    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['SERVER_NAME'] . $_SERVER['HOSTNAME'];
+    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['HTTP_HOST'];
     
     $idOrder = Tools::getValue('IdOrder');
     $output = '<fieldset id="debug_content">';
@@ -109,10 +119,10 @@ function getConfigForm($sf)
     $output .= '<pre>' . print_r($sf->getAllTokensOfShop(), true) . '</pre>';
     $output .= '<p style="clear: both"></p>';
     
-    $output .= '<label>URL test homepage</label>' . $urlBase . 'modules/shoppingfluxexport/debug.php?test_homepage=1';
+    $output .= '<label>URL test homepage</label>' . $urlBase . '/modules/shoppingfluxexport/debug.php?test_homepage=1';
     $output .= '<p style="clear: both"></p>';
     
-    $output .= '<label>URL test CURL</label>' . $urlBase . 'modules/shoppingfluxexport/debug.php?test_curl=1';
+    $output .= '<label>URL test CURL</label>' . $urlBase . '/modules/shoppingfluxexport/debug.php?test_curl=1';
     $output .= '<p style="clear: both"></p>';
     
     $output .= '</fieldset>';
@@ -139,9 +149,10 @@ function getReplayOrdersForm($sf)
     foreach ($lastOrders as $currentOrder) {
         $orderXml = @simplexml_load_string($currentOrder);
         $idOrderPs = $sf->getPrestashopOrderIdFromSfOrderId((string) $orderXml->IdOrder, (string) $orderXml->Marketplace);
+        $exploded = explode('+', (string) $orderXml->OrderDate);
         $output .= '<tr>
                             <td style="padding: 10px; text-align:center;">' . (string) $orderXml->IdOrder . '</td>
-                            <td style="padding: 10px; text-align:center;">' . str_replace('T', ' ', explode('+', (string) $orderXml->OrderDate)[0]) . '</td>
+                            <td style="padding: 10px; text-align:center;">' . str_replace('T', ' ', $exploded[0]) . '</td>
                             <td style="padding: 10px; text-align:center;">' . (string) $orderXml->Marketplace . '</td>
                             <td style="padding: 10px; text-align:center;">' . (float) ($orderXml->TotalAmount) . ' ' . (string) $orderXml->Currency . '</td>
                             <td style="padding: 10px; text-align:center;"><a href="' . $link->getAdminLink("AdminOrders") . '&id_order=' . $idOrderPs . '&vieworder" target="_blank">' . $idOrderPs . '</a></td>
@@ -285,15 +296,17 @@ pre {
     <?php
     echo getDebugForm($sf);
     echo getConfigForm($sf);
+    echo getRecablage($sf);
     echo getReplayOrdersForm($sf);
-    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['SERVER_NAME'] . $_SERVER['HOSTNAME'];
+    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['HTTP_HOST'];
+    
     if (isset($_GET['test_homepage']) && $_GET['test_homepage'] != '') {
         $curl_response = curl_file_get_contents($urlBase);
         ?>
         <fieldset id="debug_content">
-        <legend>Open page via curl for <?php echo $urlBase; ?>, result :</legend>
-        <?php echo $curl_response; ?>
-    </fieldset>
+            <legend>Open page via curl for <?php echo $urlBase; ?>, result :</legend>
+            <?php echo $curl_response; ?>
+        </fieldset>
     <?php
     }
     if (isset($_GET['test_curl']) && $_GET['test_curl'] != '') {
@@ -307,7 +320,7 @@ pre {
             fwrite($fp, '');
             fclose($fp);
             $index = 1;
-            $nextUrl = $urlBase . 'modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
+            $nextUrl = $urlBase . '/modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
             logDebug('Going to call : ' . $nextUrl);
             $curl_response = curl_file_get_contents($nextUrl);
         } else {
@@ -319,7 +332,7 @@ pre {
                 die();
             } else {
                 // Call next URL
-                $nextUrl = $urlBase . 'modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
+                $nextUrl = $urlBase . '/modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
                 logDebug('Call received, index = ' . $_GET['index']);
                 logDebug('Going to call : ' . $nextUrl);
                 $curl_response = curl_file_get_contents($nextUrl);

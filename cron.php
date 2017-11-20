@@ -33,9 +33,23 @@ ini_set("memory_limit", "2048M");
 ini_set('display_errors', 'off');
 
 $id_shop = Context::getContext()->shop->id;
-$f = new ShoppingFluxExport();
+$sf = new ShoppingFluxExport();
 
-if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) {
+$token = Tools::getValue('token');
+if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
+    $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+
+    $allTokens_raw = $sf->getAllTokensOfShop();
+    $allTokens = array();
+    foreach ($allTokens_raw as $allTokens_subraw) {
+        $allTokens[$allTokens_subraw['token']] = $allTokens_subraw['token'];
+    }
+} else {
+    $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+    $allTokens[$tokenInConfig] = $tokenInConfig;
+}
+
+if ($token == '' || ($token != $tokenInConfig && ! in_array($token, $allTokens))) {
     die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
 }
 
@@ -56,7 +70,7 @@ $hours = ($timestamp_today - $timestamp_last_exec) / (60 * 60);
 if (empty($current)) {
     if ($hours >= $frequency_in_hours) {
         SfLogger::getInstance()->log(SF_LOG_CRON, 'CRON CALL - begining of treament');
-        $f->initFeed();
+        $sf->initFeed();
     } else {
         $logMessage = 'CRON CALL - Not initiated SHOULD NOT HAVE BEEN CALLED. ';
         $logMessage .= 'Cron call has already been called at ' . $last_executed;
@@ -67,5 +81,5 @@ if (empty($current)) {
         SfLogger::getInstance()->log(SF_LOG_CRON, $logMessage);
     }
 } else {
-    $f->writeFeed(Tools::getValue('total'), Tools::getValue('current'), Tools::getValue('lang'));
+    $sf->writeFeed(Tools::getValue('total'), Tools::getValue('current'), Tools::getValue('lang'));
 }

@@ -2,7 +2,7 @@
 
 global $_MODULE;
 $_MODULE = array();
-$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d29557ce7f62dd1717e2d1515ee11852'] = 'Shopping Flux Officiel';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d29557ce7f62dd1717e2d1515ee11852'] = 'Advanced Shopping Flux';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_9f61ff0493120d928b4149a2947f0872'] = 'Exportez vos produits sur Google Shopping, eBay, Amazon, CDiscount...';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_9d9ce5ee47d93c3e7cbfa24f65021688'] = 'Supprimer ce module?';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_3ded6c07524e0ef7f619ce547daca4b5'] = 'Votre enregistrement est effectif, vous serez contacté sous peu.';
