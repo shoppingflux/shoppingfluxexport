@@ -78,7 +78,7 @@ class ShoppingFluxExport extends Module
     /* REGISTER HOOKS */
     private function _initHooks()
     {
-		$registerHookNewOrder = $this->registerHook('actionObjectAddAfter');
+        $registerHookNewOrder = $this->registerHook('actionObjectAddAfter');
         
         if (!$this->registerHook('postUpdateOrderStatus') ||
             !$this->registerHook('backOfficeTop') ||
@@ -739,20 +739,20 @@ class ShoppingFluxExport extends Module
     {
         $token = Tools::getValue('token');
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
-			$id_shop = $this->context->shop->id;
-			$tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
-			
-			$allTokens_raw = $this->getAllTokensOfShop();
-			$allTokens = array();
-			foreach ($allTokens_raw as $allTokens_subraw) {
-				$allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
-			}
-		} else {
-			$tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
-			$allTokens[$tokenInConfig]=$tokenInConfig;
-		}
+            $id_shop = $this->context->shop->id;
+            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+            
+            $allTokens_raw = $this->getAllTokensOfShop();
+            $allTokens = array();
+            foreach ($allTokens_raw as $allTokens_subraw) {
+                $allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
+            }
+        } else {
+            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+            $allTokens[$tokenInConfig]=$tokenInConfig;
+        }
 
-        if ($token == '' ||( $token != $tokenInConfig && !in_array($token, $allTokens) ) ) {
+        if ($token == '' ||( $token != $tokenInConfig && !in_array($token, $allTokens) )) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
         
@@ -890,18 +890,18 @@ class ShoppingFluxExport extends Module
     {
         $token = Tools::getValue('token');
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
-			$id_shop = $this->context->shop->id;
-			$tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
-			
-			$allTokens_raw = $this->getAllTokensOfShop();
-			$allTokens = array();
-			foreach ($allTokens_raw as $allTokens_subraw) {
-				$allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
-			}
-		} else {
-			$tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
-			$allTokens[$tokenInConfig]=$tokenInConfig;
-		}
+            $id_shop = $this->context->shop->id;
+            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+            
+            $allTokens_raw = $this->getAllTokensOfShop();
+            $allTokens = array();
+            foreach ($allTokens_raw as $allTokens_subraw) {
+                $allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
+            }
+        } else {
+            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+            $allTokens[$tokenInConfig]=$tokenInConfig;
+        }
 
         if ($token == '' || ($token != $tokenInConfig && !in_array($token, $allTokens))) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
@@ -1232,7 +1232,7 @@ class ShoppingFluxExport extends Module
             foreach ($images as $image) {
                 $ids = $product->id.'-'.$image['id_image'];
                 $img_url = $link->getImageLink($product->link_rewrite, $ids, $configuration['SHOPPING_FLUX_IMAGE']);
-                if (!substr_count($img_url, Tools::getCurrentUrlProtocolPrefix())) { 
+                if (!substr_count($img_url, Tools::getCurrentUrlProtocolPrefix())) {
                     // make sure url has http or https
                     $img_url = Tools::getCurrentUrlProtocolPrefix() . $img_url;
                 }
@@ -1793,7 +1793,7 @@ class ShoppingFluxExport extends Module
         
                                     $reference_order = $payment->currentOrderReference;
                                     Db::getInstance()->update('customer', array('email' => pSQL($email)), '`id_customer` = '.(int)$id_customer);
-									Db::getInstance()->insert('message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')));
+                                    Db::getInstance()->insert('message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')));
 
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Real customer email set again : ' . $email, $doEchoLog);
                                     
@@ -1974,8 +1974,8 @@ class ShoppingFluxExport extends Module
             $xml .= '<Status>Shipped</Status>';
 
             if (isset($shipping[0])) {
-            	$url = str_replace('http://http://', 'http://', $carrier->url);
-            	$url = str_replace('@', $shipping[0]['tracking_number'], $url);
+                $url = str_replace('http://http://', 'http://', $carrier->url);
+                $url = str_replace('@', $shipping[0]['tracking_number'], $url);
                 $xml .= '<TrackingNumber><![CDATA['.$shipping[0]['tracking_number'].']]></TrackingNumber>';
                 $xml .= '<CarrierName><![CDATA['.$shipping[0]['state_name'].']]></CarrierName>';
                 $xml .= '<TrackingUrl><![CDATA['.$url.']]></TrackingUrl>';
@@ -2050,9 +2050,9 @@ class ShoppingFluxExport extends Module
     {
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, '------- Start Call Webservice function = '.$call.' -------');
 
-		$token = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+        $token = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
 
-		if (empty($token) && !$forceToken) {
+        if (empty($token) && !$forceToken) {
             SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'ERROR could not call webservice because of empty token (function = ' . $call . ')');
             return false;
         }
@@ -2279,7 +2279,7 @@ class ShoppingFluxExport extends Module
         }
         
         // Cdiscount fees handling
-        if ((float) $order->TotalFees > 0 ) {
+        if ((float) $order->TotalFees > 0) {
             $orderLoaded = new Order((int)$id_order);
             $fdgInsertFields = array(
                 'id_order' => (int) $id_order,
@@ -2416,9 +2416,9 @@ class ShoppingFluxExport extends Module
         $updatePayment = array('amount' => (float)$order->TotalAmount);
         
         Db::getInstance()->update('orders', $updateOrder, '`id_order` = '.(int)$id_order);
-		Db::getInstance()->update('order_invoice', $updateOrderInvoice, '`id_order` = '.(int)$id_order);
-		Db::getInstance()->update('order_carrier', $updateOrderTracking, '`id_order` = '.(int)$id_order);
-		Db::getInstance()->update('order_payment', $updatePayment, '`order_reference` = "'.$reference_order.'"');
+        Db::getInstance()->update('order_invoice', $updateOrderInvoice, '`id_order` = '.(int)$id_order);
+        Db::getInstance()->update('order_carrier', $updateOrderTracking, '`id_order` = '.(int)$id_order);
+        Db::getInstance()->update('order_payment', $updatePayment, '`order_reference` = "'.$reference_order.'"');
     }
 
     private function _validateOrder($cart, $marketplace, $doEchoLog)
