@@ -49,7 +49,7 @@ class ShoppingFluxExport extends Module
     {
         $this->name = 'shoppingfluxexport';
         $this->tab = 'smart_shopping';
-        $this->version = '4.4.0';
+        $this->version = '4.5.0';
         $this->author = 'PrestaShop';
         $this->limited_countries = array('fr', 'us');
         $this->module_key = '08b3cf6b1a86256e876b485ff9bd4135';
@@ -78,7 +78,7 @@ class ShoppingFluxExport extends Module
     /* REGISTER HOOKS */
     private function _initHooks()
     {
-		$registerHookNewOrder = $this->registerHook('actionObjectAddAfter');
+        $registerHookNewOrder = $this->registerHook('actionObjectAddAfter');
         
         if (!$this->registerHook('postUpdateOrderStatus') ||
             !$this->registerHook('backOfficeTop') ||
@@ -739,20 +739,20 @@ class ShoppingFluxExport extends Module
     {
         $token = Tools::getValue('token');
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
-			$id_shop = $this->context->shop->id;
-			$tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
-			
-			$allTokens_raw = $this->getAllTokensOfShop();
-			$allTokens = array();
-			foreach ($allTokens_raw as $allTokens_subraw) {
-				$allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
-			}
-		} else {
-			$tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
-			$allTokens[$tokenInConfig]=$tokenInConfig;
-		}
+            $id_shop = $this->context->shop->id;
+            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+            
+            $allTokens_raw = $this->getAllTokensOfShop();
+            $allTokens = array();
+            foreach ($allTokens_raw as $allTokens_subraw) {
+                $allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
+            }
+        } else {
+            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+            $allTokens[$tokenInConfig]=$tokenInConfig;
+        }
 
-        if ($token == '' ||( $token != $tokenInConfig && !in_array($token, $allTokens) ) ) {
+        if ($token == '' ||( $token != $tokenInConfig && !in_array($token, $allTokens) )) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
         
@@ -890,18 +890,18 @@ class ShoppingFluxExport extends Module
     {
         $token = Tools::getValue('token');
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
-			$id_shop = $this->context->shop->id;
-			$tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
-			
-			$allTokens_raw = $this->getAllTokensOfShop();
-			$allTokens = array();
-			foreach ($allTokens_raw as $allTokens_subraw) {
-				$allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
-			}
-		} else {
-			$tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
-			$allTokens[$tokenInConfig]=$tokenInConfig;
-		}
+            $id_shop = $this->context->shop->id;
+            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+            
+            $allTokens_raw = $this->getAllTokensOfShop();
+            $allTokens = array();
+            foreach ($allTokens_raw as $allTokens_subraw) {
+                $allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
+            }
+        } else {
+            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+            $allTokens[$tokenInConfig]=$tokenInConfig;
+        }
 
         if ($token == '' || ($token != $tokenInConfig && !in_array($token, $allTokens))) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
@@ -1232,7 +1232,7 @@ class ShoppingFluxExport extends Module
             foreach ($images as $image) {
                 $ids = $product->id.'-'.$image['id_image'];
                 $img_url = $link->getImageLink($product->link_rewrite, $ids, $configuration['SHOPPING_FLUX_IMAGE']);
-                if (!substr_count($img_url, Tools::getCurrentUrlProtocolPrefix())) { 
+                if (!substr_count($img_url, Tools::getCurrentUrlProtocolPrefix())) {
                     // make sure url has http or https
                     $img_url = Tools::getCurrentUrlProtocolPrefix() . $img_url;
                 }
@@ -1699,79 +1699,6 @@ class ShoppingFluxExport extends Module
                                         $log = 'SoFlexibilite > saveDelivery = ' . $status_soflexibilite;
                                         SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
                                     }
-                                    
-                                    // Compatibility with socolissimo flexibilité module
-                                    $soflexibilite = Module::getInstanceByName('soflexibilite');
-                                    if ($soflexibilite && $soflexibilite->active) {
-                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'soflexibilite ACTIVE', $doEchoLog);
-                                        $addrSoColissimo = new Address((int)$id_address_shipping);
-                                        if ($addrSoColissimo->phone_mobile) {
-                                            $phone = $addrSoColissimo->phone_mobile;
-                                        } else {
-                                            $phone = $addrSoColissimo->phone;
-                                        }
-                                        $delivery_country = new Country($addrSoColissimo->id_country);
-                                        $so_delivery = new SoFlexibiliteDelivery();
-                                        $so_delivery->id_cart = (int)$cart->id;
-                                        $so_delivery->id_order = -time();
-                                        $so_delivery->id_point = null;
-                                        $so_delivery->id_customer = (int)$id_customer;
-                                        $so_delivery->firstname = $addrSoColissimo->firstname;
-                                        $so_delivery->lastname = $addrSoColissimo->lastname;
-                                        $so_delivery->company = $addrSoColissimo->company;
-                                        $so_delivery->telephone = $phone;
-                                        $so_delivery->email = $current_customer->email;
-                                        $so_delivery->postcode = $addrSoColissimo->postcode;
-                                        $so_delivery->city = $addrSoColissimo->city;
-                                        $so_delivery->country = $delivery_country->iso_code;
-                                        $so_delivery->address1 = $addrSoColissimo->address1;
-                                        $so_delivery->address2 = $addrSoColissimo->address2;
-                                    
-                                        // determine type
-                                        $soflexibilite_conf_key = array(
-                                            'SOFLEXIBILITE_DOM_ID',
-                                            'SOFLEXIBILITE_DOS_ID',
-                                            'SOFLEXIBILITE_BPR_ID',
-                                            'SOFLEXIBILITE_A2P_ID'
-                                        );
-                                        $conf = Configuration::getMultiple($soflexibilite_conf_key, null, null, null);
-                                        $carrier_obj = new Carrier($cart->id_carrier);
-                                        if (isset($carrier_obj->id_reference)) {
-                                            $id_reference = $carrier_obj->id_reference;
-                                        } else {
-                                            $id_reference = $carrier_obj->id;
-                                        }
-                                        if ($id_reference == $conf['SOFLEXIBILITE_DOM_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOM_ID']
-                                        ) {
-                                            $so_delivery->type = 'DOM';
-                                        }
-                                    
-                                        if ($id_reference == $conf['SOFLEXIBILITE_DOS_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOS_ID']
-                                        ) {
-                                            $so_delivery->type = 'DOS';
-                                        }
-                                    
-                                        if ($id_reference == $conf['SOFLEXIBILITE_BPR_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_BPR_ID']
-                                        ) {
-                                            $so_delivery->type = 'BPR';
-                                        }
-                            
-                                        if ($id_reference == $conf['SOFLEXIBILITE_A2P_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_A2P_ID']
-                                        ) {
-                                            $so_delivery->type = 'A2P';
-                                        }
-                                    
-                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
-                    
-                                        $status_soflexibilite = (bool)$so_delivery->saveDelivery();
-                    
-                                        $log = 'SoFlexibilite > saveDelivery = ' . $status_soflexibilite;
-                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
-                                    }
     
                                     Db::getInstance()->update('customer', array('email' => 'do-not-send@alerts-shopping-flux.com'), '`id_customer` = '.(int)$id_customer);
                                     
@@ -1793,7 +1720,7 @@ class ShoppingFluxExport extends Module
         
                                     $reference_order = $payment->currentOrderReference;
                                     Db::getInstance()->update('customer', array('email' => pSQL($email)), '`id_customer` = '.(int)$id_customer);
-									Db::getInstance()->insert('message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')));
+                                    Db::getInstance()->insert('message', array('id_order' => (int)$id_order, 'message' => 'Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder), 'date_add' => date('Y-m-d H:i:s')));
 
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Real customer email set again : ' . $email, $doEchoLog);
                                     
@@ -1974,8 +1901,8 @@ class ShoppingFluxExport extends Module
             $xml .= '<Status>Shipped</Status>';
 
             if (isset($shipping[0])) {
-            	$url = str_replace('http://http://', 'http://', $carrier->url);
-            	$url = str_replace('@', $shipping[0]['tracking_number'], $url);
+                $url = str_replace('http://http://', 'http://', $carrier->url);
+                $url = str_replace('@', $shipping[0]['tracking_number'], $url);
                 $xml .= '<TrackingNumber><![CDATA['.$shipping[0]['tracking_number'].']]></TrackingNumber>';
                 $xml .= '<CarrierName><![CDATA['.$shipping[0]['state_name'].']]></CarrierName>';
                 $xml .= '<TrackingUrl><![CDATA['.$url.']]></TrackingUrl>';
@@ -2050,9 +1977,9 @@ class ShoppingFluxExport extends Module
     {
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, '------- Start Call Webservice function = '.$call.' -------');
 
-		$token = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+        $token = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
 
-		if (empty($token) && !$forceToken) {
+        if (empty($token) && !$forceToken) {
             SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'ERROR could not call webservice because of empty token (function = ' . $call . ')');
             return false;
         }
@@ -2279,7 +2206,7 @@ class ShoppingFluxExport extends Module
         }
         
         // Cdiscount fees handling
-        if ((float) $order->TotalFees > 0 ) {
+        if ((float) $order->TotalFees > 0) {
             $orderLoaded = new Order((int)$id_order);
             $fdgInsertFields = array(
                 'id_order' => (int) $id_order,
@@ -2416,9 +2343,9 @@ class ShoppingFluxExport extends Module
         $updatePayment = array('amount' => (float)$order->TotalAmount);
         
         Db::getInstance()->update('orders', $updateOrder, '`id_order` = '.(int)$id_order);
-		Db::getInstance()->update('order_invoice', $updateOrderInvoice, '`id_order` = '.(int)$id_order);
-		Db::getInstance()->update('order_carrier', $updateOrderTracking, '`id_order` = '.(int)$id_order);
-		Db::getInstance()->update('order_payment', $updatePayment, '`order_reference` = "'.$reference_order.'"');
+        Db::getInstance()->update('order_invoice', $updateOrderInvoice, '`id_order` = '.(int)$id_order);
+        Db::getInstance()->update('order_carrier', $updateOrderTracking, '`id_order` = '.(int)$id_order);
+        Db::getInstance()->update('order_payment', $updatePayment, '`order_reference` = "'.$reference_order.'"');
     }
 
     private function _validateOrder($cart, $marketplace, $doEchoLog)
