@@ -2631,14 +2631,26 @@ class ShoppingFluxExport extends Module
     }
 
     /**
-     * Get Tthe user's IP handling if there is a proxy
+     * Get the user's IP handling if there is a proxy
      * @param String $ip optionnal IP comming from the order
      */
     private function getIp($ip = null)
     {
         if (empty($ip)) {
-            if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+            if (isset($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+
+                // Cloudflare is directly providing the client IP in this server variable (when correctly set)
+                $ip = $_SERVER['HTTP_CF_CONNECTING_IP'];
+
+            } else if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+
+                // We retrieve the proxy list
+                $ipForwardedFor = $_SERVER['HTTP_X_FORWARDED_FOR'];
+                // In case of multiple proxy, there values will be split by comma. It will list each server IP the request passed throug
+                $proxyList = explode (",", $ipForwardedFor);
+                // The first IP of the list is the client IP (the last IP is the last proxy)
+                $ip = trim(reset($proxyList));
+
             } elseif (isset($_SERVER['HTTP_CLIENT_IP'])) {
                 $ip = $_SERVER['HTTP_CLIENT_IP'];
             } else {
