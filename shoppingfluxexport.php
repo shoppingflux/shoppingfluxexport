@@ -1918,9 +1918,34 @@ class ShoppingFluxExport extends Module
     public function hookActionObjectAddAfter($params)
     {
         if ($params['object'] instanceof Order && $params['cart'] instanceof Cart) {
-            $ip = Db::getInstance()->getValue('SELECT `ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$params['object']->id_customer);
+
+            // We first check if the IP is existing from the guest/connections tables
+            if ($ip = Db::getInstance()->getValue('
+                SELECT c.`ip_address`
+                FROM
+                    `'._DB_PREFIX_.'guest` g
+                JOIN
+                    `'._DB_PREFIX_.'connections` c
+                ON (
+                    g.`id_guest` = c.`id_guest` AND
+                    g.`id_customer` = '.(int)$params['object']->id_customer.'
+                )
+                ORDER BY
+                    c.`date_add` DESC
+            ')) {
+                $ip = long2ip($ip);
+            }
+
+            // If not, we get the IP from the customer_ip table
+            if (!$ip) {
+                $ip = Db::getInstance()->getValue('
+                    SELECT `ip`
+                    FROM
+                        `'._DB_PREFIX_.'customer_ip`
+                    WHERE `id_customer` = '.(int)$params['object']->id_customer);
+            }
             $ip = $this->getIp($ip);
-    
+
             if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && $params['object']->module != 'sfpayment') {
                 Tools::file_get_contents('https://tag.shopping-flux.com/order/'.base64_encode(Configuration::get('SHOPPING_FLUX_ID').'|'.$params['object']->id.'|'.$params['object']->total_paid).'?ip='.$ip);
             }
