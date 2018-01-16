@@ -653,11 +653,8 @@ class ShoppingFluxExport extends Module
     
     private function getSimpleProducts($id_lang, $limit_from, $limit_to)
     {
-        $packClause = '';
-        if (Configuration::get('SHOPPING_FLUX_PACKS') == 'checked') {
-            $packClause = ' AND p.`cache_is_pack` = 0 ';
-        }
-            
+        $packClause = $this->prepareSqlForPacks();
+
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
             $context = Context::getContext();
 
@@ -700,13 +697,20 @@ class ShoppingFluxExport extends Module
         return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
     }
 
+    /**
+     * Prepare SQL condition for management of product packs
+     * @return string SQL AND condition
+     */
+    private function prepareSqlForPacks()
+    {
+        $cache_is_pack = Configuration::get('SHOPPING_FLUX_PACKS') == 'checked' ? 1 : 0;
+        return ' AND p.`cache_is_pack` = '.$cache_is_pack.' ';
+    }
+
     private function countProducts()
     {
-        $getPack = '';
-        if (Configuration::get('SHOPPING_FLUX_PACKS') == 'checked') {
-            $getPack = ' AND p.`cache_is_pack` = 0 ';
-        }
-            
+        $getPack = $this->prepareSqlForPacks();
+
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
             $context = Context::getContext();
 
