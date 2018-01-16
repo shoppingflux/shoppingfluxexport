@@ -2072,9 +2072,11 @@ class ShoppingFluxExport extends Module
         
         // Log datas
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, $service_url.'?'.http_build_query($curl_post_data, '', '&amp;'));
-        SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'XML request : ');
-        SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, $xml);
-
+        if ($xml) {
+            SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'XML request : ');
+            SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, $xml);
+        }
+        
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, $service_url);
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
@@ -2806,40 +2808,8 @@ class ShoppingFluxExport extends Module
      */
     private function defaultTokenConfigurationView()
     {
-        $shops = Shop::getShops();
-        $tokenTree = array();
-    
-        // Loop on shops
-        foreach ($shops as &$currentShop) {
-            $shopLanguages = Language::getLanguages(true, $currentShop['id_shop']);
-            $shopCurrencies = Currency::getCurrenciesByIdShop($currentShop['id_shop']);
-            $values = array();
-            // Loop on languages
-            foreach ($shopLanguages as $currentLang) {
-                $idLang = $currentLang['id_lang'];
-                $nameLang = $currentLang['name'];
-                // Finally loop on currencies
-                foreach ($shopCurrencies as $currentCurrency) {
-                    $idCurrency = $currentCurrency['id_currency'];
-                    $nameCurrency = $currentCurrency['name'];
-                    $token = $this->getTokenValue($currentShop['id_shop'], $currentShop['id_shop_group'], $idCurrency, $idLang);
-                    $values[] = array(
-                        'name' => $nameLang.' / '.$nameCurrency,
-                        'id' => $idLang.'_'.$idCurrency,
-                        'token' => $token
-                    );
-                }
-            }
-    
-            $tokenTree[] = array(
-                'id_shop' => $currentShop['id_shop'],
-                'id_shop_group' => $currentShop['id_shop_group'],
-                'name' => $currentShop['name'],
-                'token' => $this->getTokenValue($currentShop['id_shop']),
-                'values' => $values
-            );
-        }
-    
+        $tokenTree = $this->getAllTokensOfShop(true, true);
+        
         $this->context->smarty->assign(array(
             'token_tree' => $tokenTree,
             'postUri' => Tools::safeOutput($_SERVER['REQUEST_URI'])
@@ -2876,13 +2846,44 @@ class ShoppingFluxExport extends Module
     }
     
     /**
-     * Gets all token of a given shop
+     * Gets all token of shop(s)
      * @param int $id_shop
      */
-    public function getAllTokensOfShop()
+    public function getAllTokensOfShop($allShops = false, $putChildrenInValues = false, $returnRawFormat = false)
     {
-        $id_shop = $this->context->shop->id;
-        $id_shop_group = (int) $this->context->shop->id_shop_group;
+        if (! $allShops) {
+            // Only get the current shop
+            $id_shop = $this->context->shop->id;
+            $id_shop_group = (int) $this->context->shop->id_shop_group;
+            $res = $this->getAllTokensOfOneShop($id_shop, $id_shop_group, $putChildrenInValues);
+        } else {
+            $res = array();
+            $shops = Shop::getShops();
+            
+            // Loop on shops
+            foreach ($shops as &$currentShop) {
+                $res = array_merge($res, $this->getAllTokensOfOneShop($currentShop['id_shop'], $currentShop['id_shop_group'], $putChildrenInValues));
+            }
+        }
+        if ($returnRawFormat) {
+            $rawFormat = array();
+            foreach ($res as $currentToken) {
+                if (! in_array($currentToken['token'], $rawFormat)) {
+                    $rawFormat[] = $currentToken['token'];
+                }
+            }
+            $res = $rawFormat;
+        }
+        return $res;
+    }
+    
+    /**
+     * Gets all token a specific shop
+     * @param int $id_shop
+     */
+    public function getAllTokensOfOneShop($id_shop, $id_shop_group, $putChildrenInValues)
+    {
+        $shop = new Shop($id_shop);
         $res = array();
         $tokenGeneral = $this->getTokenValue($id_shop);
         if ($tokenGeneral) {
@@ -2891,10 +2892,12 @@ class ShoppingFluxExport extends Module
                 'id_shop_group' => null,
                 'token' => $tokenGeneral,
                 'id_lang' => Configuration::get('PS_LANG_DEFAULT'),
-                'id_currency' => false
+                'id_currency' => false,
+                'name' => $shop->name,
+                'values' => array(),
             );
         }
-        
+    
         $shopLanguages = Language::getLanguages(true, $id_shop);
         $shopCurrencies = Currency::getCurrenciesByIdShop($id_shop);
         // Loop on languages
@@ -2905,17 +2908,24 @@ class ShoppingFluxExport extends Module
                 $idCurrency = $currentCurrency['id_currency'];
                 $token = $this->getTokenValue($id_shop, $id_shop_group, $idCurrency, $idLang);
                 if ($token) {
-                    $res[] = array(
+                    $toAdd = array(
                         'id_shop' => $id_shop,
                         'id_shop_group' => $id_shop_group,
                         'token' => $token,
+                        'id' => $idLang . '_' . $idCurrency,
                         'id_lang' => $idLang,
-                        'id_currency' => $idCurrency
+                        'id_currency' => $idCurrency,
+                        'name' => $currentLang['name'] . ' / ' . $currentCurrency['name'],
                     );
+                    if ($tokenGeneral && $putChildrenInValues) {
+                        $res[0]['values'][] = $toAdd;
+                    } else {
+                        $res[] = $toAdd;
+                    }
                 }
             }
         }
-        
+    
         return $res;
     }
         
