@@ -748,7 +748,7 @@ class ShoppingFluxExport extends Module
                 $allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
             }
         } else {
-            $tokenInConfig = $this->getTokenValue($id_shop);
+            $tokenInConfig = $this->getTokenValue();
             $allTokens[$tokenInConfig]=$tokenInConfig;
         }
 
@@ -2050,7 +2050,11 @@ class ShoppingFluxExport extends Module
     {
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, '------- Start Call Webservice function = '.$call.' -------');
 
-        $token = $this->getTokenValue($id_shop);
+        if (empty($id_shop)) {
+            $token = $this->getTokenValue();
+        } else {
+            $token = $this->getTokenValue($id_shop);
+        }
 
         if (empty($token) && !$forceToken) {
             SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'ERROR could not call webservice because of empty token (function = ' . $call . ')');
