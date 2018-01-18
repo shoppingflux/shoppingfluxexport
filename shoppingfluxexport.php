@@ -1918,9 +1918,34 @@ class ShoppingFluxExport extends Module
     public function hookActionObjectAddAfter($params)
     {
         if ($params['object'] instanceof Order && $params['cart'] instanceof Cart) {
-            $ip = Db::getInstance()->getValue('SELECT `ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$params['object']->id_customer);
+
+            // We first check if the IP is existing from the guest/connections tables
+            if ($ip = Db::getInstance()->getValue('
+                SELECT c.`ip_address`
+                FROM
+                    `'._DB_PREFIX_.'guest` g
+                JOIN
+                    `'._DB_PREFIX_.'connections` c
+                ON (
+                    g.`id_guest` = c.`id_guest` AND
+                    g.`id_customer` = '.(int)$params['object']->id_customer.'
+                )
+                ORDER BY
+                    c.`date_add` DESC
+            ')) {
+                $ip = long2ip($ip);
+            }
+
+            // If not, we get the IP from the customer_ip table
+            if (!$ip) {
+                $ip = Db::getInstance()->getValue('
+                    SELECT `ip`
+                    FROM
+                        `'._DB_PREFIX_.'customer_ip`
+                    WHERE `id_customer` = '.(int)$params['object']->id_customer);
+            }
             $ip = $this->getIp($ip);
-    
+
             if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && $params['object']->module != 'sfpayment') {
                 Tools::file_get_contents('https://tag.shopping-flux.com/order/'.base64_encode(Configuration::get('SHOPPING_FLUX_ID').'|'.$params['object']->id.'|'.$params['object']->total_paid).'?ip='.$ip);
             }
@@ -2631,14 +2656,26 @@ class ShoppingFluxExport extends Module
     }
 
     /**
-     * Get Tthe user's IP handling if there is a proxy
+     * Get the user's IP handling if there is a proxy
      * @param String $ip optionnal IP comming from the order
      */
     private function getIp($ip = null)
     {
         if (empty($ip)) {
-            if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+            if (isset($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+
+                // Cloudflare is directly providing the client IP in this server variable (when correctly set)
+                $ip = $_SERVER['HTTP_CF_CONNECTING_IP'];
+
+            } else if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+
+                // We retrieve the proxy list
+                $ipForwardedFor = $_SERVER['HTTP_X_FORWARDED_FOR'];
+                // In case of multiple proxy, there values will be split by comma. It will list each server IP the request passed throug
+                $proxyList = explode (",", $ipForwardedFor);
+                // The first IP of the list is the client IP (the last IP is the last proxy)
+                $ip = trim(reset($proxyList));
+
             } elseif (isset($_SERVER['HTTP_CLIENT_IP'])) {
                 $ip = $_SERVER['HTTP_CLIENT_IP'];
             } else {
