@@ -35,7 +35,7 @@ ini_set('display_errors', 'on');
 
 $sf = new ShoppingFluxExport();
 
-if ((Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) && ! (isset($_GET['test_homepage']) || isset($_GET['test_curl']))) {
+if ((Tools::getValue('token') == '' || Tools::getValue('token') != $sf->getTokenValue()) && ! (isset($_GET['test_homepage']) || isset($_GET['test_curl']))) {
     die("Invalid Token");
 }
 
@@ -112,7 +112,7 @@ function getConfigForm($sf)
     $output .= '<label>SHOPPING_FLUX_REF</label>' . Configuration::get('SHOPPING_FLUX_REF');
     $output .= '<p style="clear: both"></p>';
     
-    $output .= '<label>SHOPPING_FLUX_TOKEN</label>' . Configuration::get('SHOPPING_FLUX_TOKEN');
+    $output .= '<label>SHOPPING_FLUX_TOKEN</label>' . $sf->getTokenValue();
     $output .= '<p style="clear: both"></p>';
     
     $output .= '<label>getAllTokensOfShop()</label>';
