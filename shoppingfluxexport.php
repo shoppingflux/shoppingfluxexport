@@ -369,7 +369,7 @@ class ShoppingFluxExport extends Module
                     <fieldset>
                         <legend>'.$this->l('Parameters').'</legend>
                         <p><label>Login '.$this->l('Shopping Feed').' : </label><input type="text" name="SHOPPING_FLUX_LOGIN" value="'.Tools::safeOutput($configuration['SHOPPING_FLUX_LOGIN']).'"/></p>
-                        <p><label>Token '.$this->l('Shopping Feed').' : </label><input type="text" name="SHOPPING_FLUX_TOKEN" value="'.$this->getTokenValue()).'" style="width:auto"/></p>
+                        <p><label>Token '.$this->l('Shopping Feed').' : </label><input type="text" name="SHOPPING_FLUX_TOKEN" value="'.$this->getTokenValue().'" style="width:auto"/></p>
                         <p><label>'.$this->l('Order tracking').' : </label><input type="checkbox" name="SHOPPING_FLUX_TRACKING" '.Tools::safeOutput($configuration['SHOPPING_FLUX_TRACKING']).'/> '.$this->l('orders coming from shopbots will be tracked').'.</p>
                         <p><label>'.$this->l('Order importation').' : </label><input type="checkbox" name="SHOPPING_FLUX_ORDERS" '.Tools::safeOutput($configuration['SHOPPING_FLUX_ORDERS']).'/> '.$this->l('orders coming from marketplaces will be imported').'.</p>
                         <p><label>'.$this->l('Order shipment').' : </label><input type="checkbox" name="SHOPPING_FLUX_STATUS_SHIPPED" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STATUS_SHIPPED']).'/> '.$this->l('orders shipped on your Prestashop will be shipped on marketplaces').'.</p>
@@ -495,7 +495,7 @@ class ShoppingFluxExport extends Module
             $base_uri = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__;
         }
 
-        $uri = $base_uri.'modules/shoppingfluxexport/flux.php?token='.$this->getTokenValue()
+        $uri = $base_uri.'modules/shoppingfluxexport/flux.php?token='.$this->getTokenValue();
         $logo = $this->default_country->iso_code == 'FR' ? 'fr' : 'us';
 
         return '
@@ -2884,7 +2884,7 @@ class ShoppingFluxExport extends Module
             return Configuration::get($key);
         }
     }
-    
+
     /**
      * Gets all token of a given shop
      * @param int $id_shop
