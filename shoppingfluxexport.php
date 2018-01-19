@@ -867,12 +867,15 @@ class ShoppingFluxExport extends Module
         
         // Write time when init for first time
         $today =  date('Y-m-d H:i:s');
-        Configuration::updateValue('PS_SHOPPINGFLUX_CRON_TIME', $today, false, null, $id_shop);
+        $lang = Tools::getValue('lang');
+        $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME' . $lang;
+        Configuration::updateValue($configurationKey, $today, false, null, $id_shop);
         
         SfLogger::getInstance()->emptyLogCron();
         
         $file = fopen($this->getFeedName(), 'w+');
-        fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">');
+        $country = $lang ? $lang : $this->default_country->iso_code;
+        fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="' . $country . '">');
         fclose($file);
 
         $totalProducts = $this->countProducts();
@@ -1625,79 +1628,6 @@ class ShoppingFluxExport extends Module
                                             'ceemail' => pSQL($email),
                                         );
                                         Db::getInstance()->insert($socotable_name, $socovalues);
-                                    }
-                                    
-                                    // Compatibility with socolissimo flexibilité module
-                                    $soflexibilite = Module::getInstanceByName('soflexibilite');
-                                    if ($soflexibilite && $soflexibilite->active) {
-                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'soflexibilite ACTIVE', $doEchoLog);
-                                        $addrSoColissimo = new Address((int)$id_address_shipping);
-                                        if ($addrSoColissimo->phone_mobile) {
-                                            $phone = $addrSoColissimo->phone_mobile;
-                                        } else {
-                                            $phone = $addrSoColissimo->phone;
-                                        }
-                                        $delivery_country = new Country($addrSoColissimo->id_country);
-                                        $so_delivery = new SoFlexibiliteDelivery();
-                                        $so_delivery->id_cart = (int)$cart->id;
-                                        $so_delivery->id_order = -time();
-                                        $so_delivery->id_point = null;
-                                        $so_delivery->id_customer = (int)$id_customer;
-                                        $so_delivery->firstname = $addrSoColissimo->firstname;
-                                        $so_delivery->lastname = $addrSoColissimo->lastname;
-                                        $so_delivery->company = $addrSoColissimo->company;
-                                        $so_delivery->telephone = $phone;
-                                        $so_delivery->email = $current_customer->email;
-                                        $so_delivery->postcode = $addrSoColissimo->postcode;
-                                        $so_delivery->city = $addrSoColissimo->city;
-                                        $so_delivery->country = $delivery_country->iso_code;
-                                        $so_delivery->address1 = $addrSoColissimo->address1;
-                                        $so_delivery->address2 = $addrSoColissimo->address2;
-                                    
-                                        // determine type
-                                        $soflexibilite_conf_key = array(
-                                            'SOFLEXIBILITE_DOM_ID',
-                                            'SOFLEXIBILITE_DOS_ID',
-                                            'SOFLEXIBILITE_BPR_ID',
-                                            'SOFLEXIBILITE_A2P_ID'
-                                        );
-                                        $conf = Configuration::getMultiple($soflexibilite_conf_key, null, null, null);
-                                        $carrier_obj = new Carrier($cart->id_carrier);
-                                        if (isset($carrier_obj->id_reference)) {
-                                            $id_reference = $carrier_obj->id_reference;
-                                        } else {
-                                            $id_reference = $carrier_obj->id;
-                                        }
-                                        if ($id_reference == $conf['SOFLEXIBILITE_DOM_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOM_ID']
-                                        ) {
-                                            $so_delivery->type = 'DOM';
-                                        }
-                                    
-                                        if ($id_reference == $conf['SOFLEXIBILITE_DOS_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOS_ID']
-                                        ) {
-                                            $so_delivery->type = 'DOS';
-                                        }
-                                    
-                                        if ($id_reference == $conf['SOFLEXIBILITE_BPR_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_BPR_ID']
-                                        ) {
-                                            $so_delivery->type = 'BPR';
-                                        }
-                            
-                                        if ($id_reference == $conf['SOFLEXIBILITE_A2P_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_A2P_ID']
-                                        ) {
-                                            $so_delivery->type = 'A2P';
-                                        }
-                                    
-                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
-                    
-                                        $status_soflexibilite = (bool)$so_delivery->saveDelivery();
-                    
-                                        $log = 'SoFlexibilite > saveDelivery = ' . $status_soflexibilite;
-                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
                                     }
                                     
                                     // Compatibility with socolissimo flexibilité module
@@ -2764,12 +2694,18 @@ class ShoppingFluxExport extends Module
         $html .= '<p style="clear: both"><label>';
         $html .= '<p style="clear: both"><label>'.$this->l('Cron last generated date');
         $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">';
-        if (Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop) != '') {
-            $cronTime = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop);
+        
+        $lang = Tools::getValue('lang');
+        $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME'.$lang;
+        $configTimeValue = Configuration::get($configurationKey, null, null, $id_shop);
+        
+        if ($configTimeValue != '') {
+            $cronTime = $configTimeValue;
             $html .= Tools::displayDate($cronTime, $configuration['PS_LANG_DEFAULT'], true, '/');
         } else {
             $html .= 'Jamais';
         }
+        
         $html .= '</span></p>';
         $html .= '<p style="clear: both"><label>';
         $html .= $this->l('Number of products to treat at each CRON\'s URL call (do not modify)');
