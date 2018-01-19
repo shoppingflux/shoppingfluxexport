@@ -1569,12 +1569,44 @@ class ShoppingFluxExport extends Module
                                 $order->ShippingMethod = 'Mondial Relay';
                             }
         
+                            // Check if the order allready exists by lookig at the messages in the order
                             $orderExists = Db::getInstance()->getRow('SELECT m.id_message, m.id_order FROM '._DB_PREFIX_.'message m
                                 WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
-        
                             if (! $forcedOrder && isset($orderExists['id_message']) && isset($orderExists['id_order'])) {
                                 SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order allready exists (id = '.$order->IdOrder.'): notifying ShoppingFlux', $doEchoLog);
                                 $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int)$orderExists['id_order']);
+                                continue;
+                            }
+                            
+                            // Check if the order allready exists by lookig at the adress alias and first/last name
+                            $orderExists = Db::getInstance()->getRow("SELECT * FROM " . _DB_PREFIX_ . "orders o, " . _DB_PREFIX_ . "customer c, " . _DB_PREFIX_ . "address a
+		                        WHERE o.id_customer = c.id_customer
+		                        AND c.email = 'do-not-send@alerts-shopping-flux.com'
+		                        AND (c.lastname = '" . (string)$order->BillingAddress->LastName . "' OR c.firstname = '" . (string)$order->BillingAddress->LastName . "')
+		                        AND a.id_address = o.id_address_delivery
+		                        AND a.alias LIKE '%" . $orderExists['id_order'] . "%'
+								ORDER BY o.id_order DESC
+                            ");
+                            
+                            
+                            if (! $forcedOrder && isset($orderExists['id_order']) && isset($orderExists['id_order'])) {
+                                // This is the second try of an order creation, last process could not be completed
+                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order allready exists (id = ' . $order->IdOrder . '): notifying ShoppingFlux', $doEchoLog);
+                                
+                                // Re set the carrier
+                                $orderLoaded = new Order((int) $orderExists['id_order']);
+                                $orderCartId = $orderLoaded->id_cart;
+                                $cartLoaded = new Cart($orderCartId);
+                                $cartCarrierId = $cartLoaded->id_carrier;
+                                
+                                $sql = "UPDATE " . _DB_PREFIX_ . "orders o
+										SET o.id_carrier = " . $cartCarrierId . "
+										WHERE o.id_order = " . $orderExists['id_order'];
+                                Db::getInstance()->execute($sql);
+                                
+                                // Re set the prices, and notify ShoppingFlux
+                                $this->_updatePrices($orderExists['id_order'], $order, $orderExists['reference']);
+                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int) $orderExists['id_order']);
                                 continue;
                             }
         
@@ -1625,79 +1657,6 @@ class ShoppingFluxExport extends Module
                                             'ceemail' => pSQL($email),
                                         );
                                         Db::getInstance()->insert($socotable_name, $socovalues);
-                                    }
-                                    
-                                    // Compatibility with socolissimo flexibilité module
-                                    $soflexibilite = Module::getInstanceByName('soflexibilite');
-                                    if ($soflexibilite && $soflexibilite->active) {
-                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'soflexibilite ACTIVE', $doEchoLog);
-                                        $addrSoColissimo = new Address((int)$id_address_shipping);
-                                        if ($addrSoColissimo->phone_mobile) {
-                                            $phone = $addrSoColissimo->phone_mobile;
-                                        } else {
-                                            $phone = $addrSoColissimo->phone;
-                                        }
-                                        $delivery_country = new Country($addrSoColissimo->id_country);
-                                        $so_delivery = new SoFlexibiliteDelivery();
-                                        $so_delivery->id_cart = (int)$cart->id;
-                                        $so_delivery->id_order = -time();
-                                        $so_delivery->id_point = null;
-                                        $so_delivery->id_customer = (int)$id_customer;
-                                        $so_delivery->firstname = $addrSoColissimo->firstname;
-                                        $so_delivery->lastname = $addrSoColissimo->lastname;
-                                        $so_delivery->company = $addrSoColissimo->company;
-                                        $so_delivery->telephone = $phone;
-                                        $so_delivery->email = $current_customer->email;
-                                        $so_delivery->postcode = $addrSoColissimo->postcode;
-                                        $so_delivery->city = $addrSoColissimo->city;
-                                        $so_delivery->country = $delivery_country->iso_code;
-                                        $so_delivery->address1 = $addrSoColissimo->address1;
-                                        $so_delivery->address2 = $addrSoColissimo->address2;
-                                    
-                                        // determine type
-                                        $soflexibilite_conf_key = array(
-                                            'SOFLEXIBILITE_DOM_ID',
-                                            'SOFLEXIBILITE_DOS_ID',
-                                            'SOFLEXIBILITE_BPR_ID',
-                                            'SOFLEXIBILITE_A2P_ID'
-                                        );
-                                        $conf = Configuration::getMultiple($soflexibilite_conf_key, null, null, null);
-                                        $carrier_obj = new Carrier($cart->id_carrier);
-                                        if (isset($carrier_obj->id_reference)) {
-                                            $id_reference = $carrier_obj->id_reference;
-                                        } else {
-                                            $id_reference = $carrier_obj->id;
-                                        }
-                                        if ($id_reference == $conf['SOFLEXIBILITE_DOM_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOM_ID']
-                                        ) {
-                                            $so_delivery->type = 'DOM';
-                                        }
-                                    
-                                        if ($id_reference == $conf['SOFLEXIBILITE_DOS_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOS_ID']
-                                        ) {
-                                            $so_delivery->type = 'DOS';
-                                        }
-                                    
-                                        if ($id_reference == $conf['SOFLEXIBILITE_BPR_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_BPR_ID']
-                                        ) {
-                                            $so_delivery->type = 'BPR';
-                                        }
-                            
-                                        if ($id_reference == $conf['SOFLEXIBILITE_A2P_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_A2P_ID']
-                                        ) {
-                                            $so_delivery->type = 'A2P';
-                                        }
-                                    
-                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
-                    
-                                        $status_soflexibilite = (bool)$so_delivery->saveDelivery();
-                    
-                                        $log = 'SoFlexibilite > saveDelivery = ' . $status_soflexibilite;
-                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
                                     }
                                     
                                     // Compatibility with socolissimo flexibilité module
