@@ -1591,9 +1591,9 @@ class ShoppingFluxExport extends Module
                             $id_customer = $this->_getCustomer($email, (string)$order->BillingAddress->LastName, (string)$order->BillingAddress->FirstName);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id customer created or found : '.$id_customer, $doEchoLog);
                             //avoid update of old orders by the same merchant with different addresses
-                            $id_address_billing = $this->_getAddress($order->BillingAddress, $id_customer, 'Billing-'.(string)$order->IdOrder);
+                            $id_address_billing = $this->_getAddress($order->BillingAddress, $id_customer, 'Billing-'.(string)$order->IdOrde, '', (string)$order->Marketplace, (string)$order->ShippingMethod);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress delivery created or found : '.$id_address_billing, $doEchoLog);
-                            $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other);
+                            $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other, (string)$order->Marketplace, (string)$order->ShippingMethod);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress shipping or found : '.$id_address_shipping, $doEchoLog);
                             $products_available = $this->_checkProducts($order->Products);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check products availabilityresult : '.$products_available, $doEchoLog);
@@ -2108,7 +2108,7 @@ class ShoppingFluxExport extends Module
             WHERE `template` = "'.pSQL($type).'"');
     }
 
-    private function _getAddress($addressNode, $id_customer, $type, $other = '')
+    private function _getAddress($addressNode, $id_customer, $type, $other, $marketPlace, $shippingMethod)
     {
         //alias is limited
         $type = Tools::substr($type, 0, 32);
@@ -2138,9 +2138,47 @@ class ShoppingFluxExport extends Module
             }
         }
 
-        $lastname = (string)$addressNode->LastName;
-        $firstname = (string)$addressNode->FirstName;
+        if ($marketPlace === "cdiscount" && ($shippingMethod === "SO1" || $shippingMethod === "REL" || $shippingMethod === "RCO")) {
 
+            // Workaround for CDiscount usage of last name as pickup-point name
+            $pickupPointName = (string)$addressNode->LastName;
+            
+            // Check if the company is already filled
+            $isCompanyFilled = empty($addressNode->Company) ? false : true;
+
+            $address->company = pSQL($pickupPointName);
+            
+            if ($isCompanyFilled) {
+                // When the company is known, we are appending it to the second line of the adresse
+                $address->address2 = pSQL($street2." ".$addressNode->Company);
+            } else {
+                $address->address2 = pSQL($street2);
+            }
+
+            // And now we decompose the fullname (in the FirstName field) by first name + last name
+            // We consider that what's after the space is the last name
+            $name = trim((string)$addressNode->FirstName);
+            $nameParts = explode(" ", $name);
+            $lastname = "";
+            $firstname = "";
+            if (isset($nameParts[0])) {
+                $firstname = $nameParts[0];
+                $lastname = '';
+                foreach ($nameParts as $key => $particule) {
+                    if($key === 0) {
+                        continue;
+                    }
+                    $lastname .= $particule.' ';
+                }
+                $lastname = trim($lastname);
+            }
+
+        } else {
+            $lastname = (string)$addressNode->LastName;
+            $firstname = (string)$addressNode->FirstName;
+            $address->company = pSQL($addressNode->Company);
+            $address->address2 = pSQL($street2);
+        }
 
         $lastname = preg_replace('/\-?\d+/', '', $lastname);
         $firstname = preg_replace('/\-?\d+/', '', $firstname);
