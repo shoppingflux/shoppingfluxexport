@@ -2147,6 +2147,9 @@ class ShoppingFluxExport extends Module
         //alias is limited
         $type = Tools::substr($type, 0, 32);
 
+        // case for markePlace
+        $marketPlace = Tools::strtolower($marketPlace);
+
         $id_address = (int)Db::getInstance()->getValue('SELECT `id_address`
             FROM `'._DB_PREFIX_.'address` WHERE `id_customer` = '.(int)$id_customer.' AND `alias` = \''.pSQL($type).'\'');
 
