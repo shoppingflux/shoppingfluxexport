@@ -867,12 +867,15 @@ class ShoppingFluxExport extends Module
         
         // Write time when init for first time
         $today =  date('Y-m-d H:i:s');
-        Configuration::updateValue('PS_SHOPPINGFLUX_CRON_TIME', $today, false, null, $id_shop);
+        $lang = Tools::getValue('lang');
+        $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME' . $lang;
+        Configuration::updateValue($configurationKey, $today, false, null, $id_shop);
         
         SfLogger::getInstance()->emptyLogCron();
         
         $file = fopen($this->getFeedName(), 'w+');
-        fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">');
+        $country = $lang ? $lang : $this->default_country->iso_code;
+        fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="' . $country . '">');
         fclose($file);
 
         $totalProducts = $this->countProducts();
@@ -2764,8 +2767,12 @@ class ShoppingFluxExport extends Module
         $html .= '<p style="clear: both"><label>';
         $html .= '<p style="clear: both"><label>'.$this->l('Cron last generated date');
         $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">';
-        if (Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop) != '') {
-            $cronTime = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop);
+        $lang = Tools::getValue('lang');
+        $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME'.$lang;
+        $configTimeValue = Configuration::get($configurationKey, null, null, $id_shop);
+         
+        if ($configTimeValue != '') {
+            $cronTime = $configTimeValue;
             $html .= Tools::displayDate($cronTime, $configuration['PS_LANG_DEFAULT'], true, '/');
         } else {
             $html .= 'Jamais';
