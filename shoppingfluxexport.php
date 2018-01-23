@@ -655,7 +655,7 @@ class ShoppingFluxExport extends Module
     {
         $packClause = '';
         if (Configuration::get('SHOPPING_FLUX_PACKS') == 'checked') {
-            $packClause = ' AND p.`cache_is_pack` = 0 ';
+            $packClause = ' AND p.`cache_is_pack` = 1 ';
         }
             
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
@@ -704,7 +704,7 @@ class ShoppingFluxExport extends Module
     {
         $getPack = '';
         if (Configuration::get('SHOPPING_FLUX_PACKS') == 'checked') {
-            $getPack = ' AND p.`cache_is_pack` = 0 ';
+            $getPack = ' AND p.`cache_is_pack` = 1 ';
         }
             
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
