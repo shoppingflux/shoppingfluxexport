@@ -286,10 +286,10 @@ class ShoppingFluxExport extends Module
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
             $shop = Context::getContext()->shop;
             $base_uri = Tools::getCurrentUrlProtocolPrefix().$shop->domain.$shop->physical_uri.$shop->virtual_uri;
-            $uri = Tools::getCurrentUrlProtocolPrefix().$shop->domain.$shop->physical_uri.$shop->virtual_uri.'modules/shoppingfluxexport/flux.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
+            $uri = Tools::getCurrentUrlProtocolPrefix().$shop->domain.$shop->physical_uri.$shop->virtual_uri.'modules/shoppingfluxexport/flux.php?token='.$this->getTokenValue();
         } else {
             $base_uri = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__;
-            $uri = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/flux.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
+            $uri = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/flux.php?token='.$this->getTokenValue();
         }
 
         //uri images
@@ -337,7 +337,7 @@ class ShoppingFluxExport extends Module
     {
         $this->_treatForm();
 
-        $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TOKEN', 'SHOPPING_FLUX_TRACKING',
+        $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TRACKING',
                     'SHOPPING_FLUX_ORDERS', 'SHOPPING_FLUX_STATUS_SHIPPED', 'SHOPPING_FLUX_STATUS_CANCELED', 'SHOPPING_FLUX_LOGIN',
                     'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_PACKS', 'SHOPPING_FLUX_INDEX', 'PS_LANG_DEFAULT', 'SHOPPING_FLUX_CARRIER',
                     'SHOPPING_FLUX_IMAGE', 'SHOPPING_FLUX_SHIPPED', 'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPING_MATCHING',
@@ -369,7 +369,7 @@ class ShoppingFluxExport extends Module
                     <fieldset>
                         <legend>'.$this->l('Parameters').'</legend>
                         <p><label>Login '.$this->l('Shopping Feed').' : </label><input type="text" name="SHOPPING_FLUX_LOGIN" value="'.Tools::safeOutput($configuration['SHOPPING_FLUX_LOGIN']).'"/></p>
-                        <p><label>Token '.$this->l('Shopping Feed').' : </label><input type="text" name="SHOPPING_FLUX_TOKEN" value="'.Tools::safeOutput($configuration['SHOPPING_FLUX_TOKEN']).'" style="width:auto"/></p>
+                        <p><label>Token '.$this->l('Shopping Feed').' : </label><input type="text" name="SHOPPING_FLUX_TOKEN" value="'.$this->getTokenValue().'" style="width:auto"/></p>
                         <p><label>'.$this->l('Order tracking').' : </label><input type="checkbox" name="SHOPPING_FLUX_TRACKING" '.Tools::safeOutput($configuration['SHOPPING_FLUX_TRACKING']).'/> '.$this->l('orders coming from shopbots will be tracked').'.</p>
                         <p><label>'.$this->l('Order importation').' : </label><input type="checkbox" name="SHOPPING_FLUX_ORDERS" '.Tools::safeOutput($configuration['SHOPPING_FLUX_ORDERS']).'/> '.$this->l('orders coming from marketplaces will be imported').'.</p>
                         <p><label>'.$this->l('Order shipment').' : </label><input type="checkbox" name="SHOPPING_FLUX_STATUS_SHIPPED" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STATUS_SHIPPED']).'/> '.$this->l('orders shipped on your Prestashop will be shipped on marketplaces').'.</p>
@@ -495,7 +495,7 @@ class ShoppingFluxExport extends Module
             $base_uri = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__;
         }
 
-        $uri = $base_uri.'modules/shoppingfluxexport/flux.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
+        $uri = $base_uri.'modules/shoppingfluxexport/flux.php?token='.$this->getTokenValue();
         $logo = $this->default_country->iso_code == 'FR' ? 'fr' : 'us';
 
         return '
@@ -655,7 +655,7 @@ class ShoppingFluxExport extends Module
     {
         $packClause = '';
         if (Configuration::get('SHOPPING_FLUX_PACKS') == 'checked') {
-            $packClause = ' AND p.`cache_is_pack` = 0 ';
+            $packClause = ' AND p.`cache_is_pack` = 1 ';
         }
             
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
@@ -704,7 +704,7 @@ class ShoppingFluxExport extends Module
     {
         $getPack = '';
         if (Configuration::get('SHOPPING_FLUX_PACKS') == 'checked') {
-            $getPack = ' AND p.`cache_is_pack` = 0 ';
+            $getPack = ' AND p.`cache_is_pack` = 1 ';
         }
             
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
@@ -740,7 +740,7 @@ class ShoppingFluxExport extends Module
         $token = Tools::getValue('token');
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
             $id_shop = $this->context->shop->id;
-            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+            $tokenInConfig = $this->getTokenValue($id_shop);
             
             $allTokens_raw = $this->getAllTokensOfShop();
             $allTokens = array();
@@ -748,7 +748,7 @@ class ShoppingFluxExport extends Module
                 $allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
             }
         } else {
-            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+            $tokenInConfig = $this->getTokenValue();
             $allTokens[$tokenInConfig]=$tokenInConfig;
         }
 
@@ -867,12 +867,15 @@ class ShoppingFluxExport extends Module
         
         // Write time when init for first time
         $today =  date('Y-m-d H:i:s');
-        Configuration::updateValue('PS_SHOPPINGFLUX_CRON_TIME', $today, false, null, $id_shop);
+        $lang = Tools::getValue('lang');
+        $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME' . $lang;
+        Configuration::updateValue($configurationKey, $today, false, null, $id_shop);
         
         SfLogger::getInstance()->emptyLogCron();
         
         $file = fopen($this->getFeedName(), 'w+');
-        fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">');
+        $country = $lang ? $lang : $this->default_country->iso_code;
+        fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="' . $country . '">');
         fclose($file);
 
         $totalProducts = $this->countProducts();
@@ -891,7 +894,7 @@ class ShoppingFluxExport extends Module
         $token = Tools::getValue('token');
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
             $id_shop = $this->context->shop->id;
-            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+            $tokenInConfig = $this->getTokenValue($id_shop);
             
             $allTokens_raw = $this->getAllTokensOfShop();
             $allTokens = array();
@@ -899,7 +902,7 @@ class ShoppingFluxExport extends Module
                 $allTokens[$allTokens_subraw['token']]=$allTokens_subraw['token'];
             }
         } else {
-            $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+            $tokenInConfig = $this->getTokenValue();
             $allTokens[$tokenInConfig]=$tokenInConfig;
         }
 
@@ -1051,7 +1054,7 @@ class ShoppingFluxExport extends Module
         } else {
             $protocol_link = Tools::getCurrentUrlProtocolPrefix();
             $next_uri = $protocol_link.Tools::getHttpHost().__PS_BASE_URI__;
-            $next_uri .= 'modules/shoppingfluxexport/cron.php?token='.Configuration::get('SHOPPING_FLUX_TOKEN');
+            $next_uri .= 'modules/shoppingfluxexport/cron.php?token='.$this->getTokenValue();
             $next_uri .= '&current='.($current + $configuration['PASSES']).'&total='.$total;
             $next_uri .= '&passes='.$configuration['PASSES'].(!empty($no_breadcrumb) ? '&no_breadcrumb=true' : '');
             $currency = Tools::getValue('currency');
@@ -1918,9 +1921,34 @@ class ShoppingFluxExport extends Module
     public function hookActionObjectAddAfter($params)
     {
         if ($params['object'] instanceof Order && $params['cart'] instanceof Cart) {
-            $ip = Db::getInstance()->getValue('SELECT `ip` FROM `'._DB_PREFIX_.'customer_ip` WHERE `id_customer` = '.(int)$params['object']->id_customer);
+
+            // We first check if the IP is existing from the guest/connections tables
+            if ($ip = Db::getInstance()->getValue('
+                SELECT c.`ip_address`
+                FROM
+                    `'._DB_PREFIX_.'guest` g
+                JOIN
+                    `'._DB_PREFIX_.'connections` c
+                ON (
+                    g.`id_guest` = c.`id_guest` AND
+                    g.`id_customer` = '.(int)$params['object']->id_customer.'
+                )
+                ORDER BY
+                    c.`date_add` DESC
+            ')) {
+                $ip = long2ip($ip);
+            }
+
+            // If not, we get the IP from the customer_ip table
+            if (!$ip) {
+                $ip = Db::getInstance()->getValue('
+                    SELECT `ip`
+                    FROM
+                        `'._DB_PREFIX_.'customer_ip`
+                    WHERE `id_customer` = '.(int)$params['object']->id_customer);
+            }
             $ip = $this->getIp($ip);
-    
+
             if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && $params['object']->module != 'sfpayment') {
                 Tools::file_get_contents('https://tag.shopping-flux.com/order/'.base64_encode(Configuration::get('SHOPPING_FLUX_ID').'|'.$params['object']->id.'|'.$params['object']->total_paid).'?ip='.$ip);
             }
@@ -2050,7 +2078,11 @@ class ShoppingFluxExport extends Module
     {
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, '------- Start Call Webservice function = '.$call.' -------');
 
-        $token = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+        if (empty($id_shop)) {
+            $token = $this->getTokenValue();
+        } else {
+            $token = $this->getTokenValue($id_shop);
+        }
 
         if (empty($token) && !$forceToken) {
             SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'ERROR could not call webservice because of empty token (function = ' . $call . ')');
@@ -2072,9 +2104,11 @@ class ShoppingFluxExport extends Module
         
         // Log datas
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, $service_url.'?'.http_build_query($curl_post_data, '', '&amp;'));
-        SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'XML request : ');
-        SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, $xml);
-
+        if ($xml) {
+            SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, 'XML request : ');
+            SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, $xml);
+        }
+        
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, $service_url);
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
@@ -2669,14 +2703,26 @@ class ShoppingFluxExport extends Module
     }
 
     /**
-     * Get Tthe user's IP handling if there is a proxy
+     * Get the user's IP handling if there is a proxy
      * @param String $ip optionnal IP comming from the order
      */
     private function getIp($ip = null)
     {
         if (empty($ip)) {
-            if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+            if (isset($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+
+                // Cloudflare is directly providing the client IP in this server variable (when correctly set)
+                $ip = $_SERVER['HTTP_CF_CONNECTING_IP'];
+
+            } else if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+
+                // We retrieve the proxy list
+                $ipForwardedFor = $_SERVER['HTTP_X_FORWARDED_FOR'];
+                // In case of multiple proxy, there values will be split by comma. It will list each server IP the request passed throug
+                $proxyList = explode (",", $ipForwardedFor);
+                // The first IP of the list is the client IP (the last IP is the last proxy)
+                $ip = trim(reset($proxyList));
+
             } elseif (isset($_SERVER['HTTP_CLIENT_IP'])) {
                 $ip = $_SERVER['HTTP_CLIENT_IP'];
             } else {
@@ -2759,8 +2805,12 @@ class ShoppingFluxExport extends Module
         $html .= '<p style="clear: both"><label>';
         $html .= '<p style="clear: both"><label>'.$this->l('Cron last generated date');
         $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">';
-        if (Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop) != '') {
-            $cronTime = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop);
+        $lang = Tools::getValue('lang');
+        $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME'.$lang;
+        $configTimeValue = Configuration::get($configurationKey, null, null, $id_shop);
+         
+        if ($configTimeValue != '') {
+            $cronTime = $configTimeValue;
             $html .= Tools::displayDate($cronTime, $configuration['PS_LANG_DEFAULT'], true, '/');
         } else {
             $html .= 'Jamais';
@@ -2844,40 +2894,8 @@ class ShoppingFluxExport extends Module
      */
     private function defaultTokenConfigurationView()
     {
-        $shops = Shop::getShops();
-        $tokenTree = array();
-    
-        // Loop on shops
-        foreach ($shops as &$currentShop) {
-            $shopLanguages = Language::getLanguages(true, $currentShop['id_shop']);
-            $shopCurrencies = Currency::getCurrenciesByIdShop($currentShop['id_shop']);
-            $values = array();
-            // Loop on languages
-            foreach ($shopLanguages as $currentLang) {
-                $idLang = $currentLang['id_lang'];
-                $nameLang = $currentLang['name'];
-                // Finally loop on currencies
-                foreach ($shopCurrencies as $currentCurrency) {
-                    $idCurrency = $currentCurrency['id_currency'];
-                    $nameCurrency = $currentCurrency['name'];
-                    $token = $this->getTokenValue($currentShop['id_shop'], $currentShop['id_shop_group'], $idCurrency, $idLang);
-                    $values[] = array(
-                        'name' => $nameLang.' / '.$nameCurrency,
-                        'id' => $idLang.'_'.$idCurrency,
-                        'token' => $token
-                    );
-                }
-            }
-    
-            $tokenTree[] = array(
-                'id_shop' => $currentShop['id_shop'],
-                'id_shop_group' => $currentShop['id_shop_group'],
-                'name' => $currentShop['name'],
-                'token' => $this->getTokenValue($currentShop['id_shop']),
-                'values' => $values
-            );
-        }
-    
+        $tokenTree = $this->getAllTokensOfShop(true, true);
+        
         $this->context->smarty->assign(array(
             'token_tree' => $tokenTree,
             'postUri' => Tools::safeOutput($_SERVER['REQUEST_URI'])
@@ -2896,31 +2914,72 @@ class ShoppingFluxExport extends Module
     
     /**
      * Get the configured token
-     * @param int $id_shop the shop context
-     * @param int $id_currency (optionnal) the currency
-     * @param int $id_lang (optionnal) the lang
+     * 
+     * When no parameters are set, the token associated to the current context will be returned (case 
+     * when multi-shop is not enabled
+     * 
+     * @param int|bool $id_shop the shop context (optionnal)
+     * @param int|null $id_shop_group (optionnal)
+     * @param int|bool $id_currency (optionnal) the currency
+     * @param int|bool $id_lang (optionnal) the lang
      */
-    public function getTokenValue($id_shop, $id_shop_group = null, $id_currency = false, $id_lang = false)
+    public function getTokenValue($id_shop = false, $id_shop_group = null, $id_currency = false, $id_lang = false)
     {
+        if ($id_shop === false && version_compare(_PS_VERSION_, '1.5', '>')) {
+            $id_shop = $this->context->shop->id;
+        }
+
         $key = 'SHOPPING_FLUX_TOKEN';
         if ($id_currency && $id_lang) {
             $key .= '_'.$id_currency.'_'.$id_lang;
         }
+
         if ($id_shop) {
-             return Configuration::get($key, null, $id_shop_group, $id_shop);
+             return Configuration::get($key, false, $id_shop_group, $id_shop);
         } else {
             return Configuration::get($key);
         }
     }
-    
+
     /**
-     * Gets all token of a given shop
+     * Gets all token of shop(s)
      * @param int $id_shop
      */
-    public function getAllTokensOfShop()
+    public function getAllTokensOfShop($allShops = false, $putChildrenInValues = false, $returnRawFormat = false)
     {
-        $id_shop = $this->context->shop->id;
-        $id_shop_group = (int) $this->context->shop->id_shop_group;
+        if (! $allShops) {
+            // Only get the current shop
+            $id_shop = $this->context->shop->id;
+            $id_shop_group = (int) $this->context->shop->id_shop_group;
+            $res = $this->getAllTokensOfOneShop($id_shop, $id_shop_group, $putChildrenInValues);
+        } else {
+            $res = array();
+            $shops = Shop::getShops();
+            
+            // Loop on shops
+            foreach ($shops as &$currentShop) {
+                $res = array_merge($res, $this->getAllTokensOfOneShop($currentShop['id_shop'], $currentShop['id_shop_group'], $putChildrenInValues));
+            }
+        }
+        if ($returnRawFormat) {
+            $rawFormat = array();
+            foreach ($res as $currentToken) {
+                if (! in_array($currentToken['token'], $rawFormat)) {
+                    $rawFormat[] = $currentToken['token'];
+                }
+            }
+            $res = $rawFormat;
+        }
+        return $res;
+    }
+    
+    /**
+     * Gets all token a specific shop
+     * @param int $id_shop
+     */
+    public function getAllTokensOfOneShop($id_shop, $id_shop_group, $putChildrenInValues)
+    {
+        $shop = new Shop($id_shop);
         $res = array();
         $tokenGeneral = $this->getTokenValue($id_shop);
         if ($tokenGeneral) {
@@ -2929,10 +2988,12 @@ class ShoppingFluxExport extends Module
                 'id_shop_group' => null,
                 'token' => $tokenGeneral,
                 'id_lang' => Configuration::get('PS_LANG_DEFAULT'),
-                'id_currency' => false
+                'id_currency' => false,
+                'name' => $shop->name,
+                'values' => array(),
             );
         }
-        
+    
         $shopLanguages = Language::getLanguages(true, $id_shop);
         $shopCurrencies = Currency::getCurrenciesByIdShop($id_shop);
         // Loop on languages
@@ -2943,17 +3004,24 @@ class ShoppingFluxExport extends Module
                 $idCurrency = $currentCurrency['id_currency'];
                 $token = $this->getTokenValue($id_shop, $id_shop_group, $idCurrency, $idLang);
                 if ($token) {
-                    $res[] = array(
+                    $toAdd = array(
                         'id_shop' => $id_shop,
                         'id_shop_group' => $id_shop_group,
                         'token' => $token,
+                        'id' => $idLang . '_' . $idCurrency,
                         'id_lang' => $idLang,
-                        'id_currency' => $idCurrency
+                        'id_currency' => $idCurrency,
+                        'name' => $currentLang['name'] . ' / ' . $currentCurrency['name'],
                     );
+                    if ($tokenGeneral && $putChildrenInValues) {
+                        $res[0]['values'][] = $toAdd;
+                    } else {
+                        $res[] = $toAdd;
+                    }
                 }
             }
         }
-        
+    
         return $res;
     }
         

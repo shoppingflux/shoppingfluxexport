@@ -65,6 +65,8 @@ class SfLogger
         if ($doEcho) {
             echo $logLine . '<br />';
         }
+
+        $sf = new ShoppingFluxExport();
         
         // Compute the output file and if we will do a log
         $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/';
@@ -72,24 +74,24 @@ class SfLogger
         $outputMode = 'a';
         switch ($level) {
             case SF_LOG_CRON:
-                $outputFile .= 'cronexport_' . Configuration::get('SHOPPING_FLUX_TOKEN') . '.txt';
+                $outputFile .= 'cronexport_' . $sf->getTokenValue() . '.txt';
                 $outputMode = 'w';
                 if (self::$debug) {
                     $doLog = true;
                 }
                 break;
             case SF_LOG_ORDERS:
-                $outputFile .= 'orders_debug_' . Configuration::get('SHOPPING_FLUX_TOKEN') . '.txt';
+                $outputFile .= 'orders_debug_' . $sf->getTokenValue() . '.txt';
                 if (self::$debugOrders) {
                     $doLog = true;
                 }
                 break;
             case SF_LOG_WEBSERVICE:
-                $outputFile .= 'callWebService_' . Configuration::get('SHOPPING_FLUX_TOKEN') . '.txt';
+                $outputFile .= 'callWebService_' . $sf->getTokenValue() . '.txt';
                 $doLog = true;
                 break;
             case SF_LOG_DEBUG:
-                $outputFile .= 'orders_debug_errors_on_' . Configuration::get('SHOPPING_FLUX_TOKEN') . '.txt';
+                $outputFile .= 'orders_debug_errors_on_' . $sf->getTokenValue() . '.txt';
                 $doLog = true;
                 break;
             default:
