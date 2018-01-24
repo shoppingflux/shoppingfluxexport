@@ -2067,7 +2067,7 @@ class ShoppingFluxExport extends Module
     /* Clean XML strings */
     private function _clean($string)
     {
-        return preg_replace('/[^A-Za-z0-9]/', '', $string);
+        return preg_replace("/^\d+|[^A-Z0-9]/i", "", $string);
     }
 
     /* Call Shopping Flux Webservices */
