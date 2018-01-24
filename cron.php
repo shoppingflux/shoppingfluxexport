@@ -37,7 +37,7 @@ $sf = new ShoppingFluxExport();
 
 $token = Tools::getValue('token');
 if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
-    $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+    $tokenInConfig = $sf->getTokenValue($id_shop);
 
     $allTokens_raw = $sf->getAllTokensOfShop();
     $allTokens = array();
@@ -45,7 +45,7 @@ if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
         $allTokens[$allTokens_subraw['token']] = $allTokens_subraw['token'];
     }
 } else {
-    $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+    $tokenInConfig = $sf->getTokenValue();
     $allTokens[$tokenInConfig] = $tokenInConfig;
 }
 
