@@ -2164,6 +2164,16 @@ class ShoppingFluxExport extends Module
         } else {
             $address->phone_mobile = Tools::substr(pSQL($addressNode->PhoneMobile), 0, 16);
         }
+        
+        // Check if country is active
+        $country = new Country($address->id_country);
+        if (! $country->active) {
+            $langDefault = Configuration::get('PS_LANG_DEFAULT');
+            $errorMessage = 'The country ' . $country->name[$langDefault] . ' (iso = ' . trim($addressNode->Country);
+            $errorMessage .= ') is not active in your Prestashop, you must activate it in your localizaton settings';
+            $this->logDebugOrders($errorMessage);
+            throw new Exception($errorMessage);
+        }
 
         // Update state (needed for US)
         $state_iso_code = Tools::strtoupper(trim($addressNode->Street2));
