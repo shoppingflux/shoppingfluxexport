@@ -1137,7 +1137,7 @@ class ShoppingFluxExport extends Module
         $data = array();
         $data[0] = ($configuration['SHOPPING_FLUX_REF'] != 'true') ? $product->id : $product->reference;
         $data[1] = $product->name;
-        $data[2] = $link->getProductLink($product);
+        $data[2] = $link->getProductLink($product, null, null, null, $configuration['PS_LANG_DEFAULT']);
         $data[4] = $product->description;
         $data[5] = $product->description_short;
         
@@ -1422,7 +1422,8 @@ class ShoppingFluxExport extends Module
             }
 
             $ret .= '<'.$this->_translateField('mpn').'><![CDATA['.$combination['reference'].']]></'.$this->_translateField('mpn').'>';
-            $ret .= '<'.$this->_translateField('combination_link').'><![CDATA['.$link->getProductLink($product).$product->getAnchor($id, true).']]></'.$this->_translateField('combination_link').'>';
+            $productLink = $link->getProductLink($product, null, null, null, $configuration['PS_LANG_DEFAULT']);
+            $ret .= '<'.$this->_translateField('combination_link').'><![CDATA['.$productLink.$product->getAnchor($id, true).']]></'.$this->_translateField('combination_link').'>';
 
             $ret .= '</attributs>';
             $ret .= '</declinaison>';
