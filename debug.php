@@ -568,7 +568,7 @@ pre {
                 $result = ob_get_contents();
                 ob_end_clean();
                 
-                $output .= '<div style="border: 1px solid #CCC; padding: 10px;">
+                echo '<div style="border: 1px solid #CCC; padding: 10px;">
                                     <div><b>' . $sf->l('Execution Result of last order replay:') . '</b></div><br>
                                     <div>' . $result . '</div>
                                </div>';
