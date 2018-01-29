@@ -1808,6 +1808,8 @@ class ShoppingFluxExport extends Module
                                     if ($order->ShippingMethod == 'Mondial Relay') {
                                         $this->setMondialRelayData($order->Other, $id_order);
                                     }
+                                    
+                                    SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order successfully created, Prestashop order id = ' . $id_order, $doEchoLog);
                                 } else {
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'ERROR could not load cart', $doEchoLog);
                                 }
