@@ -31,7 +31,7 @@ class SfLogger
     /**
      * Log rotatetime
      */
-    private static $logRotateMegaBites = 50;
+    private static $logRotateMegaBites = 100;
 
     private function __construct()
     {
