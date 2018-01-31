@@ -1573,12 +1573,44 @@ class ShoppingFluxExport extends Module
                                 $order->ShippingMethod = 'Mondial Relay';
                             }
         
+                            // Check if the order allready exists by lookig at the messages in the order
                             $orderExists = Db::getInstance()->getRow('SELECT m.id_message, m.id_order FROM '._DB_PREFIX_.'message m
                                 WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
-        
                             if (! $forcedOrder && isset($orderExists['id_message']) && isset($orderExists['id_order'])) {
                                 SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order allready exists (id = '.$order->IdOrder.'): notifying ShoppingFlux', $doEchoLog);
                                 $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int)$orderExists['id_order']);
+                                continue;
+                            }
+                            
+                            // Check if the order allready exists by lookig at the adress alias and first/last name
+                            $orderExists = Db::getInstance()->getRow("SELECT * FROM " . _DB_PREFIX_ . "orders o, " . _DB_PREFIX_ . "customer c, " . _DB_PREFIX_ . "address a
+		                        WHERE o.id_customer = c.id_customer
+		                        AND c.email = 'do-not-send@alerts-shopping-flux.com'
+		                        AND (c.lastname = '" . (string)$order->BillingAddress->LastName . "' OR c.firstname = '" . (string)$order->BillingAddress->LastName . "')
+		                        AND a.id_address = o.id_address_delivery
+		                        AND a.alias LIKE '%" . $orderExists['id_order'] . "%'
+								ORDER BY o.id_order DESC
+                            ");
+                            
+                            
+                            if (! $forcedOrder && isset($orderExists['id_order']) && isset($orderExists['id_order'])) {
+                                // This is the second try of an order creation, last process could not be completed
+                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order allready exists (id = ' . $order->IdOrder . '): notifying ShoppingFlux', $doEchoLog);
+                                
+                                // Re set the carrier
+                                $orderLoaded = new Order((int) $orderExists['id_order']);
+                                $orderCartId = $orderLoaded->id_cart;
+                                $cartLoaded = new Cart($orderCartId);
+                                $cartCarrierId = $cartLoaded->id_carrier;
+                                
+                                $sql = "UPDATE " . _DB_PREFIX_ . "orders o
+										SET o.id_carrier = " . $cartCarrierId . "
+										WHERE o.id_order = " . $orderExists['id_order'];
+                                Db::getInstance()->execute($sql);
+                                
+                                // Re set the prices, and notify ShoppingFlux
+                                $this->_updatePrices($orderExists['id_order'], $order, $orderExists['reference']);
+                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int) $orderExists['id_order']);
                                 continue;
                             }
         
@@ -2748,16 +2780,18 @@ class ShoppingFluxExport extends Module
         $html .= '<p style="clear: both"><label>';
         $html .= '<p style="clear: both"><label>'.$this->l('Cron last generated date');
         $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">';
+        
         $lang = Tools::getValue('lang');
         $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME'.$lang;
         $configTimeValue = Configuration::get($configurationKey, null, null, $id_shop);
-         
+        
         if ($configTimeValue != '') {
             $cronTime = $configTimeValue;
             $html .= Tools::displayDate($cronTime, $configuration['PS_LANG_DEFAULT'], true, '/');
         } else {
             $html .= 'Jamais';
         }
+        
         $html .= '</span></p>';
         $html .= '<p style="clear: both"><label>';
         $html .= $this->l('Number of products to treat at each CRON\'s URL call (do not modify)');
