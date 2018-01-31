@@ -58,6 +58,9 @@ $lang = Tools::getValue('lang');
 
 // Do not allow feed generation if less than 2 hours before last generation
 $frequency_in_hours = 2;
+$configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME' . $lang;
+$last_executed = Configuration::get($configurationKey, $idLang, null, $id_shop);
+
 $today = date('Y-m-d H:i:s');
 $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME' . $lang;
 $last_executed = Configuration::get($configurationKey, $idLang, null, $id_shop);
