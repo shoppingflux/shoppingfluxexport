@@ -1578,14 +1578,14 @@ class ShoppingFluxExport extends Module
         
                             if (! $forcedOrder && isset($orderExists['id_message']) && isset($orderExists['id_order'])) {
                                 SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order allready exists (id = '.$order->IdOrder.'): notifying ShoppingFlux', $doEchoLog);
-                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int)$orderExists['id_order']);
+                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int)$orderExists['id_order'], false, $currentToken['token']);
                                 continue;
                             }
         
                             $check = $this->checkData($order);
                             if ($check !== true) {
                                 SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check data incorrect - '.$check, $doEchoLog);
-                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $check);
+                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $check, $currentToken['token']);
                                 continue;
                             }
         
@@ -1719,7 +1719,7 @@ class ShoppingFluxExport extends Module
         
                                     //we valid there
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Notifying ShoppingFlux of order creation', $doEchoLog);
-                                    $orderCreation = $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order);
+                                    $orderCreation = $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order, false, $currentToken['token']);
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Notify result of order creation : ' . $orderCreation, $doEchoLog);
         
                                     $reference_order = $payment->currentOrderReference;
@@ -1766,7 +1766,7 @@ class ShoppingFluxExport extends Module
                         } catch (Exception $pe) {
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Error on order creation : '.$pe->getMessage());
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Trace : '.print_r($pe->getTraceAsString(), true));
-                            $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $pe->getMessage());
+                            $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $pe->getMessage(), $currentToken['token']);
                         }
                         if ($forcedOrder) {
                             break;
@@ -2563,7 +2563,7 @@ class ShoppingFluxExport extends Module
         return $available;
     }
 
-    private function _validOrders($id_order, $marketplace, $id_order_merchant = false, $error = false)
+    private function _validOrders($id_order, $marketplace, $id_order_merchant = false, $error = false, $token = null)
     {
         $xml = '<?xml version="1.0" encoding="UTF-8"?>';
         $xml .= '<ValidOrders>';
@@ -2582,7 +2582,9 @@ class ShoppingFluxExport extends Module
         $xml .= '</Order>';
         $xml .= '</ValidOrders>';
 
-        $this->_callWebService('ValidOrders', $xml, null, $this->getOrderToken($id_order_merchant));
+        $token = empty($token) ? $this->getOrderToken($id_order_merchant) : $token;
+
+        $this->_callWebService('ValidOrders', $xml, null, $token);
     }
 
     private function _setShoppingFeedId()
