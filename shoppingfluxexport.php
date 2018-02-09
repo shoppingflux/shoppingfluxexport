@@ -2279,15 +2279,36 @@ class ShoppingFluxExport extends Module
 
     private function getIDs($ref)
     {
-        $row = Db::getInstance()->getRow('SELECT pa.id_product, pa.id_product_attribute  FROM '._DB_PREFIX_.'product_attribute pa
-            WHERE pa.reference = "'.  pSQL($ref).'" AND pa.id_product!=0');
+
+        if (version_compare(_PS_VERSION_, '1.5', '>')) {
+            $sql = 'SELECT pa.id_product, pa.id_product_attribute'.
+            ' FROM '._DB_PREFIX_.'product_attribute pa '.
+            Shop::addSqlAssociation("product_attribute", "pa").
+            ' WHERE pa.reference = "'.  pSQL($ref).'" AND pa.id_product!=0 ';
+        } else {
+            $sql = 'SELECT pa.id_product, pa.id_product_attribute'.
+            ' FROM '._DB_PREFIX_.'product_attribute pa '.
+            ' WHERE pa.reference = "'.  pSQL($ref).'" AND pa.id_product!=0 ';
+        }
+
+        $row = Db::getInstance()->getRow($sql);
 
         if (isset($row['id_product_attribute'])) {
             return array($row['id_product'], $row['id_product_attribute']);
         }
 
-        $row2 = Db::getInstance()->getRow('SELECT p.id_product  FROM '._DB_PREFIX_.'product p
-            WHERE p.reference = "'.  pSQL($ref).'" AND p.id_product!=0');
+        if (version_compare(_PS_VERSION_, '1.5', '>')) {
+            $sql = 'SELECT p.id_product '.
+            ' FROM '._DB_PREFIX_.'product p '.
+            Shop::addSqlAssociation("product", "p").
+            ' WHERE p.reference = "'.  pSQL($ref).'" AND p.id_product!=0 ';
+        } else {
+            $sql = 'SELECT p.id_product  FROM '._DB_PREFIX_.'product p
+            WHERE p.reference = "'.  pSQL($ref).'" AND p.id_product!=0';
+        }
+
+
+        $row2 = Db::getInstance()->getRow($sql);
 
         return array($row2['id_product'], 0);
     }
