@@ -31,7 +31,7 @@ class SfLogger
     /**
      * Log rotatetime
      */
-    private static $logRotateHours = 24;
+    private static $logRotateMegaBites = 100;
 
     private function __construct()
     {
@@ -107,28 +107,27 @@ class SfLogger
     }
 
     /**
-     * Rotates the logs
+     * Rotates the logs based on log size
+     * @param  string $fileName The file name to rotate if needed
      */
     private function rotateLogFile($fileName)
     {
-        if (self::$logRotateHours) {
-            // file age
+        if (self::$logRotateMegaBites) {
+
             if (! file_exists($fileName)) {
                 return;
             }
-            $now = time();
-            $dateGeneration = filemtime($fileName);
-            $age = ($now - $dateGeneration);
-            if ($age > (self::$logRotateHours * 3600)) {
+
+            $fileSizeMbs = filesize($fileName) / 1024 / 1024;
+            if ($fileSizeMbs >= (self::$logRotateMegaBites)) {
                 $filePieces = explode('.', $fileName);
                 $extension = $filePieces['1'];
-                if (file_exists($filePieces['0'] . '_last_' . self::$logRotateHours . 'hours' . $extension)) {
-                    unlink($filePieces['0'] . '_500' . $extension);
-                    // Rename current log file
-                    rename($fileName, $filePieces['0'] . '_last_' . self::$logRotateHours . 'hours' . $extension);
-                } else {
-                    rename($fileName, $filePieces['0'] . '_last_' . self::$logRotateHours . 'hours' . $extension);
+                $rotatedLogFile = $filePieces['0'] . '_last_' . self::$logRotateMegaBites . 'MBs.' . $extension;
+                if (file_exists($rotatedLogFile)) {
+                    unlink($rotatedLogFile);
                 }
+                // Rename current log file
+                rename($fileName, $rotatedLogFile);
             }
         }
     }
