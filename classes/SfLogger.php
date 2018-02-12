@@ -75,7 +75,6 @@ class SfLogger
         switch ($level) {
             case SF_LOG_CRON:
                 $outputFile .= 'cronexport_' . $sf->getTokenValue() . '.txt';
-                $outputMode = 'w';
                 if (self::$debug) {
                     $doLog = true;
                 }
