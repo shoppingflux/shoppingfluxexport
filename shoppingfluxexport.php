@@ -157,6 +157,12 @@ class ShoppingFluxExport extends Module
             }
         }
         
+        // Used to add the shop ID in the feed name (when generating the feed.xml file)
+        // Not enabled by default
+        if (! Configuration::updateGlobalValue('SHOPPING_FLUX_XML_SHOP_ID', false)) {
+            $installResult = false;
+        }
+
         // Generate multitoken default values
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
             $shops = Shop::getShops();
@@ -219,6 +225,7 @@ class ShoppingFluxExport extends Module
                 !Configuration::deleteByName('SHOPPING_FLUX_MULTITOKEN') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_ORDERS_DEBUG') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_DEBUG') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_XML_SHOP_ID') ||
                 !parent::uninstall()) {
             return false;
         }
@@ -343,6 +350,7 @@ class ShoppingFluxExport extends Module
                     'SHOPPING_FLUX_IMAGE', 'SHOPPING_FLUX_SHIPPED', 'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPING_MATCHING',
                     'SHOPPING_FLUX_PASSES'));
         
+        $configuration['SHOPPING_FLUX_XML_SHOP_ID'] = Configuration::getGlobalValue('SHOPPING_FLUX_XML_SHOP_ID');
         
         // Retrieve custom fields from override that can be in products
         $fields = $this->getOverrideFields();
@@ -376,6 +384,7 @@ class ShoppingFluxExport extends Module
                         <p><label>'.$this->l('Order cancellation').' : </label><input type="checkbox" name="SHOPPING_FLUX_STATUS_CANCELED" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STATUS_CANCELED']).'/> '.$this->l('orders shipped on your Prestashop will be canceled on marketplaces').'.</p>
                         <p><label>'.$this->l('Sync stock and orders').' : </label><input type="checkbox" name="SHOPPING_FLUX_STOCKS" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STOCKS']).'/> '.$this->l('every stock and price movement will be transfered to marletplaces').'.</p>
                         <p><label>'.$this->l('Load packs').' : </label><input type="checkbox" name="SHOPPING_FLUX_PACKS" '.Tools::safeOutput($configuration['SHOPPING_FLUX_PACKS']).'/> '.$this->l('Load Product packs too').'</p>
+                        <p><label>'.$this->l('Shop ID in feed name').' : </label><input type="checkbox" name="SHOPPING_FLUX_XML_SHOP_ID" '.Tools::safeOutput($configuration['SHOPPING_FLUX_XML_SHOP_ID']).'/> '.$this->l('Add the shop ID to the name of the generated xml file (such as feed_1.xml)').'</p>
                         <p><label>'.$this->l('Default carrier').' : </label>'.$this->_getCarriersSelect($configuration, $configuration['SHOPPING_FLUX_CARRIER']).'</p>
                         <p><label>'.$this->l('Default image type').' : </label>'.$this->_getImageTypeSelect($configuration).'</p>
                         <p><label>'.$this->l('Call marketplace for shipping when order state become').' : </label>'.$this->_getOrderStateShippedSelect($configuration).'</p>
@@ -524,9 +533,16 @@ class ShoppingFluxExport extends Module
                         'SHOPPING_FLUX_LOGIN', 'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
                         'SHOPPING_FLUX_PACKS', 'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPED'));
 
+            $configuration['SHOPPING_FLUX_XML_SHOP_ID'] = Configuration::getGlobalValue('SHOPPING_FLUX_XML_SHOP_ID');
+
             foreach ($configuration as $key => $val) {
-                    $value = Tools::getValue($key, '');
+                $value = Tools::getValue($key, '');
+                $value = $value == 'on' ? 'checked' : $value;
+                if($key === "SHOPPING_FLUX_XML_SHOP_ID") {
+                    Configuration::updateGlobalValue($key, $value);
+                } else {
                     Configuration::updateValue($key, $value == 'on' ? 'checked' : $value);
+                }
             }
             
             // Check if they are custom fields (Product class override)
@@ -3041,12 +3057,19 @@ class ShoppingFluxExport extends Module
         $lang = Tools::getValue('lang');
         $currency = Tools::getValue('currency');
         $name = '';
+
+        if (version_compare(_PS_VERSION_, '1.5', '>') 
+            && Configuration::getGlobalValue('SHOPPING_FLUX_XML_SHOP_ID') === "checked") {
+            $name .= '_'.$this->context->shop->id;
+        }
+
         if ($lang != '') {
             $name .= '_'.$lang;
         }
         if ($currency != '') {
             $name .= '_'.$currency;
         }
+
         if ($tmp_file) {
             return dirname(__FILE__).'/feed'.$name.'_tmp.xml';
         } else {
