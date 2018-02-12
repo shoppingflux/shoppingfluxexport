@@ -1649,7 +1649,7 @@ class ShoppingFluxExport extends Module
                                     
                                     // Compatibility with socolissimo flexibilité module
                                     $soflexibilite = Module::getInstanceByName('soflexibilite');
-                                    if ($soflexibilite && $soflexibilite->active) {
+                                    if ($soflexibilite && $soflexibilite->active && (class_exists('SoFlexibiliteDelivery') || class_exists('SoColissimoFlexibiliteDelivery')) ) {
                                         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'soflexibilite ACTIVE', $doEchoLog);
                                         $addrSoColissimo = new Address((int)$id_address_shipping);
                                         if ($addrSoColissimo->phone_mobile) {
@@ -1658,7 +1658,15 @@ class ShoppingFluxExport extends Module
                                             $phone = $addrSoColissimo->phone;
                                         }
                                         $delivery_country = new Country($addrSoColissimo->id_country);
-                                        $so_delivery = new SoFlexibiliteDelivery();
+
+                                        // SoFlexibilite module may use a different class name depending of the module's version.
+                                        // Version 2.0 seems to be using the class SoColissimoFlexibiliteDelivery and versions 3.0 are using the class SoFlexibiliteDelivery
+                                        if (class_exists('SoFlexibiliteDelivery')) {
+                                            $so_delivery = new SoFlexibiliteDelivery();
+                                        } else {
+                                            $so_delivery = new SoColissimoFlexibiliteDelivery();
+                                        }
+
                                         $so_delivery->id_cart = (int)$cart->id;
                                         $so_delivery->id_order = -time();
                                         $so_delivery->id_point = null;
