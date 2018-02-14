@@ -1589,12 +1589,45 @@ class ShoppingFluxExport extends Module
                                 $order->ShippingMethod = 'Mondial Relay';
                             }
         
+                            // Check if the order already exists by lookig at the messages in the order
                             $orderExists = Db::getInstance()->getRow('SELECT m.id_message, m.id_order FROM '._DB_PREFIX_.'message m
                                 WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
         
                             if (! $forcedOrder && isset($orderExists['id_message']) && isset($orderExists['id_order'])) {
-                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order allready exists (id = '.$order->IdOrder.'): notifying ShoppingFlux', $doEchoLog);
+
+                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order already exists (id = '.$order->IdOrder.'): notifying ShoppingFlux', $doEchoLog);
                                 $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int)$orderExists['id_order'], false, $currentToken['token']);
+                                continue;
+                            }
+                            
+                            // Check if the order already exists by lookig at the adress alias and first/last name
+                            $orderExists = Db::getInstance()->getRow("SELECT * FROM " . _DB_PREFIX_ . "orders o, " . _DB_PREFIX_ . "customer c, " . _DB_PREFIX_ . "address a
+                                WHERE o.id_customer = c.id_customer
+                                AND c.email = 'do-not-send@alerts-shopping-flux.com'
+                                AND (c.lastname = '" . (string)$order->BillingAddress->LastName . "' OR c.firstname = '" . (string)$order->BillingAddress->LastName . "')
+                                AND a.id_address = o.id_address_delivery
+                                AND a.alias LIKE '%" . $orderExists['id_order'] . "%'
+                                ORDER BY o.id_order DESC
+                            ");
+                            
+                            if (! $forcedOrder && isset($orderExists['id_order']) ) {
+                                // This is the second try of an order creation, last process could not be completed
+                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order already exists (id = ' . $order->IdOrder . '): notifying ShoppingFlux', $doEchoLog);
+                            
+                                // Re set the carrier
+                                $orderLoaded = new Order((int) $orderExists['id_order']);
+                                $orderCartId = $orderLoaded->id_cart;
+                                $cartLoaded = new Cart($orderCartId);
+                                $cartCarrierId = $cartLoaded->id_carrier;
+                            
+                                $sql = "UPDATE " . _DB_PREFIX_ . "orders o
+                            			SET o.id_carrier = " . $cartCarrierId . "
+                            			WHERE o.id_order = " . $orderExists['id_order'];
+                                Db::getInstance()->execute($sql);
+                            
+                                // Re set the prices, and notify ShoppingFlux
+                                $this->_updatePrices($orderExists['id_order'], $order, $orderExists['reference']);
+                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int) $orderExists['id_order']);
                                 continue;
                             }
         
@@ -3116,7 +3149,7 @@ class ShoppingFluxExport extends Module
     {
         $lastOrderstreated = $this->getLastOrdersTreated();
 
-        // Check if allready existing
+        // Check if already existing
         if (! in_array((string)$order->IdOrder, array_keys($lastOrderstreated))) {
             if (sizeof($lastOrderstreated) > 19) {
                 $lastOrderstreated = array_slice($lastOrderstreated, 0, 19);
