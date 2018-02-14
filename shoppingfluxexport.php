@@ -76,7 +76,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* REGISTER HOOKS */
-    private function _initHooks()
+    protected function _initHooks()
     {
         $registerHookNewOrder = $this->registerHook('actionObjectAddAfter');
         
@@ -90,7 +90,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* SET DEFAULT CONFIGURATION */
-    private function _initConfig()
+    protected function _initConfig()
     {
         //Avoid servers IPs
         Db::getInstance()->Execute('
@@ -281,13 +281,13 @@ class ShoppingFluxExport extends Module
     }
 
     /* Check wether the Token is known by Shopping Flux */
-    private function _checkToken()
+    protected function _checkToken()
     {
         return $this->_callWebService('IsClient');
     }
 
     /* Default view when site isn't in Shopping Flux DB */
-    private function _defaultView($price = 0)
+    protected function _defaultView($price = 0)
     {
         //uri feed
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
@@ -340,7 +340,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* View when site is client */
-    private function _clientView()
+    protected function _clientView()
     {
         $this->_treatForm();
 
@@ -371,7 +371,7 @@ class ShoppingFluxExport extends Module
     }
     
     /* Fieldset for params */
-    private function _getParametersContent($configuration)
+    protected function _getParametersContent($configuration)
     {
         return '<form method="post" action="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'">
                     <fieldset>
@@ -399,7 +399,7 @@ class ShoppingFluxExport extends Module
      * Bloc that displays in configurato
      * @param unknown $configuration
      */
-    private function _getAdvancedParametersContent($configuration)
+    protected function _getAdvancedParametersContent($configuration)
     {
         if (!$this->isCurlInstalled(true)) {
             return;
@@ -437,7 +437,7 @@ class ShoppingFluxExport extends Module
         return $html;
     }
 
-    private function _getCarriersSelect($configuration, $actual_value, $name = 'SHOPPING_FLUX_CARRIER')
+    protected function _getCarriersSelect($configuration, $actual_value, $name = 'SHOPPING_FLUX_CARRIER')
     {
         $html = '<select name="'.Tools::safeOutput($name).'">';
 
@@ -451,7 +451,7 @@ class ShoppingFluxExport extends Module
         return $html;
     }
 
-    private function _getImageTypeSelect($configuration)
+    protected function _getImageTypeSelect($configuration)
     {
         $html = '<select name="SHOPPING_FLUX_IMAGE">';
 
@@ -465,7 +465,7 @@ class ShoppingFluxExport extends Module
         return $html;
     }
 
-    private function _getOrderStateShippedSelect($configuration)
+    protected function _getOrderStateShippedSelect($configuration)
     {
         $html = '<select name="SHOPPING_FLUX_SHIPPED">';
 
@@ -479,7 +479,7 @@ class ShoppingFluxExport extends Module
         return $html;
     }
 
-    private function _getOrderStateCanceledSelect($configuration)
+    protected function _getOrderStateCanceledSelect($configuration)
     {
         $html = '<select name="SHOPPING_FLUX_CANCELED">';
 
@@ -494,7 +494,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* Fieldset for feed URI */
-    private function _getFeedContent()
+    protected function _getFeedContent()
     {
         //uri feed
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
@@ -521,7 +521,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* Form record */
-    private function _treatForm()
+    protected function _treatForm()
     {
         $rec_config = Tools::getValue('rec_config');
         $rec_shipping_config = Tools::getValue('rec_shipping_config');
@@ -631,7 +631,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* Send mail to PS and Shopping Flux */
-    private function sendMail()
+    protected function sendMail()
     {
         $this->_html .= $this->displayConfirmation($this->l('You are now registered for your free trial. Our team will contact you soon.')).'
             <img src="http://www.prestashop.com/partner/shoppingflux/image.php?site='.Tools::safeOutput(Tools::getValue('site')).'&nom='.Tools::safeOutput(Tools::getValue('nom')).'&prenom='.Tools::safeOutput(Tools::getValue('prenom')).'&email='.Tools::safeOutput(Tools::getValue('email')).'&telephone='.Tools::safeOutput(Tools::getValue('telephone')).'&flux='.Tools::safeOutput(Tools::getValue('flux')).'" border="0" />';
@@ -654,7 +654,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* Clean XML tags */
-    private function clean($string)
+    protected function clean($string)
     {
         $string = str_replace(chr(25), ' ', $string);
         $string = str_replace(chr(28), ' ', $string);
@@ -667,7 +667,7 @@ class ShoppingFluxExport extends Module
 
     /* Feed content */
     
-    private function getSimpleProducts($id_lang, $limit_from, $limit_to)
+    protected function getSimpleProducts($id_lang, $limit_from, $limit_to)
     {
         $packClause = '';
         if (Configuration::get('SHOPPING_FLUX_PACKS') == 'checked') {
@@ -716,7 +716,7 @@ class ShoppingFluxExport extends Module
         return Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
     }
 
-    private function countProducts()
+    protected function countProducts()
     {
         $getPack = '';
         if (Configuration::get('SHOPPING_FLUX_PACKS') == 'checked') {
@@ -1101,7 +1101,7 @@ class ShoppingFluxExport extends Module
         }
     }
 
-    private function closeFeed()
+    protected function closeFeed()
     {
         $file = fopen($this->getFeedName(), 'a+');
         fwrite($file, '</products>');
@@ -1123,7 +1123,7 @@ class ShoppingFluxExport extends Module
     }
     
     /* Default data, in Product Class */
-    private function _getBaseData($product, $configuration, $link, $carrier)
+    protected function _getBaseData($product, $configuration, $link, $carrier)
     {
         $ret = '';
 
@@ -1187,7 +1187,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* Shipping prices */
-    private function _getShipping($product, $configuration, $carrier, $attribute_id = null, $attribute_weight = null)
+    protected function _getShipping($product, $configuration, $carrier, $attribute_id = null, $attribute_weight = null)
     {
         $default_country = new Country($configuration['PS_COUNTRY_DEFAULT'], $configuration['PS_LANG_DEFAULT']);
         $id_zone = (int)$default_country->id_zone;
@@ -1220,7 +1220,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* Product category */
-    private function _getCategories($product, $configuration)
+    protected function _getCategories($product, $configuration)
     {
         return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('
             SELECT cl.`name`
@@ -1232,7 +1232,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* Images URIs */
-    private function getImages($id_product, $id_lang)
+    protected function getImages($id_product, $id_lang)
     {
         return Db::getInstance()->ExecuteS('
             SELECT i.`cover`, i.`id_image`, il.`legend`, i.`position`
@@ -1242,7 +1242,7 @@ class ShoppingFluxExport extends Module
             ORDER BY i.cover DESC, i.`position` ASC ');
     }
 
-    private function _getImages($product, $configuration, $link)
+    protected function _getImages($product, $configuration, $link)
     {
         $images = $this->getImages($product->id, $configuration['PS_LANG_DEFAULT']);
         $ret = '<images>';
@@ -1263,7 +1263,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* Categories URIs */
-    private function _getUrlCategories($product, $configuration, $link)
+    protected function _getUrlCategories($product, $configuration, $link)
     {
         $ret = '<uri-categories>';
 
@@ -1276,7 +1276,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* All product categories */
-    private function _getProductCategoriesFull($id_product, $id_lang)
+    protected function _getProductCategoriesFull($id_product, $id_lang)
     {
         $row = Db::getInstance(_PS_USE_SQL_SLAVE_)->ExecuteS('
             SELECT cp.`id_category`, cl.`name`, cl.`link_rewrite` FROM `'._DB_PREFIX_.'category_product` cp
@@ -1295,7 +1295,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* Features */
-    private function _getFeatures($product, $configuration)
+    protected function _getFeatures($product, $configuration)
     {
         $ret = '<caracteristiques>';
         foreach ($product->getFrontFeatures($configuration['PS_LANG_DEFAULT']) as $feature) {
@@ -1341,7 +1341,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* Product attributes */
-    private function _getAttributeImageAssociations($id_product_attribute)
+    protected function _getAttributeImageAssociations($id_product_attribute)
     {
         $combinationImages = array();
         $data = Db::getInstance()->ExecuteS('
@@ -1359,7 +1359,7 @@ class ShoppingFluxExport extends Module
         return $combinationImages;
     }
 
-    private function _getCombinaisons($product, $configuration, $link, $carrier, $fileToWrite = 0)
+    protected function _getCombinaisons($product, $configuration, $link, $carrier, $fileToWrite = 0)
     {
         $combinations = array();
 
@@ -1460,7 +1460,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* Category tree XML */
-    private function _getFilAriane($product, $configuration)
+    protected function _getFilAriane($product, $configuration)
     {
         $category = '';
         $ret = '<'.$this->_translateField('category_breadcrumb').'>';
@@ -1474,7 +1474,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* Category tree */
-    private function _getProductFilAriane($id_product, $id_lang, $id_category = 0, $id_parent = 0, $name = 0)
+    protected function _getProductFilAriane($id_product, $id_lang, $id_category = 0, $id_parent = 0, $name = 0)
     {
         $ret = array();
         $id_parent = '';
@@ -1807,7 +1807,7 @@ class ShoppingFluxExport extends Module
      * Check Data to avoid errors
      * @return string|boolean : true if everything ok, error message if not
      */
-    private function checkData($order)
+    protected function checkData($order)
     {
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Checking order data');
         
@@ -2022,13 +2022,13 @@ class ShoppingFluxExport extends Module
     }
 
     /* Clean XML strings */
-    private function _clean($string)
+    protected function _clean($string)
     {
         return preg_replace("/^\d+|[^A-Z0-9]/i", "", $string);
     }
 
     /* Call Shopping Flux Webservices */
-    private function _callWebService($call, $xml = false, $id_shop = null, $forceToken = false)
+    protected function _callWebService($call, $xml = false, $id_shop = null, $forceToken = false)
     {
         SfLogger::getInstance()->log(SF_LOG_WEBSERVICE, '------- Start Call Webservice function = '.$call.' -------');
 
@@ -2085,7 +2085,7 @@ class ShoppingFluxExport extends Module
         return @simplexml_load_string($curl_response);
     }
 
-    private function _getOrderStates($id_lang, $type)
+    protected function _getOrderStates($id_lang, $type)
     {
         return Db::getInstance(_PS_USE_SQL_SLAVE_)->getValue('
             SELECT osl.name
@@ -2096,7 +2096,7 @@ class ShoppingFluxExport extends Module
             WHERE `template` = "'.pSQL($type).'"');
     }
 
-    private function _getAddress($addressNode, $id_customer, $type, $other, $marketPlace, $shippingMethod)
+    protected function _getAddress($addressNode, $id_customer, $type, $other, $marketPlace, $shippingMethod)
     {
         //alias is limited
         $type = Tools::substr($type, 0, 32);
@@ -2226,7 +2226,7 @@ class ShoppingFluxExport extends Module
         return $address->id;
     }
 
-    private function _getCustomer($email, $lastname, $firstname)
+    protected function _getCustomer($email, $lastname, $firstname)
     {
         $id_customer = (int)Db::getInstance()->getValue('SELECT `id_customer`
             FROM `'._DB_PREFIX_.'customer` WHERE `email` = \''.pSQL($email).'\'');
@@ -2253,7 +2253,7 @@ class ShoppingFluxExport extends Module
         return $customer->id;
     }
 
-    private function getIDs($ref)
+    protected function getIDs($ref)
     {
 
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
@@ -2289,7 +2289,7 @@ class ShoppingFluxExport extends Module
         return array($row2['id_product'], 0);
     }
 
-    private function _updatePrices($id_order, $order, $reference_order)
+    protected function _updatePrices($id_order, $order, $reference_order)
     {
         $tax_rate = 0;
         $total_products_tax_excl = 0;
@@ -2481,7 +2481,7 @@ class ShoppingFluxExport extends Module
         Db::getInstance()->update('order_payment', $updatePayment, '`order_reference` = "'.$reference_order.'"');
     }
 
-    private function _validateOrder($cart, $marketplace, $doEchoLog)
+    protected function _validateOrder($cart, $marketplace, $doEchoLog)
     {
         $payment = new sfpayment();
         $payment->name = 'sfpayment';
@@ -2513,7 +2513,7 @@ class ShoppingFluxExport extends Module
      * Fake cart creation
      */
 
-    private function _getCart($id_customer, $id_address_billing, $id_address_shipping, $productsNode, $currency, $shipping_method, $fees, $id_lang = false, $doEchoLog = false)
+    protected function _getCart($id_customer, $id_address_billing, $id_address_shipping, $productsNode, $currency, $shipping_method, $fees, $id_lang = false, $doEchoLog = false)
     {
         $cart = new Cart();
         $cart->id_customer = $id_customer;
@@ -2579,7 +2579,7 @@ class ShoppingFluxExport extends Module
         return $cart;
     }
 
-    private function _checkProducts($productsNode)
+    protected function _checkProducts($productsNode)
     {
         $available = true;
 
@@ -2608,7 +2608,7 @@ class ShoppingFluxExport extends Module
         return $available;
     }
 
-    private function _validOrders($id_order, $marketplace, $id_order_merchant = false, $error = false, $token = null)
+    protected function _validOrders($id_order, $marketplace, $id_order_merchant = false, $error = false, $token = null)
     {
         $xml = '<?xml version="1.0" encoding="UTF-8"?>';
         $xml .= '<ValidOrders>';
@@ -2632,7 +2632,7 @@ class ShoppingFluxExport extends Module
         $this->_callWebService('ValidOrders', $xml, null, $token);
     }
 
-    private function _setShoppingFeedId()
+    protected function _setShoppingFeedId()
     {
         $login = Configuration::get('SHOPPING_FLUX_LOGIN');
         $id = Configuration::get('SHOPPING_FLUX_ID');
@@ -2655,7 +2655,7 @@ class ShoppingFluxExport extends Module
         Configuration::updateValue('SHOPPING_FLUX_ID', (string)$getClientId->Response->ID);
     }
 
-    private function _translateField($field)
+    protected function _translateField($field)
     {
         $translations = array(
             'FR' => array(
@@ -2696,7 +2696,7 @@ class ShoppingFluxExport extends Module
      * Get the user's IP handling if there is a proxy
      * @param String $ip optionnal IP comming from the order
      */
-    private function getIp($ip = null)
+    protected function getIp($ip = null)
     {
         if (empty($ip)) {
             if (isset($_SERVER['HTTP_CF_CONNECTING_IP'])) {
@@ -2725,7 +2725,7 @@ class ShoppingFluxExport extends Module
     /**
      * Get additional fields from Product.php override
      */
-    private function getOverrideFields()
+    protected function getOverrideFields()
     {
         // Load core Product info
         
@@ -2757,7 +2757,7 @@ class ShoppingFluxExport extends Module
      * Function to display fields found in Product class override
      * @param $configuration
      */
-    private function getOverrideFieldsContent($configuration)
+    protected function getOverrideFieldsContent($configuration)
     {
         $fields = $this->getOverrideFields();
         $message = '';
@@ -2784,7 +2784,7 @@ class ShoppingFluxExport extends Module
      * Function to display cron information
      * @param $configuration
      */
-    private function getCronDetails($configuration)
+    protected function getCronDetails($configuration)
     {
         $id_shop = $this->context->shop->id;
         $html = '';
@@ -2819,7 +2819,7 @@ class ShoppingFluxExport extends Module
      * @param $configuration
      *
      */
-    private function defaultAdvancedParameterInformationView($configuration)
+    protected function defaultAdvancedParameterInformationView($configuration)
     {
         $html = '<form method="post" action="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'">';
         $html .= '<fieldset>';
@@ -2839,7 +2839,7 @@ class ShoppingFluxExport extends Module
      * @param $configuration
      *
      */
-    private function defaultInformationView($configuration)
+    protected function defaultInformationView($configuration)
     {
         $html = '<fieldset>';
         $html .= '<legend>'.$this->l('Prerequisites').'</legend>';
@@ -2882,7 +2882,7 @@ class ShoppingFluxExport extends Module
     /**
      * Display the token configuration form
      */
-    private function defaultTokenConfigurationView()
+    protected function defaultTokenConfigurationView()
     {
         $tokenTree = $this->getAllTokensOfShop(true, true);
         
@@ -3022,7 +3022,7 @@ class ShoppingFluxExport extends Module
      * @param int $id_currency (optionnal) the currency
      * @param int $id_lang (optionnal) the lang
      */
-    private function setTokenValue($value, $id_shop = null, $id_currency = false, $id_lang = false)
+    protected function setTokenValue($value, $id_shop = null, $id_currency = false, $id_lang = false)
     {
         $key = 'SHOPPING_FLUX_TOKEN';
         if ($id_currency && $id_lang) {
@@ -3039,7 +3039,7 @@ class ShoppingFluxExport extends Module
     /**
      * Function to check if curl is installed
      */
-    private function isCurlInstalled($returnBoolean = false)
+    protected function isCurlInstalled($returnBoolean = false)
     {
         if ($returnBoolean) {
             return in_array('curl', get_loaded_extensions());
@@ -3055,7 +3055,7 @@ class ShoppingFluxExport extends Module
     /**
      * Function to check if fopen is allowed
      */
-    private function isFopenAllowed()
+    protected function isFopenAllowed()
     {
         if (ini_get('allow_url_fopen')) {
             $response = $this->l('Active (correct)');
@@ -3068,7 +3068,7 @@ class ShoppingFluxExport extends Module
     /**
      * Function to retrieve image with max width and height
      */
-    private function getMaxImageInformation()
+    protected function getMaxImageInformation()
     {
         $sql = 'SELECT it.name, (it.width * it.height) AS area
                 FROM `'._DB_PREFIX_.'image_type` it
@@ -3083,7 +3083,7 @@ class ShoppingFluxExport extends Module
     /**
      * Manage feed name depending on currency and lang
      */
-    private function getFeedName($tmp_file = true)
+    protected function getFeedName($tmp_file = true)
     {
         $lang = Tools::getValue('lang');
         $currency = Tools::getValue('currency');
@@ -3111,7 +3111,7 @@ class ShoppingFluxExport extends Module
     /**
      * Saves last order received from ShoppingFlux in order to replay it for debug purposes
      */
-    private function saveLastOrderTreated($order)
+    protected function saveLastOrderTreated($order)
     {
         $lastOrderstreated = $this->getLastOrdersTreated();
 
@@ -3204,7 +3204,7 @@ class ShoppingFluxExport extends Module
     /**
      * Gets relay data from webservice, and inserts into mondial relay module
      */
-    private function setMondialRelayData($idRelay, $idOrder)
+    protected function setMondialRelayData($idRelay, $idOrder)
     {
         $order = new Order((int)Tools::getValue('id_order'));
         $carrier = new Carrier((int)$order->id_carrier);
@@ -3241,7 +3241,7 @@ class ShoppingFluxExport extends Module
     /**
      * Retrieve relay details from webservice
      */
-    private function getPointRelaisData($id_relay, $isoCountry)
+    protected function getPointRelaisData($id_relay, $isoCountry)
     {
         $urlWebService = 'http://www.mondialrelay.fr/webservice/Web_Services.asmx?WSDL';
         $mondialRelayConfig = Configuration::get('MR_ACCOUNT_DETAIL');

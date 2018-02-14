@@ -33,7 +33,7 @@ class SfLogger
      */
     private static $logRotateMegaBites = 100;
 
-    private function __construct()
+    protected function __construct()
     {
         if ((int) Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG') || Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG') == 'true') {
             self::$debugOrders = true;
@@ -109,7 +109,7 @@ class SfLogger
      * Rotates the logs based on log size
      * @param  string $fileName The file name to rotate if needed
      */
-    private function rotateLogFile($fileName)
+    protected function rotateLogFile($fileName)
     {
         if (self::$logRotateMegaBites) {
 
