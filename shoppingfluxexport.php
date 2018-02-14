@@ -1610,7 +1610,7 @@ class ShoppingFluxExport extends Module
                                 ORDER BY o.id_order DESC
                             ");
                             
-                            if (! $forcedOrder && isset($orderExists['id_order']) && isset($orderExists['id_order'])) {
+                            if (! $forcedOrder && isset($orderExists['id_order']) ) {
                                 // This is the second try of an order creation, last process could not be completed
                                 SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order already exists (id = ' . $order->IdOrder . '): notifying ShoppingFlux', $doEchoLog);
                             
