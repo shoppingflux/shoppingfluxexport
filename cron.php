@@ -54,11 +54,14 @@ if ($token == '' || ($token != $tokenInConfig && ! in_array($token, $allTokens))
 }
 
 $current = Tools::getValue('current');
+$lang = Tools::getValue('lang');
 
-// Do not allow feed generation if less than 6 hours before last generation
+// Do not allow feed generation if less than 2 hours before last generation
 $frequency_in_hours = 2;
-$last_executed = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop);
 $today = date('Y-m-d H:i:s');
+$configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME' . $lang;
+$last_executed = Configuration::get($configurationKey, $idLang, null, $id_shop);
+
 if (empty($last_executed) || ($last_executed == '0')) {
     $last_executed = 0;
 }
@@ -81,5 +84,5 @@ if (empty($current)) {
         SfLogger::getInstance()->log(SF_LOG_CRON, $logMessage);
     }
 } else {
-    $sf->writeFeed(Tools::getValue('total'), Tools::getValue('current'), Tools::getValue('lang'));
+    $sf->writeFeed(Tools::getValue('total'), Tools::getValue('current'), $lang);
 }

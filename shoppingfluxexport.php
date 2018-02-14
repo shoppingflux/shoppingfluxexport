@@ -157,6 +157,12 @@ class ShoppingFluxExport extends Module
             }
         }
         
+        // Used to add the shop ID in the feed name (when generating the feed.xml file)
+        // Not enabled by default
+        if (! Configuration::updateGlobalValue('SHOPPING_FLUX_XML_SHOP_ID', false)) {
+            $installResult = false;
+        }
+
         // Generate multitoken default values
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
             $shops = Shop::getShops();
@@ -219,6 +225,7 @@ class ShoppingFluxExport extends Module
                 !Configuration::deleteByName('SHOPPING_FLUX_MULTITOKEN') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_ORDERS_DEBUG') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_DEBUG') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_XML_SHOP_ID') ||
                 !parent::uninstall()) {
             return false;
         }
@@ -343,6 +350,7 @@ class ShoppingFluxExport extends Module
                     'SHOPPING_FLUX_IMAGE', 'SHOPPING_FLUX_SHIPPED', 'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPING_MATCHING',
                     'SHOPPING_FLUX_PASSES'));
         
+        $configuration['SHOPPING_FLUX_XML_SHOP_ID'] = Configuration::getGlobalValue('SHOPPING_FLUX_XML_SHOP_ID');
         
         // Retrieve custom fields from override that can be in products
         $fields = $this->getOverrideFields();
@@ -376,6 +384,7 @@ class ShoppingFluxExport extends Module
                         <p><label>'.$this->l('Order cancellation').' : </label><input type="checkbox" name="SHOPPING_FLUX_STATUS_CANCELED" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STATUS_CANCELED']).'/> '.$this->l('orders shipped on your Prestashop will be canceled on marketplaces').'.</p>
                         <p><label>'.$this->l('Sync stock and orders').' : </label><input type="checkbox" name="SHOPPING_FLUX_STOCKS" '.Tools::safeOutput($configuration['SHOPPING_FLUX_STOCKS']).'/> '.$this->l('every stock and price movement will be transfered to marletplaces').'.</p>
                         <p><label>'.$this->l('Load packs').' : </label><input type="checkbox" name="SHOPPING_FLUX_PACKS" '.Tools::safeOutput($configuration['SHOPPING_FLUX_PACKS']).'/> '.$this->l('Load Product packs too').'</p>
+                        <p><label>'.$this->l('Shop ID in feed name').' : </label><input type="checkbox" name="SHOPPING_FLUX_XML_SHOP_ID" '.Tools::safeOutput($configuration['SHOPPING_FLUX_XML_SHOP_ID']).'/> '.$this->l('Add the shop ID to the name of the generated xml file (such as feed_1.xml)').'</p>
                         <p><label>'.$this->l('Default carrier').' : </label>'.$this->_getCarriersSelect($configuration, $configuration['SHOPPING_FLUX_CARRIER']).'</p>
                         <p><label>'.$this->l('Default image type').' : </label>'.$this->_getImageTypeSelect($configuration).'</p>
                         <p><label>'.$this->l('Call marketplace for shipping when order state become').' : </label>'.$this->_getOrderStateShippedSelect($configuration).'</p>
@@ -524,9 +533,16 @@ class ShoppingFluxExport extends Module
                         'SHOPPING_FLUX_LOGIN', 'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
                         'SHOPPING_FLUX_PACKS', 'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPED'));
 
+            $configuration['SHOPPING_FLUX_XML_SHOP_ID'] = Configuration::getGlobalValue('SHOPPING_FLUX_XML_SHOP_ID');
+
             foreach ($configuration as $key => $val) {
-                    $value = Tools::getValue($key, '');
+                $value = Tools::getValue($key, '');
+                $value = $value == 'on' ? 'checked' : $value;
+                if($key === "SHOPPING_FLUX_XML_SHOP_ID") {
+                    Configuration::updateGlobalValue($key, $value);
+                } else {
                     Configuration::updateValue($key, $value == 'on' ? 'checked' : $value);
+                }
             }
             
             // Check if they are custom fields (Product class override)
@@ -655,7 +671,7 @@ class ShoppingFluxExport extends Module
     {
         $packClause = '';
         if (Configuration::get('SHOPPING_FLUX_PACKS') == 'checked') {
-            $packClause = ' AND p.`cache_is_pack` = 0 ';
+            $packClause = ' AND p.`cache_is_pack` = 1 ';
         }
             
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
@@ -704,7 +720,7 @@ class ShoppingFluxExport extends Module
     {
         $getPack = '';
         if (Configuration::get('SHOPPING_FLUX_PACKS') == 'checked') {
-            $getPack = ' AND p.`cache_is_pack` = 0 ';
+            $getPack = ' AND p.`cache_is_pack` = 1 ';
         }
             
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
@@ -867,12 +883,15 @@ class ShoppingFluxExport extends Module
         
         // Write time when init for first time
         $today =  date('Y-m-d H:i:s');
-        Configuration::updateValue('PS_SHOPPINGFLUX_CRON_TIME', $today, false, null, $id_shop);
+        $lang = Tools::getValue('lang');
+        $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME' . $lang;
+        Configuration::updateValue($configurationKey, $today, false, null, $id_shop);
         
         SfLogger::getInstance()->emptyLogCron();
         
         $file = fopen($this->getFeedName(), 'w+');
-        fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="'.$this->default_country->iso_code.'">');
+        $country = $lang ? $lang : $this->default_country->iso_code;
+        fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="' . $country . '">');
         fclose($file);
 
         $totalProducts = $this->countProducts();
@@ -1134,7 +1153,7 @@ class ShoppingFluxExport extends Module
         $data = array();
         $data[0] = ($configuration['SHOPPING_FLUX_REF'] != 'true') ? $product->id : $product->reference;
         $data[1] = $product->name;
-        $data[2] = $link->getProductLink($product);
+        $data[2] = $link->getProductLink($product, null, null, null, $configuration['PS_LANG_DEFAULT']);
         $data[4] = $product->description;
         $data[5] = $product->description_short;
         
@@ -1419,7 +1438,8 @@ class ShoppingFluxExport extends Module
             }
 
             $ret .= '<'.$this->_translateField('mpn').'><![CDATA['.$combination['reference'].']]></'.$this->_translateField('mpn').'>';
-            $ret .= '<'.$this->_translateField('combination_link').'><![CDATA['.$link->getProductLink($product).$product->getAnchor($id, true).']]></'.$this->_translateField('combination_link').'>';
+            $productLink = $link->getProductLink($product, null, null, null, $configuration['PS_LANG_DEFAULT']);
+            $ret .= '<'.$this->_translateField('combination_link').'><![CDATA['.$productLink.$product->getAnchor($id, true).']]></'.$this->_translateField('combination_link').'>';
 
             $ret .= '</attributs>';
             $ret .= '</declinaison>';
@@ -1574,8 +1594,9 @@ class ShoppingFluxExport extends Module
                                 WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
         
                             if (! $forcedOrder && isset($orderExists['id_message']) && isset($orderExists['id_order'])) {
+
                                 SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order already exists (id = '.$order->IdOrder.'): notifying ShoppingFlux', $doEchoLog);
-                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int)$orderExists['id_order']);
+                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int)$orderExists['id_order'], false, $currentToken['token']);
                                 continue;
                             }
                             
@@ -1613,7 +1634,7 @@ class ShoppingFluxExport extends Module
                             $check = $this->checkData($order);
                             if ($check !== true) {
                                 SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check data incorrect - '.$check, $doEchoLog);
-                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $check);
+                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $check, $currentToken['token']);
                                 continue;
                             }
         
@@ -1623,9 +1644,9 @@ class ShoppingFluxExport extends Module
                             $id_customer = $this->_getCustomer($email, (string)$order->BillingAddress->LastName, (string)$order->BillingAddress->FirstName);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id customer created or found : '.$id_customer, $doEchoLog);
                             //avoid update of old orders by the same merchant with different addresses
-                            $id_address_billing = $this->_getAddress($order->BillingAddress, $id_customer, 'Billing-'.(string)$order->IdOrder);
+                            $id_address_billing = $this->_getAddress($order->BillingAddress, $id_customer, 'Billing-'.(string)$order->IdOrder, '', (string)$order->Marketplace, (string)$order->ShippingMethod);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress delivery created or found : '.$id_address_billing, $doEchoLog);
-                            $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other);
+                            $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other, (string)$order->Marketplace, (string)$order->ShippingMethod);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress shipping or found : '.$id_address_shipping, $doEchoLog);
                             $products_available = $this->_checkProducts($order->Products);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check products availabilityresult : '.$products_available, $doEchoLog);
@@ -1661,7 +1682,7 @@ class ShoppingFluxExport extends Module
                                     
                                     // Compatibility with socolissimo flexibilité module
                                     $soflexibilite = Module::getInstanceByName('soflexibilite');
-                                    if ($soflexibilite && $soflexibilite->active) {
+                                    if ($soflexibilite && $soflexibilite->active && (class_exists('SoFlexibiliteDelivery') || class_exists('SoColissimoFlexibiliteDelivery')) ) {
                                         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'soflexibilite ACTIVE', $doEchoLog);
                                         $addrSoColissimo = new Address((int)$id_address_shipping);
                                         if ($addrSoColissimo->phone_mobile) {
@@ -1670,80 +1691,15 @@ class ShoppingFluxExport extends Module
                                             $phone = $addrSoColissimo->phone;
                                         }
                                         $delivery_country = new Country($addrSoColissimo->id_country);
-                                        $so_delivery = new SoFlexibiliteDelivery();
-                                        $so_delivery->id_cart = (int)$cart->id;
-                                        $so_delivery->id_order = -time();
-                                        $so_delivery->id_point = null;
-                                        $so_delivery->id_customer = (int)$id_customer;
-                                        $so_delivery->firstname = $addrSoColissimo->firstname;
-                                        $so_delivery->lastname = $addrSoColissimo->lastname;
-                                        $so_delivery->company = $addrSoColissimo->company;
-                                        $so_delivery->telephone = $phone;
-                                        $so_delivery->email = $current_customer->email;
-                                        $so_delivery->postcode = $addrSoColissimo->postcode;
-                                        $so_delivery->city = $addrSoColissimo->city;
-                                        $so_delivery->country = $delivery_country->iso_code;
-                                        $so_delivery->address1 = $addrSoColissimo->address1;
-                                        $so_delivery->address2 = $addrSoColissimo->address2;
-                                    
-                                        // determine type
-                                        $soflexibilite_conf_key = array(
-                                            'SOFLEXIBILITE_DOM_ID',
-                                            'SOFLEXIBILITE_DOS_ID',
-                                            'SOFLEXIBILITE_BPR_ID',
-                                            'SOFLEXIBILITE_A2P_ID'
-                                        );
-                                        $conf = Configuration::getMultiple($soflexibilite_conf_key, null, null, null);
-                                        $carrier_obj = new Carrier($cart->id_carrier);
-                                        if (isset($carrier_obj->id_reference)) {
-                                            $id_reference = $carrier_obj->id_reference;
+
+                                        // SoFlexibilite module may use a different class name depending of the module's version.
+                                        // Version 2.0 seems to be using the class SoColissimoFlexibiliteDelivery and versions 3.0 are using the class SoFlexibiliteDelivery
+                                        if (class_exists('SoFlexibiliteDelivery')) {
+                                            $so_delivery = new SoFlexibiliteDelivery();
                                         } else {
-                                            $id_reference = $carrier_obj->id;
+                                            $so_delivery = new SoColissimoFlexibiliteDelivery();
                                         }
-                                        if ($id_reference == $conf['SOFLEXIBILITE_DOM_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOM_ID']
-                                        ) {
-                                            $so_delivery->type = 'DOM';
-                                        }
-                                    
-                                        if ($id_reference == $conf['SOFLEXIBILITE_DOS_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_DOS_ID']
-                                        ) {
-                                            $so_delivery->type = 'DOS';
-                                        }
-                                    
-                                        if ($id_reference == $conf['SOFLEXIBILITE_BPR_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_BPR_ID']
-                                        ) {
-                                            $so_delivery->type = 'BPR';
-                                        }
-                            
-                                        if ($id_reference == $conf['SOFLEXIBILITE_A2P_ID'] ||
-                                            $carrier_obj->id == $conf['SOFLEXIBILITE_A2P_ID']
-                                        ) {
-                                            $so_delivery->type = 'A2P';
-                                        }
-                                    
-                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
-                    
-                                        $status_soflexibilite = (bool)$so_delivery->saveDelivery();
-                    
-                                        $log = 'SoFlexibilite > saveDelivery = ' . $status_soflexibilite;
-                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
-                                    }
-                                    
-                                    // Compatibility with socolissimo flexibilité module
-                                    $soflexibilite = Module::getInstanceByName('soflexibilite');
-                                    if ($soflexibilite && $soflexibilite->active) {
-                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'soflexibilite ACTIVE', $doEchoLog);
-                                        $addrSoColissimo = new Address((int)$id_address_shipping);
-                                        if ($addrSoColissimo->phone_mobile) {
-                                            $phone = $addrSoColissimo->phone_mobile;
-                                        } else {
-                                            $phone = $addrSoColissimo->phone;
-                                        }
-                                        $delivery_country = new Country($addrSoColissimo->id_country);
-                                        $so_delivery = new SoFlexibiliteDelivery();
+
                                         $so_delivery->id_cart = (int)$cart->id;
                                         $so_delivery->id_order = -time();
                                         $so_delivery->id_point = null;
@@ -1820,7 +1776,7 @@ class ShoppingFluxExport extends Module
         
                                     //we valid there
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Notifying ShoppingFlux of order creation', $doEchoLog);
-                                    $orderCreation = $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order);
+                                    $orderCreation = $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order, false, $currentToken['token']);
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Notify result of order creation : ' . $orderCreation, $doEchoLog);
         
                                     $reference_order = $payment->currentOrderReference;
@@ -1840,6 +1796,8 @@ class ShoppingFluxExport extends Module
                                     if ($order->ShippingMethod == 'Mondial Relay') {
                                         $this->setMondialRelayData($order->Other, $id_order);
                                     }
+                                    
+                                    SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order successfully created, Prestashop order id = ' . $id_order, $doEchoLog);
                                 } else {
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'ERROR could not load cart', $doEchoLog);
                                 }
@@ -1865,7 +1823,7 @@ class ShoppingFluxExport extends Module
                         } catch (Exception $pe) {
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Error on order creation : '.$pe->getMessage());
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Trace : '.print_r($pe->getTraceAsString(), true));
-                            $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $pe->getMessage());
+                            $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $pe->getMessage(), $currentToken['token']);
                         }
                         if ($forcedOrder) {
                             break;
@@ -2099,7 +2057,7 @@ class ShoppingFluxExport extends Module
     /* Clean XML strings */
     private function _clean($string)
     {
-        return preg_replace('/[^A-Za-z0-9]/', '', $string);
+        return preg_replace("/^\d+|[^A-Z0-9]/i", "", $string);
     }
 
     /* Call Shopping Flux Webservices */
@@ -2171,10 +2129,13 @@ class ShoppingFluxExport extends Module
             WHERE `template` = "'.pSQL($type).'"');
     }
 
-    private function _getAddress($addressNode, $id_customer, $type, $other = '')
+    private function _getAddress($addressNode, $id_customer, $type, $other, $marketPlace, $shippingMethod)
     {
         //alias is limited
         $type = Tools::substr($type, 0, 32);
+
+        // case for markePlace
+        $marketPlace = Tools::strtolower($marketPlace);
 
         $id_address = (int)Db::getInstance()->getValue('SELECT `id_address`
             FROM `'._DB_PREFIX_.'address` WHERE `id_customer` = '.(int)$id_customer.' AND `alias` = \''.pSQL($type).'\'');
@@ -2201,9 +2162,47 @@ class ShoppingFluxExport extends Module
             }
         }
 
-        $lastname = (string)$addressNode->LastName;
-        $firstname = (string)$addressNode->FirstName;
+        if ($marketPlace === "cdiscount" && ($shippingMethod === "SO1" || $shippingMethod === "REL" || $shippingMethod === "RCO")) {
 
+            // Workaround for CDiscount usage of last name as pickup-point name
+            $pickupPointName = (string)$addressNode->LastName;
+            
+            // Check if the company is already filled
+            $isCompanyFilled = empty($addressNode->Company) ? false : true;
+
+            $address->company = pSQL($pickupPointName);
+            
+            if ($isCompanyFilled) {
+                // When the company is known, we are appending it to the second line of the adresse
+                $address->address2 = pSQL($street2." ".$addressNode->Company);
+            } else {
+                $address->address2 = pSQL($street2);
+            }
+
+            // And now we decompose the fullname (in the FirstName field) by first name + last name
+            // We consider that what's after the space is the last name
+            $name = trim((string)$addressNode->FirstName);
+            $nameParts = explode(" ", $name);
+            $lastname = "";
+            $firstname = "";
+            if (isset($nameParts[0])) {
+                $firstname = $nameParts[0];
+                $lastname = '';
+                foreach ($nameParts as $key => $particule) {
+                    if($key === 0) {
+                        continue;
+                    }
+                    $lastname .= $particule.' ';
+                }
+                $lastname = trim($lastname);
+            }
+
+        } else {
+            $lastname = (string)$addressNode->LastName;
+            $firstname = (string)$addressNode->FirstName;
+            $address->company = pSQL($addressNode->Company);
+            $address->address2 = pSQL($street2);
+        }
 
         $lastname = preg_replace('/\-?\d+/', '', $lastname);
         $firstname = preg_replace('/\-?\d+/', '', $firstname);
@@ -2233,6 +2232,16 @@ class ShoppingFluxExport extends Module
             $address->phone_mobile = Tools::substr(pSQL($addressNode->Phone), 0, 16);
         } else {
             $address->phone_mobile = Tools::substr(pSQL($addressNode->PhoneMobile), 0, 16);
+        }
+        
+        // Check if country is active
+        $country = new Country($address->id_country);
+        if (! $country->active) {
+            $langDefault = Configuration::get('PS_LANG_DEFAULT');
+            $errorMessage = 'The country ' . $country->name[$langDefault] . ' (iso = ' . trim($addressNode->Country);
+            $errorMessage .= ') is not active in your Prestashop, you must activate it in your localizaton settings';
+            $this->logDebugOrders($errorMessage);
+            throw new Exception($errorMessage);
         }
 
         // Update state (needed for US)
@@ -2279,15 +2288,36 @@ class ShoppingFluxExport extends Module
 
     private function getIDs($ref)
     {
-        $row = Db::getInstance()->getRow('SELECT pa.id_product, pa.id_product_attribute  FROM '._DB_PREFIX_.'product_attribute pa
-            WHERE pa.reference = "'.  pSQL($ref).'" AND pa.id_product!=0');
+
+        if (version_compare(_PS_VERSION_, '1.5', '>')) {
+            $sql = 'SELECT pa.id_product, pa.id_product_attribute'.
+            ' FROM '._DB_PREFIX_.'product_attribute pa '.
+            Shop::addSqlAssociation("product_attribute", "pa").
+            ' WHERE pa.reference = "'.  pSQL($ref).'" AND pa.id_product!=0 ';
+        } else {
+            $sql = 'SELECT pa.id_product, pa.id_product_attribute'.
+            ' FROM '._DB_PREFIX_.'product_attribute pa '.
+            ' WHERE pa.reference = "'.  pSQL($ref).'" AND pa.id_product!=0 ';
+        }
+
+        $row = Db::getInstance()->getRow($sql);
 
         if (isset($row['id_product_attribute'])) {
             return array($row['id_product'], $row['id_product_attribute']);
         }
 
-        $row2 = Db::getInstance()->getRow('SELECT p.id_product  FROM '._DB_PREFIX_.'product p
-            WHERE p.reference = "'.  pSQL($ref).'" AND p.id_product!=0');
+        if (version_compare(_PS_VERSION_, '1.5', '>')) {
+            $sql = 'SELECT p.id_product '.
+            ' FROM '._DB_PREFIX_.'product p '.
+            Shop::addSqlAssociation("product", "p").
+            ' WHERE p.reference = "'.  pSQL($ref).'" AND p.id_product!=0 ';
+        } else {
+            $sql = 'SELECT p.id_product  FROM '._DB_PREFIX_.'product p
+            WHERE p.reference = "'.  pSQL($ref).'" AND p.id_product!=0';
+        }
+
+
+        $row2 = Db::getInstance()->getRow($sql);
 
         return array($row2['id_product'], 0);
     }
@@ -2611,7 +2641,7 @@ class ShoppingFluxExport extends Module
         return $available;
     }
 
-    private function _validOrders($id_order, $marketplace, $id_order_merchant = false, $error = false)
+    private function _validOrders($id_order, $marketplace, $id_order_merchant = false, $error = false, $token = null)
     {
         $xml = '<?xml version="1.0" encoding="UTF-8"?>';
         $xml .= '<ValidOrders>';
@@ -2630,7 +2660,9 @@ class ShoppingFluxExport extends Module
         $xml .= '</Order>';
         $xml .= '</ValidOrders>';
 
-        $this->_callWebService('ValidOrders', $xml, null, $this->getOrderToken($id_order_merchant));
+        $token = empty($token) ? $this->getOrderToken($id_order_merchant) : $token;
+
+        $this->_callWebService('ValidOrders', $xml, null, $token);
     }
 
     private function _setShoppingFeedId()
@@ -2796,8 +2828,12 @@ class ShoppingFluxExport extends Module
         $html .= '<p style="clear: both"><label>';
         $html .= '<p style="clear: both"><label>'.$this->l('Cron last generated date');
         $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">';
-        if (Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop) != '') {
-            $cronTime = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop);
+        $lang = Tools::getValue('lang');
+        $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME'.$lang;
+        $configTimeValue = Configuration::get($configurationKey, null, null, $id_shop);
+         
+        if ($configTimeValue != '') {
+            $cronTime = $configTimeValue;
             $html .= Tools::displayDate($cronTime, $configuration['PS_LANG_DEFAULT'], true, '/');
         } else {
             $html .= 'Jamais';
@@ -3085,12 +3121,19 @@ class ShoppingFluxExport extends Module
         $lang = Tools::getValue('lang');
         $currency = Tools::getValue('currency');
         $name = '';
+
+        if (version_compare(_PS_VERSION_, '1.5', '>') 
+            && Configuration::getGlobalValue('SHOPPING_FLUX_XML_SHOP_ID') === "checked") {
+            $name .= '_'.$this->context->shop->id;
+        }
+
         if ($lang != '') {
             $name .= '_'.$lang;
         }
         if ($currency != '') {
             $name .= '_'.$currency;
         }
+
         if ($tmp_file) {
             return dirname(__FILE__).'/feed'.$name.'_tmp.xml';
         } else {
