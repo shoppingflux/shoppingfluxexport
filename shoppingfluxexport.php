@@ -2024,7 +2024,8 @@ class ShoppingFluxExport extends Module
     /* Clean XML strings */
     private function _clean($string)
     {
-        return preg_replace("/^\d+|[^A-Z0-9]/i", "", $string);
+        $regexStr = preg_replace('/[^A-Za-z0-9]/', '', $string);
+        return preg_replace("/^(\d+)/i", "car-$1", $regexStr);
     }
 
     /* Call Shopping Flux Webservices */
