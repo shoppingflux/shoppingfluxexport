@@ -2351,7 +2351,7 @@ class ShoppingFluxExport extends Module
             $total_price_tax_excl = (float)(((float)$product->Price / (1 + ($tax_rate / 100))) * $product->Quantity);
             $total_products_tax_excl += $total_price_tax_excl;
             
-            $id_product_attribute = (isset($skus[1]) && $skus[1])? (int)$skus[1] : 0;
+            $id_product_attribute = (isset($skus[1]) && $skus[1]) ? (int)$skus[1] : 0;
             $original_product_price = Product::getPriceStatic((int)$skus[0], false, $id_product_attribute, 6);
             $updateOrderDetail = array(
                 'product_price'        => (float)((float)$product->Price / (1 + ($tax_rate / 100))),
