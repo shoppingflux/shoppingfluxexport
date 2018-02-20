@@ -146,7 +146,7 @@ class ShoppingFluxExport extends Module
                      !Configuration::updateValue('SHOPPING_FLUX_REF', '') ||
                      !Configuration::updateValue('SHOPPING_FLUX_MULTITOKEN', 0) ||
                      !Configuration::updateValue('SHOPPING_FLUX_INDEX', Tools::getCurrentUrlProtocolPrefix().$shop['domain'].$shop['uri']) ||
-                     !Configuration::updateValue('SHOPPING_FLUX_STOCKS') ||
+                     !Configuration::updateValue('SHOPPING_FLUX_STOCKS', '') ||
                      !Configuration::updateValue('SHOPPING_FLUX_PACKS', '') ||
                      !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300') ||
                      !Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', true) ||
