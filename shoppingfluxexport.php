@@ -860,17 +860,18 @@ class ShoppingFluxExport extends Module
         echo '</products>';
     }
     
-    public function initFeed()
+    public function initFeed($lang = null)
     {
+
+        $langLock = empty($lang) ? "" : "_".$lang;
+
         $id_shop = $this->context->shop->id;
-        $lockFile = dirname(__FILE__).'/cron_'.$id_shop.'.lock';
+        $lockFile = dirname(__FILE__).'/cron_'.$id_shop.$langLock.'.lock';
         if (!file_exists($lockFile)) {
             $fp = fopen($lockFile, 'w+');
         } else {
             $fp = fopen($lockFile, 'r+');
         }
-        
-        
         
         // Avoid simultaneous calls
         if (flock($fp, LOCK_EX)) {
@@ -883,7 +884,6 @@ class ShoppingFluxExport extends Module
         
         // Write time when init for first time
         $today =  date('Y-m-d H:i:s');
-        $lang = Tools::getValue('lang');
         $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME' . $lang;
         Configuration::updateValue($configurationKey, $today, false, null, $id_shop);
         
@@ -2829,10 +2829,15 @@ class ShoppingFluxExport extends Module
         $html .= '<p style="clear: both"><label>';
         $html .= '<p style="clear: both"><label>'.$this->l('Cron last generated date');
         $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">';
+
         $lang = Tools::getValue('lang');
-        $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME'.$lang;
-        $configTimeValue = Configuration::get($configurationKey, null, null, $id_shop);
-         
+        if (!empty($lang)) {
+            $idLang = Language::getIdByIso($lang);
+            $configTimeValue = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME' . $lang, $idLang, null, $id_shop);
+        } else {
+            $configTimeValue = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop);
+        }
+
         if ($configTimeValue != '') {
             $cronTime = $configTimeValue;
             $html .= Tools::displayDate($cronTime, $configuration['PS_LANG_DEFAULT'], true, '/');

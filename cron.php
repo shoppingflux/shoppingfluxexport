@@ -59,8 +59,14 @@ $lang = Tools::getValue('lang');
 // Do not allow feed generation if less than 2 hours before last generation
 $frequency_in_hours = 2;
 $today = date('Y-m-d H:i:s');
-$configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME' . $lang;
-$last_executed = Configuration::get($configurationKey, $idLang, null, $id_shop);
+
+if (!empty($lang)) {
+    // When a lang is provided, we will have a separate frequency
+    $idLang = Language::getIdByIso($lang);
+    $last_executed = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME' . $lang, $idLang, null, $id_shop);
+} else {
+    $last_executed = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop);
+}
 
 if (empty($last_executed) || ($last_executed == '0')) {
     $last_executed = 0;
@@ -73,7 +79,7 @@ $hours = ($timestamp_today - $timestamp_last_exec) / (60 * 60);
 if (empty($current)) {
     if ($hours >= $frequency_in_hours) {
         SfLogger::getInstance()->log(SF_LOG_CRON, 'CRON CALL - begining of treament');
-        $sf->initFeed();
+        $sf->initFeed($lang);
     } else {
         $logMessage = 'CRON CALL - Not initiated SHOULD NOT HAVE BEEN CALLED. ';
         $logMessage .= 'Cron call has already been called at ' . $last_executed;
