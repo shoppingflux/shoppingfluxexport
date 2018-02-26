@@ -24,8 +24,8 @@
  *  International Registered Trademark & Property of PrestaShop SA
  */
 
-include(dirname(__FILE__).'/../../../config/config.inc.php');
-include(dirname(__FILE__).'/../../../init.php');
+include_once(dirname(__FILE__).'/../../../config/config.inc.php');
+include_once(dirname(__FILE__).'/../../../init.php');
 
 if (!defined('_PS_VERSION_')) {
     exit;
