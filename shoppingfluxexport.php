@@ -862,8 +862,7 @@ class ShoppingFluxExport extends Module
     
     public function initFeed($lang = null)
     {
-
-        $langLock = empty($lang) ? "" : "_".$lang;
+        $langLock = empty($lang) ? "" : "_".Tools::strtoupper($lang);
 
         $id_shop = $this->context->shop->id;
         $lockFile = dirname(__FILE__).'/cron_'.$id_shop.$langLock.'.lock';
@@ -884,8 +883,8 @@ class ShoppingFluxExport extends Module
         
         // Write time when init for first time
         $today =  date('Y-m-d H:i:s');
-        $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME' . $lang;
-        Configuration::updateValue($configurationKey, $today, false, null, $id_shop);
+        $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME_' . Tools::strtoupper($lang);
+        Configuration::updateValue($configurationKey, $today);
         
         SfLogger::getInstance()->emptyLogCron();
         
@@ -2832,11 +2831,10 @@ class ShoppingFluxExport extends Module
         $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">';
 
         $lang = Tools::getValue('lang');
-        if (!empty($lang)) {
-            $idLang = Language::getIdByIso($lang);
-            $configTimeValue = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME' . $lang, $idLang, null, $id_shop);
+        if (!empty($lang) && Language::getIdByIso($lang) !== false) {
+            $configTimeValue = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME_' . Tools::strtoupper($lang));
         } else {
-            $configTimeValue = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop);
+            $configTimeValue = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME');
         }
 
         if ($configTimeValue != '') {

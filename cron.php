@@ -60,13 +60,21 @@ $lang = Tools::getValue('lang');
 $frequency_in_hours = 2;
 $today = date('Y-m-d H:i:s');
 
+$keyCronTime = 'PS_SHOPPINGFLUX_CRON_TIME';
 if (!empty($lang)) {
+
     // When a lang is provided, we will have a separate frequency
-    $idLang = Language::getIdByIso($lang);
-    $last_executed = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME' . $lang, $idLang, null, $id_shop);
-} else {
-    $last_executed = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop);
+    if (!Language::getIdByIso($lang)) {
+        // The lang is not valid
+        $logMessage = 'Invalid lang: '.$lang;
+        SfLogger::getInstance()->log(SF_LOG_CRON, $logMessage);
+        die("<?xml version='1.0' encoding='utf-8'?><error>Invalid lang</error>");
+    }
+
+    // Separate the configuration key by lang, such as : PS_SHOPPINGFLUX_CRON_TIME_FR
+    $keyCronTime = $keyCronTime.'_'.Tools::strtoupper($lang);
 }
+$last_executed = Configuration::get($keyCronTime);
 
 if (empty($last_executed) || ($last_executed == '0')) {
     $last_executed = 0;
