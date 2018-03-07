@@ -31,13 +31,13 @@ include_once(dirname(__FILE__).'/sfpayment.php');
 
 ini_set('display_errors', 'off');
 
-$module = Module::getInstanceByName('shoppingfluxexport');
-if (!$module || !$module->active) {
+$sf = Module::getInstanceByName('shoppingfluxexport');
+if (!$sf || !$sf->active) {
 	die("<?xml version='1.0' encoding='utf-8'?><error>Module inactive</error>");
 }
 
-if (Tools::getValue('token') == '' || Tools::getValue('token') != $f->getTokenValue()) {
+if (Tools::getValue('token') == '' || Tools::getValue('token') != $sf->getTokenValue()) {
     die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
 }
 
-echo $module->hookbackOfficeTop(false);
+echo $sf->hookbackOfficeTop(false);
