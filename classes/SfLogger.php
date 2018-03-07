@@ -31,7 +31,13 @@ class SfLogger
     /**
      * Log rotatetime
      */
-    private static $logRotateMegaBites = 100;
+    private static $logRotateMegaBites = 20;
+
+    /**
+     * Maximal number of rotation of log files before being removed
+     * @var integer
+     */
+    private static $maxRotateIteration = 10;
 
     protected function __construct()
     {
@@ -113,18 +119,42 @@ class SfLogger
     {
         if (self::$logRotateMegaBites) {
 
-            if (! file_exists($fileName)) {
+            if (!file_exists($fileName)) {
                 return;
             }
 
             $fileSizeMbs = filesize($fileName) / 1024 / 1024;
             if ($fileSizeMbs >= (self::$logRotateMegaBites)) {
-                $filePieces = explode('.', $fileName);
-                $extension = $filePieces['1'];
-                $rotatedLogFile = $filePieces['0'] . '_last_' . self::$logRotateMegaBites . 'MBs.' . $extension;
-                if (file_exists($rotatedLogFile)) {
-                    unlink($rotatedLogFile);
+
+                // Base file
+                $baseFile = substr($fileName, 0,strrpos($fileName, '.'));
+                // The file extension (.txt, .log...)
+                $extension = substr($fileName, strrpos($fileName, '.'));
+                // Compose the new name of the file
+                $rotatedLogFileBase = $baseFile . '_' . self::$logRotateMegaBites . 'mb';
+
+                // Get files and number of files already rotated
+                $filesRotated = glob($rotatedLogFileBase."*".$extension);
+                $nbAlreadyRotated = count($filesRotated);
+
+                if($nbAlreadyRotated >= self::$maxRotateIteration) {
+                    // We exhausted the number of combination
+                    
+                    // We order the files by last modified
+                    array_multisort(
+                        array_map( 'filemtime', $filesRotated ),
+                        SORT_NUMERIC,
+                        SORT_ASC,
+                        $filesRotated
+                    );
+
+                    // We remove the oldest file
+                    unlink($filesRotated[0]);
                 }
+
+                // Build the complete file name with the iteration and the extension
+                $rotatedLogFile = $rotatedLogFileBase."_".date("Y-m-d-H-i-s").$extension;
+
                 // Rename current log file
                 rename($fileName, $rotatedLogFile);
             }
