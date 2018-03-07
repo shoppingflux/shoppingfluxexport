@@ -28,14 +28,16 @@ include(dirname(__FILE__).'/../../config/config.inc.php');
 include(dirname(__FILE__).'/../../init.php');
 
 include_once(dirname(__FILE__).'/sfpayment.php');
-include(dirname(__FILE__).'/shoppingfluxexport.php');
 
 ini_set('display_errors', 'off');
 
-$f = new ShoppingFluxExport();
-
-if (Tools::getValue('token') == '' || Tools::getValue('token') != $f->getTokenValue()) {
-    die('Invalid Token');
+$module = Module::getInstanceByName('shoppingfluxexport');
+if (!$module || !$module->active) {
+	die("<?xml version='1.0' encoding='utf-8'?><error>Module inactive</error>");
 }
 
-echo $f->hookbackOfficeTop(false);
+if (Tools::getValue('token') == '' || Tools::getValue('token') != $f->getTokenValue()) {
+    die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
+}
+
+echo $module->hookbackOfficeTop(false);

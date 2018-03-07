@@ -28,13 +28,16 @@ include(dirname(__FILE__).'/../../config/config.inc.php');
 include(dirname(__FILE__).'/../../init.php');
 
 include_once(dirname(__FILE__).'/sfpayment.php');
-include(dirname(__FILE__).'/shoppingfluxexport.php');
 
 ini_set('display_errors', 'off');
 
+$module = Module::getInstanceByName('shoppingfluxexport');
+if (!$module || !$module->active) {
+    die("<?xml version='1.0' encoding='utf-8'?><error>Module inactive</error>");
+}
+
 if (Tools::getValue('fdg') != '') {
-    $f = new shoppingfluxexport();
-    $res = $f->setFDG();
+    $res = $module->setFDG();
     
     if ($res == 'ok') {
         echo 'Frais de gestion installé';
@@ -47,8 +50,7 @@ if (Tools::getValue('fdg') != '') {
 }
 
 if (Tools::getValue('ref') != '') {
-    $f = new shoppingfluxexport();
-    $res = $f->setREF();
+    $res = $module->setREF();
 
     if ($res == 'ok') {
         echo 'Ref enable';
@@ -62,5 +64,4 @@ if (Tools::getValue('ref') != '') {
 
 header('Content-Type:text/xml');
 
-$f = new ShoppingFluxExport();
-echo $f->generateFeed();
+echo $module->generateFeed();
