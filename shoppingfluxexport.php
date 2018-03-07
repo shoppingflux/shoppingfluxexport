@@ -670,8 +670,8 @@ class ShoppingFluxExport extends Module
     protected function getSimpleProducts($id_lang, $limit_from, $limit_to)
     {
         $packClause = '';
-        if (Configuration::get('SHOPPING_FLUX_PACKS') == 'checked') {
-            $packClause = ' AND p.`cache_is_pack` = 1 ';
+        if (Configuration::get('SHOPPING_FLUX_PACKS') !== 'checked') {
+            $packClause = ' AND p.`cache_is_pack` = 0 ';
         }
             
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
@@ -719,8 +719,8 @@ class ShoppingFluxExport extends Module
     protected function countProducts()
     {
         $getPack = '';
-        if (Configuration::get('SHOPPING_FLUX_PACKS') == 'checked') {
-            $getPack = ' AND p.`cache_is_pack` = 1 ';
+        if (Configuration::get('SHOPPING_FLUX_PACKS') !== 'checked') {
+            $getPack = ' AND p.`cache_is_pack` = 0 ';
         }
             
         if (version_compare(_PS_VERSION_, '1.5', '>')) {
