@@ -28,12 +28,11 @@ include(dirname(__FILE__) . '/../../config/config.inc.php');
 include(dirname(__FILE__) . '/../../init.php');
 
 include_once(dirname(__FILE__) . '/sfpayment.php');
-include(dirname(__FILE__) . '/shoppingfluxexport.php');
 
 ini_set("memory_limit", "2048M");
 ini_set('display_errors', 'on');
 
-$sf = new ShoppingFluxExport();
+$sf = Module::getInstanceByName('shoppingfluxexport');
 
 if ((Tools::getValue('token') == '' || Tools::getValue('token') != $sf->getTokenValue()) && ! (isset($_GET['test_homepage']) || isset($_GET['test_curl']))) {
     die("Invalid Token");

@@ -27,13 +27,16 @@ include(dirname(__FILE__) . '/../../config/config.inc.php');
 include(dirname(__FILE__) . '/../../init.php');
 
 include_once(dirname(__FILE__) . '/sfpayment.php');
-include(dirname(__FILE__) . '/shoppingfluxexport.php');
 
 ini_set("memory_limit", "2048M");
 ini_set('display_errors', 'off');
 
 $id_shop = Context::getContext()->shop->id;
-$sf = new ShoppingFluxExport();
+
+$sf = Module::getInstanceByName('shoppingfluxexport');
+if (!$sf || !$sf->active) {
+    die("<?xml version='1.0' encoding='utf-8'?><error>Module inactive</error>");
+}
 
 $token = Tools::getValue('token');
 if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {

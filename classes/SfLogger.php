@@ -66,7 +66,7 @@ class SfLogger
             echo $logLine . '<br />';
         }
 
-        $sf = new ShoppingFluxExport();
+        $sf = Module::getInstanceByName('shoppingfluxexport');
         
         // Compute the output file and if we will do a log
         $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/';
