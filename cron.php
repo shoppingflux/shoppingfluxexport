@@ -77,7 +77,7 @@ if (!empty($lang)) {
     // Separate the configuration key by lang, such as : SHOPPING_FLUX_CRON_TIME_FR
     $keyCronTime = $keyCronTime.'_'.Tools::strtoupper($lang);
 }
-$last_executed = Configuration::get($keyCronTime);
+$last_executed = Configuration::get($keyCronTime, null, null, $id_shop);
 
 if (empty($last_executed) || ($last_executed == '0')) {
     $last_executed = 0;

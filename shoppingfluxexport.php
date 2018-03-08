@@ -925,7 +925,7 @@ class ShoppingFluxExport extends Module
         // Write time when init for first time
         $today =  date('Y-m-d H:i:s');
         $configurationKey = empty($lang) ? 'SHOPPING_FLUX_CRON_TIME' : 'SHOPPING_FLUX_CRON_TIME_' . Tools::strtoupper($lang);
-        Configuration::updateValue($configurationKey, $today);
+        Configuration::updateValue($configurationKey, $today, false, null, $id_shop);
         
         SfLogger::getInstance()->emptyLogCron();
         
@@ -2872,11 +2872,11 @@ class ShoppingFluxExport extends Module
         $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">';
 
         $lang = Tools::getValue('lang');
+        $configName = 'SHOPPING_FLUX_CRON_TIME';
         if (!empty($lang) && Language::getIdByIso($lang) !== false) {
-            $configTimeValue = Configuration::get('SHOPPING_FLUX_CRON_TIME_' . Tools::strtoupper($lang));
-        } else {
-            $configTimeValue = Configuration::get('SHOPPING_FLUX_CRON_TIME');
+            $configName .= '_' . Tools::strtoupper($lang);
         }
+        $configTimeValue = Configuration::get($configName, null, null, $id_shop);
 
         if ($configTimeValue != '') {
             $cronTime = $configTimeValue;
