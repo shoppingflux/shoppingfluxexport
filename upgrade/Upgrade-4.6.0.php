@@ -35,5 +35,10 @@ function upgrade_module_4_6_0($object)
 	// The option is not enabled for existing install
     Configuration::updateGlobalValue('SHOPPING_FLUX_XML_SHOP_ID', false);
 
+    // Remove the previous PS_SHOPPINGFLUX_CRON_TIME configuration key replaced by SHOPPING_FLUX_CRON_TIME
+    // No need to save the previous value of the key as it's not a critical process and will be generated
+    // automatically at the next run of cron
+    Configuration::deleteByName('PS_SHOPPINGFLUX_CRON_TIME');
+
     return true;
 }
