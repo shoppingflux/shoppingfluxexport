@@ -249,7 +249,7 @@ class ShoppingFluxExport extends Module
         // Build the SQL where condition
         $sqlLike = "";
         foreach ($keysBaseNames as $aName) {
-            $sqlLike = $sqlLike !== "" ? $sqlLike." OR ";
+            $sqlLike = $sqlLike !== "" ? $sqlLike." OR " : "";
             $sqlLike .= "configuration.`name` LIKE '".$aName."%'";
         }
 
