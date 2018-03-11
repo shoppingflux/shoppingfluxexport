@@ -59,6 +59,7 @@ function getRecablage($sf)
 
 function getConfigForm($sf)
 {
+    $outOfStock = "n/a";
     if (Configuration::get('SHOPPING_FLUX_FDG')) {
         $product_id = Configuration::get('SHOPPING_FLUX_FDG');
         $sql = '
