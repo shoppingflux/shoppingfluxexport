@@ -1,7 +1,7 @@
 <form method="post" action="{$postUri}">
 	<div>
 		<label>{l s='Activate Multitoken Mode'} :</label>
-		<input type="checkbox" id="sfMultitokenActivation" name="SHOPPING_FLUX_MULTITOKEN" value="1" {if $sfMultitokenActivation==1}checked="checked"{/if} disabled="DISABLED" />
+		<input type="checkbox" id="sfMultitokenActivation" name="SHOPPING_FLUX_MULTITOKEN" value="1" {if $sfMultitokenActivation==1}checked="checked"{/if} {if $sfMultitokenActivation !=1}disabled="DISABLED"{/if} />
 		<br /><p></p>
 	</div>
 	
