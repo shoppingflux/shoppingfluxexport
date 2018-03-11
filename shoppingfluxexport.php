@@ -2969,18 +2969,24 @@ class ShoppingFluxExport extends Module
         if (!empty($tokenTreeFilled)) {
             foreach ($tokenTreeFilled as $aFilledTree) {
                 foreach ($tokenTree as &$aTree) {
-                    if ($aTree['id_shop'] == $aFilledTree['id_shop']) {
-                        $aTree['token'] = $aFilledTree['token'];
+                    if($aTree['id_shop'] != $aFilledTree['id_shop']) {
+                        continue;
                     }
-                    if (isset($aFilledTree['values']) && !empty($aFilledTree['values'])) {
-                        foreach ($aFilledTree['values'] as $aValue) {
-                            foreach ($aTree['values'] as &$aTreeValue) {
-                                if ($aValue['id_currency'] == $aTreeValue['id_currency'] && $aValue['id_lang'] == $aTreeValue['id_lang']) {
-                                    $aTreeValue['token'] = $aValue['token'];
-                                }
+                    
+                    $aTree['token'] = $aFilledTree['token'];
+
+                    if(!isset($aFilledTree['values']) || empty($aFilledTree['values'])) {
+                        continue;
+                    }
+                    
+                    foreach ($aFilledTree['values'] as $aValue) {
+                        foreach ($aTree['values'] as &$aTreeValue) {
+                            if ($aValue['id_currency'] == $aTreeValue['id_currency'] && $aValue['id_lang'] == $aTreeValue['id_lang']) {
+                                $aTreeValue['token'] = $aValue['token'];
                             }
                         }
                     }
+                    
                 }
             }
         }
