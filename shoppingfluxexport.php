@@ -2948,6 +2948,8 @@ class ShoppingFluxExport extends Module
                     $values[] = array(
                         'name' => $nameLang.' / '.$nameCurrency,
                         'id' => $idLang.'_'.$idCurrency,
+                        'id_currency' => $idCurrency,
+                        'id_lang' => $idLang,
                         'token' => ''
                     );
                 }          
@@ -2973,7 +2975,9 @@ class ShoppingFluxExport extends Module
                     if (isset($aFilledTree['values']) && !empty($aFilledTree['values'])) {
                         foreach ($aFilledTree['values'] as $aValue) {
                             foreach ($aTree['values'] as &$aTreeValue) {
-                                $aTreeValue['token'] = $aValue['token'];
+                                if ($aValue['id_currency'] == $aTreeValue['id_currency'] && $aValue['id_lang'] == $aTreeValue['id_lang']) {
+                                    $aTreeValue['token'] = $aValue['token'];
+                                }
                             }
                         }
                     }
