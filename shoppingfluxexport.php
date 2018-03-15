@@ -2285,7 +2285,7 @@ class ShoppingFluxExport extends Module
             $langDefault = Configuration::get('PS_LANG_DEFAULT');
             $errorMessage = 'The country ' . $country->name[$langDefault] . ' (iso = ' . trim($addressNode->Country);
             $errorMessage .= ') is not active in your Prestashop, you must activate it in your localizaton settings';
-            $this->logDebugOrders($errorMessage);
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, $errorMessage);
             throw new Exception($errorMessage);
         }
 
@@ -2574,10 +2574,10 @@ class ShoppingFluxExport extends Module
         Context::getContext()->currency = new Currency((int)$cart->id_currency);
         
         if (! Context::getContext()->country->active) {
-            $this->logDebugOrders('Current context country (' . Context::getContext()->country->id . ') not active');
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Current context country (' . Context::getContext()->country->id . ') not active');
             $addressDelivery = new Address($cart->id_address_delivery);
             if (Validate::isLoadedObject($addressDelivery)) {
-                $this->logDebugOrders('Setting context country to ' . $addressDelivery->id_country);
+                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Setting context country to ' . $addressDelivery->id_country);
                 Context::getContext()->country = new Country($addressDelivery->id_country);
             }
         }
