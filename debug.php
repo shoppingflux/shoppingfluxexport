@@ -287,6 +287,7 @@ function getLogsParsed($sf) {
     </script>
     <div class="logs">
     <?php 
+
     foreach ($contentExploded as $currentSegment) {
         $currentSegment = str_replace(' version="1.0" encoding="utf-8"?>', '', $currentSegment);
         $currentSegment = str_replace(' version="1.0" encoding="UTF-8"?>', '', $currentSegment);
@@ -309,40 +310,31 @@ function getLogsParsed($sf) {
         $textContent = substr($textContent, 6, strlen($textContent));
         echo $textContent;
     }
-    ?></div><?php
-}
 
-/**
- * Builds an ergonomic XML tree from a XML String
- */
-function makeXmlTree($xmlContent) {
-    $xmlContent = '<?xml version="1.0" encoding="UTF-8"?>' . $xmlContent;
-    $randed = rand(0, 10000);
+    if ($xmlContent) {
     ?>
-    <textarea id="textarea<?php echo $randed; ?>" style="display: none;"><?php echo $xmlContent; ?></textarea>
-	<ul id="treeView<?php echo $randed; ?>">
-		<li></li>
-	</ul>
-	
     <script type="text/javascript">
     $(document).ready(function() {
-        var tree = $.parseXML($('#textarea<?php echo $randed; ?>').val());
-        traverse($('#treeView<?php echo $randed; ?> li'), tree.firstChild)
-        // this – is an —
-        $('<b>–<\/b>').prependTo('#treeView<?php echo $randed; ?> li:has(li)').click(function() {
-            var sign = $(this).text()
-            if (sign == "–")
-                $(this).text('+').next().next().children().hide()
-            else
-                $(this).text('–').next().next().children().show()
+
+        $('.textarea_xml').each(function(){
+            var tree = $.parseXML($(this).val());
+            traverse($(this).next().find('li'), tree.firstChild)
+            // this – is an —
+            $('<b>–<\/b>').prependTo($(this).next().find('li')).click(function() {
+                var sign = $(this).text()
+                if (sign == "–")
+                    $(this).text('+').next().next().children().hide()
+                else
+                    $(this).text('–').next().next().children().show()
+            });
         });
         
         function traverse(node, tree) {
             var children = $(tree).children();
             var appended = node.append('<label>'+tree.nodeName+'</label>');
             node.children()[0].onclick = function() { 
-            	copyTextToClipboard(tree.outerHTML);
-			};
+                copyTextToClipboard(tree.outerHTML);
+            };
             
             if (children.length) {
                 var ul = $("<ul>").appendTo(node)
@@ -356,6 +348,24 @@ function makeXmlTree($xmlContent) {
         }
     });
     </script>
+    <?php
+    }
+    ?>
+    </div><?php
+}
+
+/**
+ * Builds an ergonomic XML tree from a XML String
+ */
+function makeXmlTree($xmlContent) {
+    $xmlContent = '<?xml version="1.0" encoding="UTF-8"?>' . $xmlContent;
+    $randed = rand(0, 10000);
+    ?>
+    <textarea class="textarea_xml" style="display: none;"><?php echo $xmlContent; ?></textarea>
+	<ul class='treeView_xml'>
+		<li></li>
+	</ul>
+	
     <?php 
 }
 
@@ -451,7 +461,7 @@ function logDebug($toLog)
 ?>
 <html>
 <head>
-<script type="text/javascript" src="http://code.jquery.com/jquery-1.7.2.js"></script>
+<script type="text/javascript" src="//code.jquery.com/jquery-1.7.2.js"></script>
 
 <style type="text/css">
 label {
