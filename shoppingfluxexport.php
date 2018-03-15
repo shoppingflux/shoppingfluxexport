@@ -849,8 +849,10 @@ class ShoppingFluxExport extends Module
             echo '<supplier><![CDATA['.$product->supplier_name.']]></supplier>';
     
             if (is_array($product->specificPrice)) {
-                echo '<from><![CDATA['.$product->specificPrice['from'].']]></from>';
-                echo '<to><![CDATA['.$product->specificPrice['to'].']]></to>';
+                $fromValue = isset($product->specificPrice['from']) ? $product->specificPrice['from'] : "";
+                $toValue = isset($product->specificPrice['to']) ? $product->specificPrice['to'] : "";
+                echo '<from><![CDATA['.$fromValue.']]></from>';
+                echo '<to><![CDATA['.$toValue.']]></to>';
             } else {
                 echo '<from/>';
                 echo '<to/>';
@@ -1040,8 +1042,10 @@ class ShoppingFluxExport extends Module
             $str .= '<supplier><![CDATA['.$product->supplier_name.']]></supplier>';
 
             if (is_array($product->specificPrice)) {
-                $str .= '<from><![CDATA['.$product->specificPrice['from'].']]></from>';
-                $str .= '<to><![CDATA['.$product->specificPrice['to'].']]></to>';
+                $fromValue = isset($product->specificPrice['from']) ? $product->specificPrice['from'] : "";
+                $toValue = isset($product->specificPrice['to']) ? $product->specificPrice['to'] : "";
+                $str .= '<from><![CDATA['.$fromValue.']]></from>';
+                $str .= '<to><![CDATA['.$toValue.']]></to>';
             } else {
                 $str .= '<from/>';
                 $str .= '<to/>';

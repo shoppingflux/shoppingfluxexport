@@ -166,7 +166,7 @@ class SfLogger
      */
     public function emptyLogCron()
     {
-        if ($this->debug) {
+        if (self::$debug) {
             $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport_' . Configuration::get('SHOPPING_FLUX_TOKEN') . '.txt';
             unlink($outputFile);
         }
