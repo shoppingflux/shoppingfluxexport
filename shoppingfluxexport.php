@@ -2963,8 +2963,75 @@ class ShoppingFluxExport extends Module
      */
     protected function defaultTokenConfigurationView()
     {
-        $tokenTree = $this->getAllTokensOfShop(true, true);
-        
+        $tokenTreeFilled = $this->getAllTokensOfShop(true, true);
+        $tokenTree = array();
+
+        // We prepare a list of token for each shop/currency/lang
+        // Loop on shops
+        $shops = Shop::getShops();
+        foreach ($shops as $currentShop) {
+            $id_shop = $currentShop['id_shop'];
+            $values = array();
+
+            // Get all languages for the shop
+            $shopLanguages = Language::getLanguages(true, $id_shop);
+            // Get all currencies for the shop
+            $shopCurrencies = Currency::getCurrenciesByIdShop($id_shop);
+
+            foreach ($shopLanguages as $currentLang) {
+                $idLang = $currentLang['id_lang'];
+                $nameLang = $currentLang['name'];
+
+                // Loop on currencies
+                foreach ($shopCurrencies as $currentCurrency) {
+                    $idCurrency = $currentCurrency['id_currency'];
+                    $nameCurrency = $currentCurrency['name'];
+                    $values[] = array(
+                        'name' => $nameLang.' / '.$nameCurrency,
+                        'id' => $idLang.'_'.$idCurrency,
+                        'id_currency' => $idCurrency,
+                        'id_lang' => $idLang,
+                        'token' => ''
+                    );
+                }          
+
+            }
+
+            // General token
+            $tokenTree[] = array(
+                'id_shop' => $id_shop,
+                'name' => $currentShop['name'],
+                'token' => '',
+                'values' => $values
+            );      
+        }
+
+        // We fill the existing token from the pre-built list
+        if (!empty($tokenTreeFilled)) {
+            foreach ($tokenTreeFilled as $aFilledTree) {
+                foreach ($tokenTree as &$aTree) {
+                    if($aTree['id_shop'] != $aFilledTree['id_shop']) {
+                        continue;
+                    }
+                    
+                    $aTree['token'] = $aFilledTree['token'];
+
+                    if(!isset($aFilledTree['values']) || empty($aFilledTree['values'])) {
+                        continue;
+                    }
+                    
+                    foreach ($aFilledTree['values'] as $aValue) {
+                        foreach ($aTree['values'] as &$aTreeValue) {
+                            if ($aValue['id_currency'] == $aTreeValue['id_currency'] && $aValue['id_lang'] == $aTreeValue['id_lang']) {
+                                $aTreeValue['token'] = $aValue['token'];
+                            }
+                        }
+                    }
+                    
+                }
+            }
+        }
+
         $this->context->smarty->assign(array(
             'token_tree' => $tokenTree,
             'postUri' => Tools::safeOutput($_SERVER['REQUEST_URI'])
