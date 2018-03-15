@@ -93,7 +93,7 @@ function getConfigForm($sf)
     $output .= '<label>FDG allow out of stock</label>' . $outOfStock;
     $output .= '<p style="clear: both"></p>';
     
-    $output .= '<label>PS_SHOPPINGFLUX_CRON_TIME (without language)</label>' . Configuration::get('PS_SHOPPINGFLUX_CRON_TIME');
+    $output .= '<label>SHOPPING_FLUX_CRON_TIME (global)</label>' . Configuration::get('SHOPPING_FLUX_CRON_TIME');
     $output .= '<p style="clear: both"></p>';
     
     $output .= '<label>SHOPPING_FLUX_STATUS_SHIPPED</label>' . Configuration::get('SHOPPING_FLUX_STATUS_SHIPPED');

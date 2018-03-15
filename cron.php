@@ -63,7 +63,7 @@ $lang = Tools::getValue('lang');
 $frequency_in_hours = 2;
 $today = date('Y-m-d H:i:s');
 
-$keyCronTime = 'PS_SHOPPINGFLUX_CRON_TIME';
+$keyCronTime = 'SHOPPING_FLUX_CRON_TIME';
 if (!empty($lang)) {
 
     // When a lang is provided, we will have a separate frequency
@@ -74,10 +74,10 @@ if (!empty($lang)) {
         die("<?xml version='1.0' encoding='utf-8'?><error>Invalid lang</error>");
     }
 
-    // Separate the configuration key by lang, such as : PS_SHOPPINGFLUX_CRON_TIME_FR
+    // Separate the configuration key by lang, such as : SHOPPING_FLUX_CRON_TIME_FR
     $keyCronTime = $keyCronTime.'_'.Tools::strtoupper($lang);
 }
-$last_executed = Configuration::get($keyCronTime);
+$last_executed = Configuration::get($keyCronTime, null, null, $id_shop);
 
 if (empty($last_executed) || ($last_executed == '0')) {
     $last_executed = 0;

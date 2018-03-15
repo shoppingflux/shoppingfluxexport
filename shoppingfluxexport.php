@@ -207,6 +207,7 @@ class ShoppingFluxExport extends Module
 
     public function uninstall()
     {
+
         if (!Configuration::deleteByName('SHOPPING_FLUX_TOKEN') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_CANCELED') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_SHIPPED') ||
@@ -226,11 +227,51 @@ class ShoppingFluxExport extends Module
                 !Configuration::deleteByName('SHOPPING_FLUX_ORDERS_DEBUG') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_DEBUG') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_XML_SHOP_ID') ||
+                !Configuration::deleteByName('SHOPPING_FLUX_CRON_TIME') ||
+                !$this->uninstallCustomConfiguration(['SHOPPING_FLUX_CRON_TIME']) ||
                 !parent::uninstall()) {
             return false;
         }
 
         return true;
+    }
+
+    /**
+     * Uninstall Custom Configuration records for compose name
+     * Exemple : SHOPPING_FLUX_CRON_TIME_XX (FR, EN, ES..)
+     * @param  array $keysBaseNames
+     * @return bool uninstall statut
+     */
+    protected function uninstallCustomConfiguration($keysBaseNames)
+    {
+        $uninstallState = true;
+
+        // Build the SQL where condition
+        $sqlLike = "";
+        foreach ($keysBaseNames as $aName) {
+            $sqlLike = $sqlLike !== "" ? $sqlLike." OR " : "";
+            $sqlLike .= "configuration.`name` LIKE '".$aName."%'";
+        }
+
+        // Get all configuration variables for CRON_TIME
+        $sql = "SELECT * FROM " . _DB_PREFIX_ . "configuration configuration ".
+            " WHERE ".$sqlLike;
+
+        $configurationRecords = Db::getInstance()->ExecuteS($sql);
+
+        if (!$configurationRecords) {
+            // Nothing to delete
+            return true;
+        }
+
+        // We remove each configuration keys corresponding to the base name
+        foreach ($configurationRecords as $row) {
+            if (!Configuration::deleteByName($row['name'])) {
+                $uninstallState = false;
+            }
+        }
+
+        return $uninstallState;
     }
 
     public function getContent()
@@ -883,8 +924,8 @@ class ShoppingFluxExport extends Module
         
         // Write time when init for first time
         $today =  date('Y-m-d H:i:s');
-        $configurationKey = empty($lang) ? 'PS_SHOPPINGFLUX_CRON_TIME' : 'PS_SHOPPINGFLUX_CRON_TIME_' . Tools::strtoupper($lang);
-        Configuration::updateValue($configurationKey, $today);
+        $configurationKey = empty($lang) ? 'SHOPPING_FLUX_CRON_TIME' : 'SHOPPING_FLUX_CRON_TIME_' . Tools::strtoupper($lang);
+        Configuration::updateValue($configurationKey, $today, false, null, $id_shop);
         
         SfLogger::getInstance()->emptyLogCron();
         
@@ -2831,11 +2872,11 @@ class ShoppingFluxExport extends Module
         $html .= ' :</label><span style="display: block; padding: 3px 0 0 0;">';
 
         $lang = Tools::getValue('lang');
+        $configName = 'SHOPPING_FLUX_CRON_TIME';
         if (!empty($lang) && Language::getIdByIso($lang) !== false) {
-            $configTimeValue = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME_' . Tools::strtoupper($lang));
-        } else {
-            $configTimeValue = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME');
+            $configName .= '_' . Tools::strtoupper($lang);
         }
+        $configTimeValue = Configuration::get($configName, null, null, $id_shop);
 
         if ($configTimeValue != '') {
             $cronTime = $configTimeValue;
