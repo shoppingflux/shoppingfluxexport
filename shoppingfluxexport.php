@@ -1818,8 +1818,8 @@ class ShoppingFluxExport extends Module
                                     $id_order = $payment->currentOrder;
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'validateOrder successfull, id_order = '.$id_order, $doEchoLog);
 
-                                    if ($this->_isMarketplaceExpedited($marketplace)) {
-                                        $this->_marketPlaceExpeditedStatut($payment->currentOrder, $doEchoLog);
+                                    if ($this->_isMarketplaceExpedited($order->Marketplace)) {
+                                        $this->_marketPlaceExpeditedStatut($id_order, $doEchoLog);
                                     }
 
                                     //we valid there
