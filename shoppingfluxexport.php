@@ -1675,7 +1675,7 @@ class ShoppingFluxExport extends Module
                                 continue;
                             }
         
-                            $check = $this->checkData($order);
+                            $check = $this->checkData($order, (string)$order->Marketplace);
                             if ($check !== true) {
                                 SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check data incorrect - '.$check, $doEchoLog);
                                 $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $check, $currentToken['token']);
@@ -1692,7 +1692,7 @@ class ShoppingFluxExport extends Module
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress delivery created or found : '.$id_address_billing, $doEchoLog);
                             $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other, (string)$order->Marketplace, (string)$order->ShippingMethod);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress shipping or found : '.$id_address_shipping, $doEchoLog);
-                            $products_available = $this->_checkProducts($order->Products);
+                            $products_available = $this->_checkProducts($order->Products, (string)$order->Marketplace);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check products availabilityresult : '.$products_available, $doEchoLog);
                             
                             $current_customer = new Customer((int)$id_customer);
@@ -1884,7 +1884,7 @@ class ShoppingFluxExport extends Module
      * Check Data to avoid errors
      * @return string|boolean : true if everything ok, error message if not
      */
-    protected function checkData($order)
+    protected function checkData($order, $marketplace)
     {
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Checking order data');
         
@@ -1940,8 +1940,7 @@ class ShoppingFluxExport extends Module
                 $minimalQuantity = (int)Attribute::getAttributeMinimalQty((int)$ids[1]);
             }
 
-
-            if ($minimalQuantity > $product->Quantity) {
+            if ($minimalQuantity > $product->Quantity && !$this->_isMarketplaceExpedited($marketplace)) {
                 return 'Minimal quantity for product '.$product->SKU.' is '.$minimalQuantity.', product_id = '.$product->id;
             }
         }
@@ -2584,8 +2583,37 @@ class ShoppingFluxExport extends Module
         $amount_paid = (float)Tools::ps_round((float)$cart->getOrderTotal(true, Cart::BOTH), 2);
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'calling validateOrder, amount = '.$amount_paid.', currency = '.$cart->id_currency.', marketplace = '.Tools::strtolower($marketplace), $doEchoLog);
         $payment->validateOrder((int)$cart->id, 2, $amount_paid, Tools::strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key);
+
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'finished call to validateOrder, order_id = '.$payment->currentOrder, $doEchoLog);
+
+        if ($this->_isMarketplaceExpedited($marketplace)) {
+            $this->_marketPlaceExpeditedStatut($orderId, $doEchoLog);
+        }
+
         return $payment;
+    }
+
+    // AFN Amazon-fulfilled network, FBA
+    protected function _marketPlaceExpeditedStatut($orderId, $doEchoLog)
+    {
+        // @todo: The statut should be selected from the module configuration
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Marketplace expedited order - Changing order statut if required', $doEchoLog);
+
+    }
+
+    /**
+     * Check if the provided marketplace is managing expedition and stock
+     * @param  string  $marketplace Marketplace name
+     * @return boolean
+     */
+    protected function _isMarketplaceExpedited($marketplace)
+    {
+        $marketplace = Tools::strtolower($marketplace);
+
+        // List of marketplaces managing expedition (lower-case)
+        $listExpedited = ['amazon fba'];
+
+        return in_array($marketplace, $listExpedited);
     }
 
     /*
@@ -2658,9 +2686,10 @@ class ShoppingFluxExport extends Module
         return $cart;
     }
 
-    protected function _checkProducts($productsNode)
+    protected function _checkProducts($productsNode, $marketplace)
     {
         $available = true;
+        $isMarketPlaceExpedited = $this->_isMarketplaceExpedited($marketplace);
 
         foreach ($productsNode->Product as $product) {
             if (Configuration::get('SHOPPING_FLUX_REF') == 'true') {
@@ -2669,19 +2698,31 @@ class ShoppingFluxExport extends Module
                 $skus = explode('_', $product->SKU);
             }
 
+            $idProductAttribute = null;
+            $idProduct = null;
             if (isset($skus[1]) && $skus[1] !== false) {
-                $quantity = StockAvailable::getQuantityAvailableByProduct((int)$skus[0], (int)$skus[1]);
-
-                if ($quantity - $product->Quantity < 0) {
-                    StockAvailable::updateQuantity((int)$skus[0], (int)$skus[1], (int)$product->Quantity);
-                }
+                $idProduct = (int)$skus[0];
+                $idProductAttribute = (int)$skus[1];
             } else {
-                $quantity = StockAvailable::getQuantityAvailableByProduct((int)$product->SKU);
-
-                if ($quantity - $product->Quantity < 0) {
-                    StockAvailable::updateQuantity((int)$product->SKU, 0, (int)$product->Quantity);
-                }
+                $idProduct = (int)$product->SKU;
             }
+
+            $quantity = StockAvailable::getQuantityAvailableByProduct($idProduct, $idProductAttribute);
+
+            if ($isMarketPlaceExpedited) {
+                // If the order belongs to a marketplace managing stocks, we directly add the required quantity to the product that will be later on deduced when the order is validated by PrestaShop
+                $tmpQuantity = $quantity+((int)$product->Quantity);
+                StockAvailable::updateQuantity($idProduct, $idProductAttribute, $tmpQuantity);
+
+                // No need to continue
+                continue;
+            }
+
+            $idProductAttribute = $idProductAttribute === null ? 0 : $idProductAttribute;
+            if ($quantity - $product->Quantity < 0) {
+                StockAvailable::updateQuantity($idProduct, $idProductAttribute, (int)$product->Quantity);
+            }
+
         }
 
         return $available;
