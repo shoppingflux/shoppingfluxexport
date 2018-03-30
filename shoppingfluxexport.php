@@ -1586,13 +1586,10 @@ class ShoppingFluxExport extends Module
         $lastHookCalledTime = Configuration::get('SHOPPING_BACKOFFICE_CALL');
         $timeDiffFromLastCall = $now - $lastHookCalledTime;
         
-        if ($forcedOrder) {
-            $doEchoLog = true;
-        } else {
-            $doEchoLog = false;
-        }
-
         SfDebugger::getInstance()->startDebug();
+
+        $orderDebugEnabled = SfDebugger::getInstance()->isDebugEnabled();
+        $doEchoLog = $forcedOrder ? true : $orderDebugEnabled;
 
         if ($timeDiffFromLastCall > $minTimeDiff || $forcedOrder) {
             Configuration::updateValue('SHOPPING_BACKOFFICE_CALL', $now);
@@ -1876,7 +1873,8 @@ class ShoppingFluxExport extends Module
                 }
             }
         }
-        SfDebugger::getInstance()->endDebug($doEchoLog);
+        
+        SfDebugger::getInstance()->endDebug($forcedOrder);
     }
     
 
