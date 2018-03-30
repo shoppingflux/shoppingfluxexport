@@ -2587,7 +2587,7 @@ class ShoppingFluxExport extends Module
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'finished call to validateOrder, order_id = '.$payment->currentOrder, $doEchoLog);
 
         if ($this->_isMarketplaceExpedited($marketplace)) {
-            $this->_marketPlaceExpeditedStatut($orderId, $doEchoLog);
+            $this->_marketPlaceExpeditedStatut($payment->currentOrder, $doEchoLog);
         }
 
         return $payment;
