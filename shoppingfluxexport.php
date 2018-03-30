@@ -1817,7 +1817,11 @@ class ShoppingFluxExport extends Module
                                     $payment = $this->_validateOrder($cart, $order->Marketplace, $doEchoLog);
                                     $id_order = $payment->currentOrder;
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'validateOrder successfull, id_order = '.$id_order, $doEchoLog);
-        
+
+                                    if ($this->_isMarketplaceExpedited($marketplace)) {
+                                        $this->_marketPlaceExpeditedStatut($payment->currentOrder, $doEchoLog);
+                                    }
+
                                     //we valid there
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Notifying ShoppingFlux of order creation', $doEchoLog);
                                     $orderCreation = $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order, false, $currentToken['token']);
@@ -2583,12 +2587,7 @@ class ShoppingFluxExport extends Module
         $amount_paid = (float)Tools::ps_round((float)$cart->getOrderTotal(true, Cart::BOTH), 2);
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'calling validateOrder, amount = '.$amount_paid.', currency = '.$cart->id_currency.', marketplace = '.Tools::strtolower($marketplace), $doEchoLog);
         $payment->validateOrder((int)$cart->id, 2, $amount_paid, Tools::strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key);
-
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'finished call to validateOrder, order_id = '.$payment->currentOrder, $doEchoLog);
-
-        if ($this->_isMarketplaceExpedited($marketplace)) {
-            $this->_marketPlaceExpeditedStatut($payment->currentOrder, $doEchoLog);
-        }
 
         return $payment;
     }
