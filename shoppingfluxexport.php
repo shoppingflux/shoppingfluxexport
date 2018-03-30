@@ -2708,6 +2708,7 @@ class ShoppingFluxExport extends Module
 
             $quantity = StockAvailable::getQuantityAvailableByProduct($idProduct, $idProductAttribute);
 
+            $idProductAttribute = $idProductAttribute === null ? 0 : $idProductAttribute;
             if ($isMarketPlaceExpedited) {
                 // If the order belongs to a marketplace managing stocks, we directly add the required quantity to the product that will be later on deduced when the order is validated by PrestaShop
                 $tmpQuantity = $quantity+((int)$product->Quantity);
@@ -2717,7 +2718,6 @@ class ShoppingFluxExport extends Module
                 continue;
             }
 
-            $idProductAttribute = $idProductAttribute === null ? 0 : $idProductAttribute;
             if ($quantity - $product->Quantity < 0) {
                 StockAvailable::updateQuantity($idProduct, $idProductAttribute, (int)$product->Quantity);
             }
