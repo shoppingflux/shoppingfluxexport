@@ -236,6 +236,92 @@ function getLogsContent($sf) {
     return $html;
 }
 
+function echoLogsTopScripts()
+{
+    echo '
+    <script type="text/javascript">
+    function copyTextToClipboard(text) {
+      var textArea = document.createElement("textarea");
+    
+      // Place in top-left corner of screen regardless of scroll position.
+      textArea.style.position = "fixed";
+      textArea.style.top = 0;
+      textArea.style.left = 0;
+    
+      // Ensure it has a small width and height. Setting to 1px / 1em
+      // doesn"t work as this gives a negative w/h on some browsers.
+      textArea.style.width = "2em";
+      textArea.style.height = "2em";
+    
+      // We don"t need padding, reducing the size if it does flash render.
+      textArea.style.padding = 0;
+    
+      // Clean up any borders.
+      textArea.style.border = "none";
+      textArea.style.outline = "none";
+      textArea.style.boxShadow = "none";
+    
+      // Avoid flash of white box if rendered for any reason.
+      textArea.style.background = "transparent";
+      textArea.value = text;
+    
+      document.body.appendChild(textArea);
+    
+      textArea.select();
+    
+      try {
+        var successful = document.execCommand("copy");
+        var msg = successful ? "successful" : "unsuccessful";
+      } catch (err) {
+        console.log("Oops, unable to copy");
+      }
+    
+      document.body.removeChild(textArea);
+    }
+    </script>
+    ';
+}   
+
+function echoLogsBottomScripts()
+{
+    echo '
+    <script type="text/javascript">
+    $(document).ready(function() {
+
+        $(".textarea_xml").each(function(){
+            var tree = $.parseXML($(this).val());
+            traverse($(this).next().find("li"), tree.firstChild)
+            // this – is an —
+            $("<b>–<\/b>").prependTo($(this).next().find("li")).click(function() {
+                var sign = $(this).text();
+                if (sign == "–")
+                    $(this).text("+").next().next().children().hide();
+                else
+                    $(this).text("–").next().next().children().show();
+            });
+        });
+        
+        function traverse(node, tree) {
+            var children = $(tree).children();
+            var appended = node.append("<label>"+tree.nodeName+"</label>");
+            node.children()[0].onclick = function() { 
+                copyTextToClipboard(tree.outerHTML);
+            };
+            
+            if (children.length) {
+                var ul = $("<ul>").appendTo(node)
+                children.each(function() {
+                    var li = $("<li>").appendTo(ul)
+                    traverse(li, this)
+                })
+            } else {
+                $("<ul><li><span>" + $(tree).text() + "<\/span><\/li><\/ul>").appendTo(node)
+            }
+        }
+    });
+    </script>
+    ';
+}
 
 /**
  * Reads the logs and displays them gently into HTML format
@@ -244,115 +330,57 @@ function getLogsParsed($sf) {
     $fileName = dirname(__FILE__) . Tools::getValue('log');
     $content = file_get_contents($fileName);
     
-    $contentExploded = explode('<?xml', $content);
-    ?>
-    <script type="text/javascript">
-    function copyTextToClipboard(text) {
-      var textArea = document.createElement("textarea");
-    
-      // Place in top-left corner of screen regardless of scroll position.
-      textArea.style.position = 'fixed';
-      textArea.style.top = 0;
-      textArea.style.left = 0;
-    
-      // Ensure it has a small width and height. Setting to 1px / 1em
-      // doesn't work as this gives a negative w/h on some browsers.
-      textArea.style.width = '2em';
-      textArea.style.height = '2em';
-    
-      // We don't need padding, reducing the size if it does flash render.
-      textArea.style.padding = 0;
-    
-      // Clean up any borders.
-      textArea.style.border = 'none';
-      textArea.style.outline = 'none';
-      textArea.style.boxShadow = 'none';
-    
-      // Avoid flash of white box if rendered for any reason.
-      textArea.style.background = 'transparent';
-      textArea.value = text;
-    
-      document.body.appendChild(textArea);
-    
-      textArea.select();
-    
-      try {
-        var successful = document.execCommand('copy');
-        var msg = successful ? 'successful' : 'unsuccessful';
-      } catch (err) {
-        console.log('Oops, unable to copy');
-      }
-    
-      document.body.removeChild(textArea);
+    $logType = Tools::getValue('type');
+    $isXMLLogs = $logType === "xml" ? true : false;
+    if ($isXMLLogs) {
+        echoLogsTopScripts();
     }
-    </script>
-    <div class="logs">
-    <?php 
 
-    foreach ($contentExploded as $currentSegment) {
-        $currentSegment = str_replace(' version="1.0" encoding="utf-8"?>', '', $currentSegment);
-        $currentSegment = str_replace(' version="1.0" encoding="UTF-8"?>', '', $currentSegment);
-        if (strpos($currentSegment, '>')) {
-            // Has xml
-            $xmlContent = substr($currentSegment, 0, strrpos($currentSegment, '>') + 1);
-            $textContent = substr($currentSegment, strrpos($currentSegment, '>') + 1, strlen($currentSegment));
-        } else {
-            // Has no XML
-            $xmlContent = '';
-            $textContent = $currentSegment;
+    $orderDebugErrorOn = $logType === "orderdebugerroron" ? true : false;
+
+    echo '<div class="logs">';
+
+    if ($isXMLLogs) {
+
+        $contentExploded = explode('<?xml', $content);
+        foreach ($contentExploded as $currentSegment) {
+            $currentSegment = str_replace(' version="1.0" encoding="utf-8"?>', '', $currentSegment);
+            $currentSegment = str_replace(' version="1.0" encoding="UTF-8"?>', '', $currentSegment);
+            if (strpos($currentSegment, '>')) {
+                // Has xml
+                $xmlContent = substr($currentSegment, 0, strrpos($currentSegment, '>') + 1);
+                $textContent = substr($currentSegment, strrpos($currentSegment, '>') + 1, strlen($currentSegment));
+            } else {
+                // Has no XML
+                $xmlContent = '';
+                $textContent = $currentSegment;
+            }
+            // First echo XML
+            if ($xmlContent) {
+                makeXmlTree($xmlContent);
+            }
+            
+            // Then echo text, removing first line break
+            $textContent = nl2br($textContent);
+            $textContent = substr($textContent, 6, strlen($textContent));
+            echo $textContent;
         }
-        // First echo XML
+
         if ($xmlContent) {
-            makeXmlTree($xmlContent);
+            echoLogsBottomScripts();
         }
-        
+    } else {
         // Then echo text, removing first line break
-        $textContent = nl2br($textContent);
+        $textContent = nl2br($content);
+        if ($orderDebugErrorOn) {
+            // Remove extra line breaks
+            $textContent = str_replace('<br /><br />', '<br />', $textContent);
+        }
         $textContent = substr($textContent, 6, strlen($textContent));
         echo $textContent;
     }
 
-    if ($xmlContent) {
-    ?>
-    <script type="text/javascript">
-    $(document).ready(function() {
-
-        $('.textarea_xml').each(function(){
-            var tree = $.parseXML($(this).val());
-            traverse($(this).next().find('li'), tree.firstChild)
-            // this – is an —
-            $('<b>–<\/b>').prependTo($(this).next().find('li')).click(function() {
-                var sign = $(this).text()
-                if (sign == "–")
-                    $(this).text('+').next().next().children().hide()
-                else
-                    $(this).text('–').next().next().children().show()
-            });
-        });
-        
-        function traverse(node, tree) {
-            var children = $(tree).children();
-            var appended = node.append('<label>'+tree.nodeName+'</label>');
-            node.children()[0].onclick = function() { 
-                copyTextToClipboard(tree.outerHTML);
-            };
-            
-            if (children.length) {
-                var ul = $("<ul>").appendTo(node)
-                children.each(function() {
-                    var li = $('<li>').appendTo(ul)
-                    traverse(li, this)
-                })
-            } else {
-                $('<ul><li><span>' + $(tree).text() + '<\/span><\/li><\/ul>').appendTo(node)
-            }
-        }
-    });
-    </script>
-    <?php
-    }
-    ?>
-    </div><?php
+    echo '</div>';
 }
 
 /**
@@ -360,14 +388,12 @@ function getLogsParsed($sf) {
  */
 function makeXmlTree($xmlContent) {
     $xmlContent = '<?xml version="1.0" encoding="UTF-8"?>' . $xmlContent;
-    $randed = rand(0, 10000);
-    ?>
-    <textarea class="textarea_xml" style="display: none;"><?php echo $xmlContent; ?></textarea>
-	<ul class='treeView_xml'>
+    
+    echo '<textarea class="textarea_xml" style="display: none;">'.$xmlContent.'</textarea>
+	<ul class="treeView_xml">
 		<li></li>
-	</ul>
+	</ul>';
 	
-    <?php 
 }
 
 /**
@@ -390,13 +416,13 @@ function getLogsContentOfToken($sf, $token) {
     }
     $fileName = '/logs/orders_debug_errors_on_' . $token . '.txt';
     if (file_exists(dirname(__FILE__) . $fileName)) {
-        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token'). '&action=viewLog&log=' . $fileName . '">' . $sf->l('Voir') . '</a>';
+        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token'). '&action=viewLog&type=orderdebugerroron&log=' . $fileName . '">' . $sf->l('Voir') . '</a>';
         $html .= '<label>' . $sf->l('Logs de la création de commandes sur Prestashop avec erreurs activées') . '</label>' . $button;
         $html .= '<p style="clear: both"></p>';
     }
     $fileName = '/logs/callWebService_' . $token . '.txt';
     if (file_exists(dirname(__FILE__) . $fileName)) {
-        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token'). '&action=viewLog&log=' . $fileName . '">' . $sf->l('Voir') . '</a>';
+        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token'). '&action=viewLog&type=xml&log=' . $fileName . '">' . $sf->l('Voir') . '</a>';
         $html .= '<label>' . $sf->l('Logs des appels au webservice ShoppingFlux') . '</label>' . $button;
         $html .= '<p style="clear: both"></p>';
     }
