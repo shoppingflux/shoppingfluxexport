@@ -1587,13 +1587,10 @@ class ShoppingFluxExport extends Module
         $lastHookCalledTime = Configuration::get('SHOPPING_BACKOFFICE_CALL');
         $timeDiffFromLastCall = $now - $lastHookCalledTime;
         
-        if ($forcedOrder) {
-            $doEchoLog = true;
-        } else {
-            $doEchoLog = false;
-        }
-
         SfDebugger::getInstance()->startDebug();
+
+        $orderDebugEnabled = SfDebugger::getInstance()->isDebugEnabled();
+        $doEchoLog = $forcedOrder ? true : $orderDebugEnabled;
 
         if ($timeDiffFromLastCall > $minTimeDiff || $forcedOrder) {
             Configuration::updateValue('SHOPPING_BACKOFFICE_CALL', $now);
@@ -1815,7 +1812,7 @@ class ShoppingFluxExport extends Module
                                     }
         
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Calling validateOrder', $doEchoLog);
-                                    $payment = $this->_validateOrder($cart, $order->Marketplace, $doEchoLog);
+                                    $payment = $this->_validateOrder($cart, $order->Marketplace, $doEchoLog, $forcedOrder);
                                     $id_order = $payment->currentOrder;
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'validateOrder successfull, id_order = '.$id_order, $doEchoLog);
         
@@ -1877,7 +1874,8 @@ class ShoppingFluxExport extends Module
                 }
             }
         }
-        SfDebugger::getInstance()->endDebug($doEchoLog);
+        
+        SfDebugger::getInstance()->endDebug($forcedOrder);
     }
     
 
@@ -2560,7 +2558,7 @@ class ShoppingFluxExport extends Module
         Db::getInstance()->update('order_payment', $updatePayment, '`order_reference` = "'.$reference_order.'"');
     }
 
-    protected function _validateOrder($cart, $marketplace, $doEchoLog)
+    protected function _validateOrder($cart, $marketplace, $doEchoLog, $forcedOrder)
     {
         $payment = new sfpayment();
         $payment->name = 'sfpayment';
@@ -2583,7 +2581,9 @@ class ShoppingFluxExport extends Module
         }
         $amount_paid = (float)Tools::ps_round((float)$cart->getOrderTotal(true, Cart::BOTH), 2);
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'calling validateOrder, amount = '.$amount_paid.', currency = '.$cart->id_currency.', marketplace = '.Tools::strtolower($marketplace), $doEchoLog);
+        SfDebugger::getInstance()->endDebug($forcedOrder);
         $payment->validateOrder((int)$cart->id, 2, $amount_paid, Tools::strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key);
+        SfDebugger::getInstance()->startDebug();
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'finished call to validateOrder, order_id = '.$payment->currentOrder, $doEchoLog);
         return $payment;
     }
