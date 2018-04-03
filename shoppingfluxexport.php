@@ -2461,8 +2461,7 @@ class ShoppingFluxExport extends Module
                 'total_shipping_price_tax_incl' => 0,
                 'total_shipping_price_tax_excl' => 0,
                 'purchase_supplier_price' => 0,
-                'original_product_price' => 0,
-                'original_wholesale_price' => 0,
+                'original_product_price' => 0
             );
             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Inserting Cdiscount fees, total fees = ' . $order->TotalFees, $doEchoLog);
 
