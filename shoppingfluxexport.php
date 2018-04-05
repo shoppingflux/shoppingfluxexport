@@ -1795,6 +1795,7 @@ class ShoppingFluxExport extends Module
                                             $so_delivery->type = 'A2P';
                                         }
                                     
+                                        $log = 'SoFlexibilite > saveDelivery - start';
                                         SfLogger::getInstance()->log(SF_LOG_ORDERS, $log, $doEchoLog);
                     
                                         $status_soflexibilite = (bool)$so_delivery->saveDelivery();
