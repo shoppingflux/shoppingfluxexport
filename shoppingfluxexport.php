@@ -1586,8 +1586,6 @@ class ShoppingFluxExport extends Module
         $now = time();
         $lastHookCalledTime = Configuration::get('SHOPPING_BACKOFFICE_CALL');
         $timeDiffFromLastCall = $now - $lastHookCalledTime;
-        
-        SfDebugger::getInstance()->startDebug();
 
         $orderDebugEnabled = SfDebugger::getInstance()->isDebugEnabled();
         $doEchoLog = $forcedOrder ? true : $orderDebugEnabled;
@@ -1602,6 +1600,9 @@ class ShoppingFluxExport extends Module
                 $curlInstalled) ||
                 $no_cron == false ||
                 $forcedOrder) {
+
+                SfDebugger::getInstance()->startDebug();
+
                 // Get all tokens of this shop
                 $allTokens = $this->getAllTokensOfShop();
                 foreach ($allTokens as $currentToken) {
@@ -1872,10 +1873,10 @@ class ShoppingFluxExport extends Module
                         }
                     }
                 }
+                // Stop the error debug
+                SfDebugger::getInstance()->endDebug($forcedOrder);
             }
         }
-        
-        SfDebugger::getInstance()->endDebug($forcedOrder);
     }
     
 
