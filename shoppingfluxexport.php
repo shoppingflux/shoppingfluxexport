@@ -929,9 +929,7 @@ class ShoppingFluxExport extends Module
         $today =  date('Y-m-d H:i:s');
         $configurationKey = empty($lang) ? 'SHOPPING_FLUX_CRON_TIME' : 'SHOPPING_FLUX_CRON_TIME_' . Tools::strtoupper($lang);
         Configuration::updateValue($configurationKey, $today, false, null, $id_shop);
-        
-        SfLogger::getInstance()->emptyLogCron();
-        
+                
         $file = fopen($this->getFeedName(), 'w+');
         $country = $lang ? $lang : $this->default_country->iso_code;
         fwrite($file, '<?xml version="1.0" encoding="utf-8"?><products version="'.$this->version.'" country="' . $country . '">');
