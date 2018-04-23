@@ -49,7 +49,7 @@ class ShoppingFluxExport extends Module
     {
         $this->name = 'shoppingfluxexport';
         $this->tab = 'smart_shopping';
-        $this->version = '4.5.0';
+        $this->version = '4.6.0';
         $this->author = 'PrestaShop';
         $this->limited_countries = array('fr', 'us');
         $this->module_key = '08b3cf6b1a86256e876b485ff9bd4135';
@@ -580,7 +580,7 @@ class ShoppingFluxExport extends Module
             foreach ($configuration as $key => $val) {
                 $value = Tools::getValue($key, '');
                 $value = $value == 'on' ? 'checked' : $value;
-                if($key === "SHOPPING_FLUX_XML_SHOP_ID") {
+                if ($key === "SHOPPING_FLUX_XML_SHOP_ID") {
                     Configuration::updateGlobalValue($key, $value);
                 } else {
                     Configuration::updateValue($key, $value == 'on' ? 'checked' : $value);
@@ -1598,7 +1598,6 @@ class ShoppingFluxExport extends Module
                 $curlInstalled) ||
                 $no_cron == false ||
                 $forcedOrder) {
-
                 SfDebugger::getInstance()->startDebug();
 
                 // Get all tokens of this shop
@@ -1635,7 +1634,6 @@ class ShoppingFluxExport extends Module
                                 WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
         
                             if (! $forcedOrder && isset($orderExists['id_message']) && isset($orderExists['id_order'])) {
-
                                 SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order already exists (id = '.$order->IdOrder.'): notifying ShoppingFlux', $doEchoLog);
                                 $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int)$orderExists['id_order'], false, $currentToken['token']);
                                 continue;
@@ -1651,7 +1649,7 @@ class ShoppingFluxExport extends Module
                                 ORDER BY o.id_order DESC
                             ");
                             
-                            if (! $forcedOrder && isset($orderExists['id_order']) ) {
+                            if (! $forcedOrder && isset($orderExists['id_order'])) {
                                 // This is the second try of an order creation, last process could not be completed
                                 SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order already exists (id = ' . $order->IdOrder . '): notifying ShoppingFlux', $doEchoLog);
                             
@@ -1723,7 +1721,7 @@ class ShoppingFluxExport extends Module
                                     
                                     // Compatibility with socolissimo flexibilité module
                                     $soflexibilite = Module::getInstanceByName('soflexibilite');
-                                    if ($soflexibilite && $soflexibilite->active && (class_exists('SoFlexibiliteDelivery') || class_exists('SoColissimoFlexibiliteDelivery')) ) {
+                                    if ($soflexibilite && $soflexibilite->active && (class_exists('SoFlexibiliteDelivery') || class_exists('SoColissimoFlexibiliteDelivery'))) {
                                         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'soflexibilite ACTIVE', $doEchoLog);
                                         $addrSoColissimo = new Address((int)$id_address_shipping);
                                         if ($addrSoColissimo->phone_mobile) {
@@ -1951,7 +1949,6 @@ class ShoppingFluxExport extends Module
     public function hookActionObjectAddAfter($params)
     {
         if ($params['object'] instanceof Order && $params['cart'] instanceof Cart) {
-
             // We first check if the IP is existing from the guest/connections tables
             if ($ip = Db::getInstance()->getValue('
                 SELECT c.`ip_address`
@@ -2207,7 +2204,6 @@ class ShoppingFluxExport extends Module
         }
 
         if ($marketPlace === "cdiscount" && ($shippingMethod === "SO1" || $shippingMethod === "REL" || $shippingMethod === "RCO")) {
-
             // Workaround for CDiscount usage of last name as pickup-point name
             $pickupPointName = (string)$addressNode->LastName;
             
@@ -2233,14 +2229,13 @@ class ShoppingFluxExport extends Module
                 $firstname = $nameParts[0];
                 $lastname = '';
                 foreach ($nameParts as $key => $particule) {
-                    if($key === 0) {
+                    if ($key === 0) {
                         continue;
                     }
                     $lastname .= $particule.' ';
                 }
                 $lastname = trim($lastname);
             }
-
         } else {
             $lastname = (string)$addressNode->LastName;
             $firstname = (string)$addressNode->FirstName;
@@ -2779,19 +2774,15 @@ class ShoppingFluxExport extends Module
     {
         if (empty($ip)) {
             if (isset($_SERVER['HTTP_CF_CONNECTING_IP'])) {
-
                 // Cloudflare is directly providing the client IP in this server variable (when correctly set)
                 $ip = $_SERVER['HTTP_CF_CONNECTING_IP'];
-
             } else if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-
                 // We retrieve the proxy list
                 $ipForwardedFor = $_SERVER['HTTP_X_FORWARDED_FOR'];
                 // In case of multiple proxy, there values will be split by comma. It will list each server IP the request passed throug
-                $proxyList = explode (",", $ipForwardedFor);
+                $proxyList = explode(",", $ipForwardedFor);
                 // The first IP of the list is the client IP (the last IP is the last proxy)
                 $ip = trim(reset($proxyList));
-
             } elseif (isset($_SERVER['HTTP_CLIENT_IP'])) {
                 $ip = $_SERVER['HTTP_CLIENT_IP'];
             } else {
@@ -2997,8 +2988,7 @@ class ShoppingFluxExport extends Module
                         'id_lang' => $idLang,
                         'token' => ''
                     );
-                }          
-
+                }
             }
 
             // General token
@@ -3007,20 +2997,20 @@ class ShoppingFluxExport extends Module
                 'name' => $currentShop['name'],
                 'token' => '',
                 'values' => $values
-            );      
+            );
         }
 
         // We fill the existing token from the pre-built list
         if (!empty($tokenTreeFilled)) {
             foreach ($tokenTreeFilled as $aFilledTree) {
                 foreach ($tokenTree as &$aTree) {
-                    if($aTree['id_shop'] != $aFilledTree['id_shop']) {
+                    if ($aTree['id_shop'] != $aFilledTree['id_shop']) {
                         continue;
                     }
                     
                     $aTree['token'] = $aFilledTree['token'];
 
-                    if(!isset($aFilledTree['values']) || empty($aFilledTree['values'])) {
+                    if (!isset($aFilledTree['values']) || empty($aFilledTree['values'])) {
                         continue;
                     }
                     
@@ -3031,7 +3021,6 @@ class ShoppingFluxExport extends Module
                             }
                         }
                     }
-                    
                 }
             }
         }
@@ -3054,10 +3043,10 @@ class ShoppingFluxExport extends Module
     
     /**
      * Get the configured token
-     * 
-     * When no parameters are set, the token associated to the current context will be returned (case 
+     *
+     * When no parameters are set, the token associated to the current context will be returned (case
      * when multi-shop is not enabled
-     * 
+     *
      * @param int|bool $id_shop the shop context (optionnal)
      * @param int|null $id_shop_group (optionnal)
      * @param int|bool $id_currency (optionnal) the currency
@@ -3239,7 +3228,7 @@ class ShoppingFluxExport extends Module
         $currency = Tools::getValue('currency');
         $name = '';
 
-        if (version_compare(_PS_VERSION_, '1.5', '>') 
+        if (version_compare(_PS_VERSION_, '1.5', '>')
             && Configuration::getGlobalValue('SHOPPING_FLUX_XML_SHOP_ID') === "checked") {
             $name .= '_'.$this->context->shop->id;
         }
