@@ -31,9 +31,15 @@ class SfLogger
     /**
      * Log rotatetime
      */
-    private static $logRotateHours = 24;
+    private static $logRotateMegaBites = 20;
 
-    private function __construct()
+    /**
+     * Maximal number of rotation of log files before being removed
+     * @var integer
+     */
+    private static $maxRotateIteration = 10;
+
+    protected function __construct()
     {
         if ((int) Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG') || Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG') == 'true') {
             self::$debugOrders = true;
@@ -65,6 +71,8 @@ class SfLogger
         if ($doEcho) {
             echo $logLine . '<br />';
         }
+
+        $sf = Module::getInstanceByName('shoppingfluxexport');
         
         // Compute the output file and if we will do a log
         $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/';
@@ -72,24 +80,23 @@ class SfLogger
         $outputMode = 'a';
         switch ($level) {
             case SF_LOG_CRON:
-                $outputFile .= 'cronexport_' . Configuration::get('SHOPPING_FLUX_TOKEN') . '.txt';
-                $outputMode = 'w';
+                $outputFile .= 'cronexport_' . $sf->getTokenValue() . '.txt';
                 if (self::$debug) {
                     $doLog = true;
                 }
                 break;
             case SF_LOG_ORDERS:
-                $outputFile .= 'orders_debug_' . Configuration::get('SHOPPING_FLUX_TOKEN') . '.txt';
+                $outputFile .= 'orders_debug_' . $sf->getTokenValue() . '.txt';
                 if (self::$debugOrders) {
                     $doLog = true;
                 }
                 break;
             case SF_LOG_WEBSERVICE:
-                $outputFile .= 'callWebService_' . Configuration::get('SHOPPING_FLUX_TOKEN') . '.txt';
+                $outputFile .= 'callWebService_' . $sf->getTokenValue() . '.txt';
                 $doLog = true;
                 break;
             case SF_LOG_DEBUG:
-                $outputFile .= 'orders_debug_errors_on_' . Configuration::get('SHOPPING_FLUX_TOKEN') . '.txt';
+                $outputFile .= 'orders_debug_errors_on_' . $sf->getTokenValue() . '.txt';
                 $doLog = true;
                 break;
             default:
@@ -105,40 +112,53 @@ class SfLogger
     }
 
     /**
-     * Rotates the logs
+     * Rotates the logs based on log size
+     * @param  string $fileName The file name to rotate if needed
      */
-    private function rotateLogFile($fileName)
+    protected function rotateLogFile($fileName)
     {
-        if (self::$logRotateHours) {
-            // file age
-            if (! file_exists($fileName)) {
+        if (self::$logRotateMegaBites) {
+
+            if (!file_exists($fileName)) {
                 return;
             }
-            $now = time();
-            $dateGeneration = filemtime($fileName);
-            $age = ($now - $dateGeneration);
-            if ($age > (self::$logRotateHours * 3600)) {
-                $filePieces = explode('.', $fileName);
-                $extension = $filePieces['1'];
-                if (file_exists($filePieces['0'] . '_last_' . self::$logRotateHours . 'hours' . $extension)) {
-                    unlink($filePieces['0'] . '_500' . $extension);
-                    // Rename current log file
-                    rename($fileName, $filePieces['0'] . '_last_' . self::$logRotateHours . 'hours' . $extension);
-                } else {
-                    rename($fileName, $filePieces['0'] . '_last_' . self::$logRotateHours . 'hours' . $extension);
+
+            $fileSizeMbs = filesize($fileName) / 1024 / 1024;
+            if ($fileSizeMbs >= (self::$logRotateMegaBites)) {
+
+                // Base file
+                $baseFile = substr($fileName, 0,strrpos($fileName, '.'));
+                // The file extension (.txt, .log...)
+                $extension = substr($fileName, strrpos($fileName, '.'));
+                // Compose the new name of the file
+                $rotatedLogFileBase = $baseFile . '_' . self::$logRotateMegaBites . 'mb';
+
+                // Get files and number of files already rotated
+                $filesRotated = glob($rotatedLogFileBase."*".$extension);
+                $nbAlreadyRotated = count($filesRotated);
+
+                if($nbAlreadyRotated >= self::$maxRotateIteration) {
+                    // We exhausted the number of combination
+                    
+                    // We order the files by last modified
+                    array_multisort(
+                        array_map( 'filemtime', $filesRotated ),
+                        SORT_NUMERIC,
+                        SORT_ASC,
+                        $filesRotated
+                    );
+
+                    // We remove the oldest file
+                    unlink($filesRotated[0]);
                 }
+
+                // Build the complete file name with the iteration and the extension
+                $rotatedLogFile = $rotatedLogFileBase."_".date("Y-m-d-H-i-s").$extension;
+
+                // Rename current log file
+                rename($fileName, $rotatedLogFile);
             }
         }
     }
 
-    /**
-     * empty log file
-     */
-    public function emptyLogCron()
-    {
-        if ($this->debug) {
-            $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport_' . Configuration::get('SHOPPING_FLUX_TOKEN') . '.txt';
-            unlink($outputFile);
-        }
-    }
 }

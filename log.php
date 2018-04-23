@@ -28,20 +28,19 @@ include(dirname(__FILE__).'/../../config/config.inc.php');
 include(dirname(__FILE__).'/../../init.php');
 
 include_once(dirname(__FILE__).'/sfpayment.php');
-include(dirname(__FILE__).'/shoppingfluxexport.php');
 
 ini_set("memory_limit", "2048M");
 ini_set('display_errors', 'on');
 
-$f = new ShoppingFluxExport();
+$sf = Module::getInstanceByName('shoppingfluxexport');
 
-if (Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) {
+if (Tools::getValue('token') == '' || Tools::getValue('token') != $f->getTokenValue()) {
     die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
 }
 
 // Check if file exists
 $outputFileCronexport = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport_';
-$outputFileCronexport .= Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
+$outputFileCronexport .= $f->getTokenValue().'.txt';
 
 if (!file_exists($outputFileCronexport)) {
     p('cronexport file does not exists');
@@ -53,7 +52,7 @@ if (!file_exists($outputFileCronexport)) {
 }
 
 $outputFilecallWebService = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/callWebService_';
-$outputFilecallWebService .= Configuration::get('SHOPPING_FLUX_TOKEN').'.txt';
+$outputFilecallWebService .= $f->getTokenValue().'.txt';
 
 if (!file_exists($outputFilecallWebService)) {
     p('callWebService file does not exists');

@@ -28,14 +28,13 @@ include(dirname(__FILE__) . '/../../config/config.inc.php');
 include(dirname(__FILE__) . '/../../init.php');
 
 include_once(dirname(__FILE__) . '/sfpayment.php');
-include(dirname(__FILE__) . '/shoppingfluxexport.php');
 
 ini_set("memory_limit", "2048M");
 ini_set('display_errors', 'on');
 
-$sf = new ShoppingFluxExport();
+$sf = Module::getInstanceByName('shoppingfluxexport');
 
-if ((Tools::getValue('token') == '' || Tools::getValue('token') != Configuration::get('SHOPPING_FLUX_TOKEN')) && ! (isset($_GET['test_homepage']) || isset($_GET['test_curl']))) {
+if ((Tools::getValue('token') == '' || Tools::getValue('token') != $sf->getTokenValue()) && ! (isset($_GET['test_homepage']) || isset($_GET['test_curl']))) {
     die("Invalid Token");
 }
 
@@ -43,7 +42,7 @@ function getDebugForm($sf)
 {
     $output = '<fieldset id="debug_content">';
     $output .= '<legend>' . $sf->l('Debug') . '</legend>';
-    $output .= getLogContent($sf);
+    $output .= getLogsConfiguration($sf);
     $output .= '</fieldset>';
     return $output;
 }
@@ -60,6 +59,7 @@ function getRecablage($sf)
 
 function getConfigForm($sf)
 {
+    $outOfStock = "n/a";
     if (Configuration::get('SHOPPING_FLUX_FDG')) {
         $product_id = Configuration::get('SHOPPING_FLUX_FDG');
         $sql = '
@@ -94,7 +94,7 @@ function getConfigForm($sf)
     $output .= '<label>FDG allow out of stock</label>' . $outOfStock;
     $output .= '<p style="clear: both"></p>';
     
-    $output .= '<label>PS_SHOPPINGFLUX_CRON_TIME</label>' . Configuration::get('PS_SHOPPINGFLUX_CRON_TIME');
+    $output .= '<label>SHOPPING_FLUX_CRON_TIME (global)</label>' . Configuration::get('SHOPPING_FLUX_CRON_TIME');
     $output .= '<p style="clear: both"></p>';
     
     $output .= '<label>SHOPPING_FLUX_STATUS_SHIPPED</label>' . Configuration::get('SHOPPING_FLUX_STATUS_SHIPPED');
@@ -112,11 +112,12 @@ function getConfigForm($sf)
     $output .= '<label>SHOPPING_FLUX_REF</label>' . Configuration::get('SHOPPING_FLUX_REF');
     $output .= '<p style="clear: both"></p>';
     
-    $output .= '<label>SHOPPING_FLUX_TOKEN</label>' . Configuration::get('SHOPPING_FLUX_TOKEN');
+    $output .= '<label>SHOPPING_FLUX_TOKEN</label>' . $sf->getTokenValue();
     $output .= '<p style="clear: both"></p>';
     
-    $output .= '<label>getAllTokensOfShop()</label>';
-    $output .= '<pre>' . print_r($sf->getAllTokensOfShop(), true) . '</pre>';
+    $output .= '<label>getAllTokensOfShop(true, true)</label>';
+    $allTokens = $sf->getAllTokensOfShop(true, true);
+    $output .= '<pre>' . print_r($allTokens, true) . '</pre>';
     $output .= '<p style="clear: both"></p>';
     
     $output .= '<label>URL test homepage</label>' . $urlBase . '/modules/shoppingfluxexport/debug.php?test_homepage=1';
@@ -178,7 +179,7 @@ function getReplayOrdersForm($sf)
 /**
  * Form to activate logs
  */
-function getLogContent($sf)
+function getLogsConfiguration($sf)
 {
     $sf_basic_log = '';
     if ((int) Configuration::get('SHOPPING_FLUX_DEBUG') || Configuration::get('SHOPPING_FLUX_DEBUG') == 'true') {
@@ -220,6 +221,216 @@ function getLogContent($sf)
     $html .= '<p style="clear: both"></p>';
     return $html;
 }
+
+/**
+ * Main menu for accessing the logs
+ */
+function getLogsContent($sf) {
+    $html = '<fieldset>
+                <legend>Logs</legend>';
+    $allTokens = $sf->getAllTokensOfShop(true, false, true);
+    foreach ($allTokens as $currentToken) {
+        $html .= getLogsContentOfToken($sf, $currentToken);
+    }
+    $html .= '</fieldset>';
+    return $html;
+}
+
+function echoLogsTopScripts()
+{
+    echo '
+    <script type="text/javascript">
+    function copyTextToClipboard(text) {
+      var textArea = document.createElement("textarea");
+    
+      // Place in top-left corner of screen regardless of scroll position.
+      textArea.style.position = "fixed";
+      textArea.style.top = 0;
+      textArea.style.left = 0;
+    
+      // Ensure it has a small width and height. Setting to 1px / 1em
+      // doesn"t work as this gives a negative w/h on some browsers.
+      textArea.style.width = "2em";
+      textArea.style.height = "2em";
+    
+      // We don"t need padding, reducing the size if it does flash render.
+      textArea.style.padding = 0;
+    
+      // Clean up any borders.
+      textArea.style.border = "none";
+      textArea.style.outline = "none";
+      textArea.style.boxShadow = "none";
+    
+      // Avoid flash of white box if rendered for any reason.
+      textArea.style.background = "transparent";
+      textArea.value = text;
+    
+      document.body.appendChild(textArea);
+    
+      textArea.select();
+    
+      try {
+        var successful = document.execCommand("copy");
+        var msg = successful ? "successful" : "unsuccessful";
+      } catch (err) {
+        console.log("Oops, unable to copy");
+      }
+    
+      document.body.removeChild(textArea);
+    }
+    </script>
+    ';
+}   
+
+function echoLogsBottomScripts()
+{
+    echo '
+    <script type="text/javascript">
+    $(document).ready(function() {
+
+        $(".textarea_xml").each(function(){
+            var tree = $.parseXML($(this).val());
+            traverse($(this).next().find("li"), tree.firstChild)
+            // this – is an —
+            $("<b>–<\/b>").prependTo($(this).next().find("li")).click(function() {
+                var sign = $(this).text();
+                if (sign == "–")
+                    $(this).text("+").next().next().children().hide();
+                else
+                    $(this).text("–").next().next().children().show();
+            });
+        });
+        
+        function traverse(node, tree) {
+            var children = $(tree).children();
+            var appended = node.append("<label>"+tree.nodeName+"</label>");
+            node.children()[0].onclick = function() { 
+                copyTextToClipboard(tree.outerHTML);
+            };
+            
+            if (children.length) {
+                var ul = $("<ul>").appendTo(node)
+                children.each(function() {
+                    var li = $("<li>").appendTo(ul)
+                    traverse(li, this)
+                })
+            } else {
+                $("<ul><li><span>" + $(tree).text() + "<\/span><\/li><\/ul>").appendTo(node)
+            }
+        }
+    });
+    </script>
+    ';
+}
+
+/**
+ * Reads the logs and displays them gently into HTML format
+ */
+function getLogsParsed($sf) {
+    $fileName = dirname(__FILE__) . Tools::getValue('log');
+    $content = file_get_contents($fileName);
+    
+    $logType = Tools::getValue('type');
+    $isXMLLogs = $logType === "xml" ? true : false;
+    if ($isXMLLogs) {
+        echoLogsTopScripts();
+    }
+
+    $orderDebugErrorOn = $logType === "orderdebugerroron" ? true : false;
+
+    echo '<div class="logs">';
+
+    if ($isXMLLogs) {
+
+        $contentExploded = explode('<?xml', $content);
+        foreach ($contentExploded as $currentSegment) {
+            $currentSegment = str_replace(' version="1.0" encoding="utf-8"?>', '', $currentSegment);
+            $currentSegment = str_replace(' version="1.0" encoding="UTF-8"?>', '', $currentSegment);
+            if (strpos($currentSegment, '>')) {
+                // Has xml
+                $xmlContent = substr($currentSegment, 0, strrpos($currentSegment, '>') + 1);
+                $textContent = substr($currentSegment, strrpos($currentSegment, '>') + 1, strlen($currentSegment));
+            } else {
+                // Has no XML
+                $xmlContent = '';
+                $textContent = $currentSegment;
+            }
+            // First echo XML
+            if ($xmlContent) {
+                makeXmlTree($xmlContent);
+            }
+            
+            // Then echo text, removing first line break
+            $textContent = nl2br($textContent);
+            $textContent = substr($textContent, 6, strlen($textContent));
+            echo $textContent;
+        }
+
+        if ($xmlContent) {
+            echoLogsBottomScripts();
+        }
+    } else {
+        // Then echo text, removing first line break
+        $textContent = nl2br($content);
+        if ($orderDebugErrorOn) {
+            // Remove extra line breaks
+            $textContent = str_replace('<br /><br />', '<br />', $textContent);
+        }
+        $textContent = substr($textContent, 6, strlen($textContent));
+        echo $textContent;
+    }
+
+    echo '</div>';
+}
+
+/**
+ * Builds an ergonomic XML tree from a XML String
+ */
+function makeXmlTree($xmlContent) {
+    $xmlContent = '<?xml version="1.0" encoding="UTF-8"?>' . $xmlContent;
+    
+    echo '<textarea class="textarea_xml" style="display: none;">'.$xmlContent.'</textarea>
+	<ul class="treeView_xml">
+		<li></li>
+	</ul>';
+	
+}
+
+/**
+ * Get the fieldset for the logs of a specific token
+ */
+function getLogsContentOfToken($sf, $token) {
+    $html = '<fieldset>
+                <legend>' . $sf->l('Logs du token') . ' : ' . $token . '</legend>';
+    $fileName = '/logs/cronexport_' . $token . '.txt';
+    if (file_exists(dirname(__FILE__) . $fileName)) {
+        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token'). '&action=viewLog&log=' . $fileName . '">' . $sf->l('Voir') . '</a>';
+        $html .= '<label>' . $sf->l('Logs de la génération du flux') . '</label>' . $button;
+        $html .= '<p style="clear: both"></p>';
+    }
+    $fileName = '/logs/orders_debug_' . $token . '.txt';
+    if (file_exists(dirname(__FILE__) . $fileName)) {
+        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token'). '&action=viewLog&log=' . $fileName . '">' . $sf->l('Voir') . '</a>';
+        $html .= '<label>' . $sf->l('Logs de la création de commandes sur Prestashop') . '</label>' . $button;
+        $html .= '<p style="clear: both"></p>';
+    }
+    $fileName = '/logs/orders_debug_errors_on_' . $token . '.txt';
+    if (file_exists(dirname(__FILE__) . $fileName)) {
+        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token'). '&action=viewLog&type=orderdebugerroron&log=' . $fileName . '">' . $sf->l('Voir') . '</a>';
+        $html .= '<label>' . $sf->l('Logs de la création de commandes sur Prestashop avec erreurs activées') . '</label>' . $button;
+        $html .= '<p style="clear: both"></p>';
+    }
+    $fileName = '/logs/callWebService_' . $token . '.txt';
+    if (file_exists(dirname(__FILE__) . $fileName)) {
+        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token'). '&action=viewLog&type=xml&log=' . $fileName . '">' . $sf->l('Voir') . '</a>';
+        $html .= '<label>' . $sf->l('Logs des appels au webservice ShoppingFlux') . '</label>' . $button;
+        $html .= '<p style="clear: both"></p>';
+    }
+    
+    $html .= '</fieldset>';
+    return $html;
+}
+
 
 /**
  * DEBUG TOOLS
@@ -277,6 +488,8 @@ function logDebug($toLog)
 ?>
 <html>
 <head>
+<script type="text/javascript" src="//code.jquery.com/jquery-1.7.2.js"></script>
+
 <style type="text/css">
 label {
     font-weight: bold;
@@ -290,78 +503,123 @@ label {
 pre {
     float: left;
 }
+
+.logs ul, .logs li {
+    list-style: none;
+    margin: 0;
+}
+
+
+.logs span {
+    font-size: 12px;
+}
+
+.logs label {
+    background: #d86;
+    color: #f4f4f4;
+    border-radius: 6px;
+    padding-right: 4px;
+    margin-right: 6px;
+    padding-left: 4px;
+    cursor: copy;
+    font-weight: normal;
+    display: inline;
+    width: auto;
+    text-align: left;
+    float: inherit;
+}
+
+.logs ul b {
+    border: solid;
+    border-radius: 6px;
+    padding-right: 4px;
+    border-width: 1px;
+    margin-right: 3px;
+    padding-left: 4px;
+    cursor: pointer;
+    color: darkgrey;
+}
 </style>
 </head>
 <body>
     <?php
-    echo getDebugForm($sf);
-    echo getConfigForm($sf);
-    echo getRecablage($sf);
-    echo getReplayOrdersForm($sf);
-    $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['HTTP_HOST'];
-    
-    if (isset($_GET['test_homepage']) && $_GET['test_homepage'] != '') {
-        $curl_response = curl_file_get_contents($urlBase);
-        ?>
-        <fieldset id="debug_content">
-            <legend>Open page via curl for <?php echo $urlBase; ?>, result :</legend>
-            <?php echo $curl_response; ?>
-        </fieldset>
-    <?php
-    }
-    if (isset($_GET['test_curl']) && $_GET['test_curl'] != '') {
-        $outputFile = dirname(__FILE__) . '/logs/testCurl.txt';
-        // To test timeout
-        sleep(2);
-        if (! isset($_GET['index'])) {
-            // First call
-            logDebug('Starting first call');
-            $fp = fopen($outputFile, 'w');
-            fwrite($fp, '');
-            fclose($fp);
-            $index = 1;
-            $nextUrl = $urlBase . '/modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
-            logDebug('Going to call : ' . $nextUrl);
-            $curl_response = curl_file_get_contents($nextUrl);
-        } else {
-            $index = $_GET['index'];
-            $index ++;
-            if ($index > 100) {
-                // Ended
-                logDebug('Successfully ended');
-                die();
-            } else {
-                // Call next URL
-                $nextUrl = $urlBase . '/modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
-                logDebug('Call received, index = ' . $_GET['index']);
-                logDebug('Going to call : ' . $nextUrl);
-                $curl_response = curl_file_get_contents($nextUrl);
+    $action = Tools::getValue('action');
+    switch ($action) {
+        case 'viewLog' :
+            echo getLogsParsed($sf);
+            break;
+        default :
+            echo getDebugForm($sf);
+            echo getLogsContent($sf);
+            echo getConfigForm($sf);
+            echo getRecablage($sf);
+            echo getReplayOrdersForm($sf);
+            $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['HTTP_HOST'];
+            
+            if (isset($_GET['test_homepage']) && $_GET['test_homepage'] != '') {
+                $curl_response = curl_file_get_contents($urlBase);
+                ?>
+                    <fieldset id="debug_content">
+                        <legend>Open page via curl for <?php echo $urlBase; ?>, result :</legend>
+                        <?php echo $curl_response; ?>
+                    </fieldset>
+                <?php
             }
-        }
-    }
-    
-    $idOrder = Tools::getValue('IdOrder');
-    $replayXml = Tools::getValue('replayXml');
-    if ($idOrder) {
-        ob_start();
-        $sf->replayOrder((string) Tools::getValue('IdOrder'));
-        $result = ob_get_contents();
-        ob_end_clean();
-        
-        $output .= '<div style="border: 1px solid #CCC; padding: 10px;">
-                            <div><b>' . $sf->l('Execution Result of last order replay:') . '</b></div><br>
-                            <div>' . $result . '</div>
-                       </div>';
-    }
-    if ($replayXml) {
-        $replayOrder = @simplexml_load_string($replayXml);
-        ?><div style="border: 1px solid #CCC; padding: 10px;">
-        <div>
-            <b><?php echo $sf->l('Execution Result of XML replay :'); ?></b>
-        </div>
-        <br>
-        <div><?php $sf->replayOrder(false, $replayOrder) ?></div>
-    </div><?php
+            if (isset($_GET['test_curl']) && $_GET['test_curl'] != '') {
+                $outputFile = dirname(__FILE__) . '/logs/testCurl.txt';
+                // To test timeout
+                sleep(2);
+                if (! isset($_GET['index'])) {
+                    // First call
+                    logDebug('Starting first call');
+                    $fp = fopen($outputFile, 'w');
+                    fwrite($fp, '');
+                    fclose($fp);
+                    $index = 1;
+                    $nextUrl = $urlBase . '/modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
+                    logDebug('Going to call : ' . $nextUrl);
+                    $curl_response = curl_file_get_contents($nextUrl);
+                } else {
+                    $index = $_GET['index'];
+                    $index ++;
+                    if ($index > 100) {
+                        // Ended
+                        logDebug('Successfully ended');
+                        die();
+                    } else {
+                        // Call next URL
+                        $nextUrl = $urlBase . '/modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
+                        logDebug('Call received, index = ' . $_GET['index']);
+                        logDebug('Going to call : ' . $nextUrl);
+                        $curl_response = curl_file_get_contents($nextUrl);
+                    }
+                }
+            }
+            
+            $idOrder = Tools::getValue('IdOrder');
+            $replayXml = Tools::getValue('replayXml');
+            if ($idOrder) {
+                ob_start();
+                $sf->replayOrder((string) Tools::getValue('IdOrder'));
+                $result = ob_get_contents();
+                ob_end_clean();
+                
+                echo '<div style="border: 1px solid #CCC; padding: 10px;">
+                                    <div><b>' . $sf->l('Execution Result of last order replay:') . '</b></div><br>
+                                    <div>' . $result . '</div>
+                               </div>';
+            }
+            if ($replayXml) {
+                $replayOrder = @simplexml_load_string($replayXml);
+                ?><div style="border: 1px solid #CCC; padding: 10px;">
+                    <div>
+                        <b><?php echo $sf->l('Execution Result of XML replay :'); ?></b>
+                    </div>
+                    <br>
+                    <div><?php $sf->replayOrder(false, $replayOrder) ?></div>
+                </div><?php
+            }
+            break;
     }
     ?>
 </body>

@@ -19,11 +19,16 @@ class SfDebugger
      */
     private static $debugOrdersErrors = false;
 
-    private function __construct()
+    protected function __construct()
     {
-        if ((int) Configuration::get('SHOPPING_FLUX_DEBUG_ERRORS') || Configuration::get('SHOPPING_FLUX_DEBUG_ERRORS') == 'true') {
+        if ($this->isDebugEnabled()) {
             self::$debugOrdersErrors = true;
         }
+    }
+
+    public function isDebugEnabled()
+    {
+        return ((int) Configuration::get('SHOPPING_FLUX_DEBUG_ERRORS') || Configuration::get('SHOPPING_FLUX_DEBUG_ERRORS') == 'true') ? true : false;
     }
 
     /**

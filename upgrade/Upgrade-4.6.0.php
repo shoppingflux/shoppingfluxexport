@@ -24,21 +24,21 @@
  *  International Registered Trademark & Property of PrestaShop SA
  */
 
-include_once(dirname(__FILE__).'/../../../config/config.inc.php');
-include_once(dirname(__FILE__).'/../../../init.php');
-
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-function upgrade_module_4_1_0()
+function upgrade_module_4_6_0($object)
 {
-    if (Shop::isFeatureActive()) {
-        foreach (Shop::getShops() as $shop) {
-            Configuration::updateValue('SHOPPING_FLUX_REF', false, false, null, $shop['id_shop']);
-        }
-    } else {
-        Configuration::updateValue('SHOPPING_FLUX_REF', false);
-    }
+
+	// Used to add the shop ID in the feed name (when generating the feed.xml file)
+	// The option is not enabled for existing install
+    Configuration::updateGlobalValue('SHOPPING_FLUX_XML_SHOP_ID', false);
+
+    // Remove the previous PS_SHOPPINGFLUX_CRON_TIME configuration key replaced by SHOPPING_FLUX_CRON_TIME
+    // No need to save the previous value of the key as it's not a critical process and will be generated
+    // automatically at the next run of cron
+    Configuration::deleteByName('PS_SHOPPINGFLUX_CRON_TIME');
+
     return true;
 }

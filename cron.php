@@ -27,17 +27,20 @@ include(dirname(__FILE__) . '/../../config/config.inc.php');
 include(dirname(__FILE__) . '/../../init.php');
 
 include_once(dirname(__FILE__) . '/sfpayment.php');
-include(dirname(__FILE__) . '/shoppingfluxexport.php');
 
 ini_set("memory_limit", "2048M");
 ini_set('display_errors', 'off');
 
 $id_shop = Context::getContext()->shop->id;
-$sf = new ShoppingFluxExport();
+
+$sf = Module::getInstanceByName('shoppingfluxexport');
+if (!$sf || !$sf->active) {
+    die("<?xml version='1.0' encoding='utf-8'?><error>Module inactive</error>");
+}
 
 $token = Tools::getValue('token');
 if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
-    $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN', null, null, $id_shop);
+    $tokenInConfig = $sf->getTokenValue($id_shop);
 
     $allTokens_raw = $sf->getAllTokensOfShop();
     $allTokens = array();
@@ -45,7 +48,7 @@ if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
         $allTokens[$allTokens_subraw['token']] = $allTokens_subraw['token'];
     }
 } else {
-    $tokenInConfig = Configuration::get('SHOPPING_FLUX_TOKEN');
+    $tokenInConfig = $sf->getTokenValue();
     $allTokens[$tokenInConfig] = $tokenInConfig;
 }
 
@@ -54,11 +57,28 @@ if ($token == '' || ($token != $tokenInConfig && ! in_array($token, $allTokens))
 }
 
 $current = Tools::getValue('current');
+$lang = Tools::getValue('lang');
 
-// Do not allow feed generation if less than 6 hours before last generation
+// Do not allow feed generation if less than 2 hours before last generation
 $frequency_in_hours = 2;
-$last_executed = Configuration::get('PS_SHOPPINGFLUX_CRON_TIME', null, null, $id_shop);
 $today = date('Y-m-d H:i:s');
+
+$keyCronTime = 'SHOPPING_FLUX_CRON_TIME';
+if (!empty($lang)) {
+
+    // When a lang is provided, we will have a separate frequency
+    if (!Language::getIdByIso($lang)) {
+        // The lang is not valid
+        $logMessage = 'Invalid lang: '.$lang;
+        SfLogger::getInstance()->log(SF_LOG_CRON, $logMessage);
+        die("<?xml version='1.0' encoding='utf-8'?><error>Invalid lang</error>");
+    }
+
+    // Separate the configuration key by lang, such as : SHOPPING_FLUX_CRON_TIME_FR
+    $keyCronTime = $keyCronTime.'_'.Tools::strtoupper($lang);
+}
+$last_executed = Configuration::get($keyCronTime, null, null, $id_shop);
+
 if (empty($last_executed) || ($last_executed == '0')) {
     $last_executed = 0;
 }
@@ -70,7 +90,7 @@ $hours = ($timestamp_today - $timestamp_last_exec) / (60 * 60);
 if (empty($current)) {
     if ($hours >= $frequency_in_hours) {
         SfLogger::getInstance()->log(SF_LOG_CRON, 'CRON CALL - begining of treament');
-        $sf->initFeed();
+        $sf->initFeed($lang);
     } else {
         $logMessage = 'CRON CALL - Not initiated SHOULD NOT HAVE BEEN CALLED. ';
         $logMessage .= 'Cron call has already been called at ' . $last_executed;
@@ -81,5 +101,5 @@ if (empty($current)) {
         SfLogger::getInstance()->log(SF_LOG_CRON, $logMessage);
     }
 } else {
-    $sf->writeFeed(Tools::getValue('total'), Tools::getValue('current'), Tools::getValue('lang'));
+    $sf->writeFeed(Tools::getValue('total'), Tools::getValue('current'), $lang);
 }
