@@ -118,9 +118,9 @@ class SfLogger
             if ($fileSizeMbs >= (self::$logRotateMegaBites)) {
 
                 // Base file
-                $baseFile = substr($fileName, 0, strrpos($fileName, '.'));
+                $baseFile = Tools::substr($fileName, 0, strrpos($fileName, '.'));
                 // The file extension (.txt, .log...)
-                $extension = substr($fileName, strrpos($fileName, '.'));
+                $extension = Tools::substr($fileName, strrpos($fileName, '.'));
                 // Compose the new name of the file
                 $rotatedLogFileBase = $baseFile . '_' . self::$logRotateMegaBites . 'mb';
 

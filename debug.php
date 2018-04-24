@@ -349,8 +349,8 @@ function getLogsParsed()
             $currentSegment = str_replace(' version="1.0" encoding="UTF-8"?>', '', $currentSegment);
             if (strpos($currentSegment, '>')) {
                 // Has xml
-                $xmlContent = substr($currentSegment, 0, strrpos($currentSegment, '>') + 1);
-                $textContent = substr($currentSegment, strrpos($currentSegment, '>') + 1, strlen($currentSegment));
+                $xmlContent = Tools::substr($currentSegment, 0, strrpos($currentSegment, '>') + 1);
+                $textContent = Tools::substr($currentSegment, strrpos($currentSegment, '>') + 1, Tools::strlen($currentSegment));
             } else {
                 // Has no XML
                 $xmlContent = '';
@@ -363,7 +363,7 @@ function getLogsParsed()
             
             // Then echo text, removing first line break
             $textContent = nl2br($textContent);
-            $textContent = substr($textContent, 6, strlen($textContent));
+            $textContent = Tools::substr($textContent, 6, Tools::strlen($textContent));
             echo $textContent;
         }
 
@@ -377,7 +377,7 @@ function getLogsParsed()
             // Remove extra line breaks
             $textContent = str_replace('<br /><br />', '<br />', $textContent);
         }
-        $textContent = substr($textContent, 6, strlen($textContent));
+        $textContent = Tools::substr($textContent, 6, Tools::strlen($textContent));
         echo $textContent;
     }
 
