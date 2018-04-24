@@ -5,6 +5,7 @@
  * @author    ShoppingFlux <support@shopping-flux.com>
  * @copyright 2017-2018 ShoppingFlux
  */
+
 define('SF_LOG_CRON', 1);
 define('SF_LOG_ORDERS', 2);
 define('SF_LOG_WEBSERVICE', 3);
@@ -118,7 +119,6 @@ class SfLogger
     protected function rotateLogFile($fileName)
     {
         if (self::$logRotateMegaBites) {
-
             if (!file_exists($fileName)) {
                 return;
             }
@@ -127,7 +127,7 @@ class SfLogger
             if ($fileSizeMbs >= (self::$logRotateMegaBites)) {
 
                 // Base file
-                $baseFile = substr($fileName, 0,strrpos($fileName, '.'));
+                $baseFile = substr($fileName, 0, strrpos($fileName, '.'));
                 // The file extension (.txt, .log...)
                 $extension = substr($fileName, strrpos($fileName, '.'));
                 // Compose the new name of the file
@@ -137,12 +137,12 @@ class SfLogger
                 $filesRotated = glob($rotatedLogFileBase."*".$extension);
                 $nbAlreadyRotated = count($filesRotated);
 
-                if($nbAlreadyRotated >= self::$maxRotateIteration) {
+                if ($nbAlreadyRotated >= self::$maxRotateIteration) {
                     // We exhausted the number of combination
                     
                     // We order the files by last modified
                     array_multisort(
-                        array_map( 'filemtime', $filesRotated ),
+                        array_map('filemtime', $filesRotated),
                         SORT_NUMERIC,
                         SORT_ASC,
                         $filesRotated
@@ -160,5 +160,4 @@ class SfLogger
             }
         }
     }
-
 }

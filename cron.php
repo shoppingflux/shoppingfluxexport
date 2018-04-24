@@ -23,6 +23,7 @@
  * @license   http://opensource.org/licenses/afl-3.0.php Academic Free License (AFL 3.0)
  * International Registered Trademark & Property of PrestaShop SA
  */
+
 include(dirname(__FILE__) . '/../../config/config.inc.php');
 include(dirname(__FILE__) . '/../../init.php');
 
@@ -65,7 +66,6 @@ $today = date('Y-m-d H:i:s');
 
 $keyCronTime = 'SHOPPING_FLUX_CRON_TIME';
 if (!empty($lang)) {
-
     // When a lang is provided, we will have a separate frequency
     if (!Language::getIdByIso($lang)) {
         // The lang is not valid
