@@ -281,7 +281,6 @@ class ShoppingFluxExport extends Module
         
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
-        //$price = is_object($status_xml) ? (float)$status_xml->Response->Price : 0;
         
         switch ($status) {
             case 'Client':
@@ -341,10 +340,6 @@ class ShoppingFluxExport extends Module
             $uri = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/flux.php?token='.$this->getTokenValue();
         }
 
-        //uri images
-        //$uri_img = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/views/img/';
-        //owner object
-        //$owner = new Employee($this->context->cookie->id_employee);
         //post process
         $send_mail = Tools::getValue('send_mail');
         if (isset($send_mail) && $send_mail != null) {
