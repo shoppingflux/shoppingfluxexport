@@ -33,7 +33,7 @@ ini_set('display_errors', 'off');
 
 $sf = Module::getInstanceByName('shoppingfluxexport');
 if (!$sf || !$sf->active) {
-	die("<?xml version='1.0' encoding='utf-8'?><error>Module inactive</error>");
+    die("<?xml version='1.0' encoding='utf-8'?><error>Module inactive</error>");
 }
 
 if (Tools::getValue('token') == '' || Tools::getValue('token') != $sf->getTokenValue()) {
