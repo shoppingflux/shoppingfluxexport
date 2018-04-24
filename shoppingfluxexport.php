@@ -228,8 +228,8 @@ class ShoppingFluxExport extends Module
                 !Configuration::deleteByName('SHOPPING_FLUX_DEBUG') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_XML_SHOP_ID') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_CRON_TIME') ||
-                !$this->uninstallCustomConfiguration(['SHOPPING_FLUX_CRON_TIME']) ||
-                !$this->uninstallCustomConfiguration(['SHOPPING_FLUX_TOKEN']) ||
+                !$this->uninstallCustomConfiguration(array('SHOPPING_FLUX_CRON_TIME')) ||
+                !$this->uninstallCustomConfiguration(array('SHOPPING_FLUX_TOKEN')) ||
                 !parent::uninstall()) {
             return false;
         }
