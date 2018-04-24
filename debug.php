@@ -85,7 +85,6 @@ function getConfigForm($sf)
     }
     $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['HTTP_HOST'];
     
-    $idOrder = Tools::getValue('IdOrder');
     $output = '<fieldset id="debug_content">';
     $output .= '<legend>' . $sf->l('Configurations') . '</legend>';
     
@@ -328,7 +327,7 @@ function echoLogsBottomScripts()
 /**
  * Reads the logs and displays them gently into HTML format
  */
-function getLogsParsed($sf)
+function getLogsParsed()
 {
     $fileName = dirname(__FILE__) . Tools::getValue('log');
     $content = file_get_contents($fileName);
@@ -549,7 +548,7 @@ pre {
     $action = Tools::getValue('action');
     switch ($action) {
         case 'viewLog':
-            echo getLogsParsed($sf);
+            echo getLogsParsed();
             break;
         default:
             echo getDebugForm($sf);

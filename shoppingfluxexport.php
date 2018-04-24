@@ -281,7 +281,7 @@ class ShoppingFluxExport extends Module
         
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
-        $price = is_object($status_xml) ? (float)$status_xml->Response->Price : 0;
+        //$price = is_object($status_xml) ? (float)$status_xml->Response->Price : 0;
         
         switch ($status) {
             case 'Client':
@@ -294,7 +294,7 @@ class ShoppingFluxExport extends Module
                 // No break, we want the code below to be executed
             case 'New':
             default:
-                $this->_html .= $this->_defaultView($price);
+                $this->_html .= $this->_defaultView();
                 break;
         }
         //we do this here for retro compatibility
@@ -329,7 +329,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* Default view when site isn't in Shopping Flux DB */
-    protected function _defaultView($price = 0)
+    protected function _defaultView()
     {
         //uri feed
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
@@ -342,9 +342,9 @@ class ShoppingFluxExport extends Module
         }
 
         //uri images
-        $uri_img = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/views/img/';
+        //$uri_img = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/views/img/';
         //owner object
-        $owner = new Employee($this->context->cookie->id_employee);
+        //$owner = new Employee($this->context->cookie->id_employee);
         //post process
         $send_mail = Tools::getValue('send_mail');
         if (isset($send_mail) && $send_mail != null) {
@@ -396,7 +396,7 @@ class ShoppingFluxExport extends Module
         
         // Retrieve custom fields from override that can be in products
         $fields = $this->getOverrideFields();
-        foreach ($fields as $key => $fieldname) {
+        foreach ($fields as $fieldname) {
             $configuration['SHOPPING_FLUX_CUSTOM_'.$fieldname] = Configuration::get('SHOPPING_FLUX_CUSTOM_'.$fieldname);
         }
 
@@ -966,9 +966,7 @@ class ShoppingFluxExport extends Module
         if ($token == '' || ($token != $tokenInConfig && !in_array($token, $allTokens))) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
-        
-        $shop_id = $this->context->shop->id;
-        
+                
         $file = fopen($this->getFeedName(), 'a+');
 
         $configuration = Configuration::getMultiple(
@@ -1373,7 +1371,7 @@ class ShoppingFluxExport extends Module
         
         // Add the overrided fields if any
         $fields = $this->getOverrideFields();
-        foreach ($fields as $key => $fieldname) {
+        foreach ($fields as $fieldname) {
             if (Configuration::get('SHOPPING_FLUX_CUSTOM_'.$fieldname) == 1) {
                 $ret .= '<'.$fieldname.'><![CDATA['.$product->$fieldname.']]></'.$fieldname.'>';
             }
@@ -2841,7 +2839,7 @@ class ShoppingFluxExport extends Module
         $html .= '<p><label>'.$this->l('Select additional fields to export').' :</label>'.$message.'</p>';
         $html .= '<p style="clear: both"></p>';
 
-        foreach ($fields as $key => $field) {
+        foreach ($fields as $field) {
             $html .= '<p><label>'.$field.' : </label>';
             $html .= '<input type="checkbox" name="SHOPPING_FLUX_CUSTOM_'.$field.'" ';
             $html .= 'value="1" '.($configuration['SHOPPING_FLUX_CUSTOM_'.$field] == 1 ? 'checked="checked"' : '');

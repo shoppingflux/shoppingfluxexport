@@ -77,28 +77,19 @@ class SfLogger
         
         // Compute the output file and if we will do a log
         $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/';
-        $doLog = false;
         $outputMode = 'a';
         switch ($level) {
             case SF_LOG_CRON:
                 $outputFile .= 'cronexport_' . $sf->getTokenValue() . '.txt';
-                if (self::$debug) {
-                    $doLog = true;
-                }
                 break;
             case SF_LOG_ORDERS:
                 $outputFile .= 'orders_debug_' . $sf->getTokenValue() . '.txt';
-                if (self::$debugOrders) {
-                    $doLog = true;
-                }
                 break;
             case SF_LOG_WEBSERVICE:
                 $outputFile .= 'callWebService_' . $sf->getTokenValue() . '.txt';
-                $doLog = true;
                 break;
             case SF_LOG_DEBUG:
                 $outputFile .= 'orders_debug_errors_on_' . $sf->getTokenValue() . '.txt';
-                $doLog = true;
                 break;
             default:
                 return;
