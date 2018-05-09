@@ -1627,24 +1627,25 @@ class ShoppingFluxExport extends Module
                                 WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
         
                             if (! $forcedOrder && isset($orderExists['id_message']) && isset($orderExists['id_order'])) {
-                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order already exists (id = '.$order->IdOrder.'): notifying ShoppingFlux', $doEchoLog);
+                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order already exists based on message content (id = '.$order->IdOrder.'): notifying ShoppingFlux', $doEchoLog);
                                 $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int)$orderExists['id_order'], false, $currentToken['token']);
                                 continue;
                             }
                             
-                            // Check if the order already exists by lookig at the adress alias and first/last name
+                            // Check if the order already exists by looking at the address alias
+                            // This will look for orders having the email "do-not-send@alerts-shopping-flux.com", which means the order was not fully created
+                            $aliasAddress = "Shipping-".(string)$order->IdOrder;
                             $orderExists = Db::getInstance()->getRow("SELECT * FROM " . _DB_PREFIX_ . "orders o, " . _DB_PREFIX_ . "customer c, " . _DB_PREFIX_ . "address a
                                 WHERE o.id_customer = c.id_customer
                                 AND c.email = 'do-not-send@alerts-shopping-flux.com'
-                                AND (c.lastname = '" . (string)$order->BillingAddress->LastName . "' OR c.firstname = '" . (string)$order->BillingAddress->LastName . "')
                                 AND a.id_address = o.id_address_delivery
-                                AND a.alias LIKE '%" . $orderExists['id_order'] . "%'
+                                AND a.alias LIKE '" . $aliasAddress . "'
                                 ORDER BY o.id_order DESC
                             ");
                             
                             if (! $forcedOrder && isset($orderExists['id_order'])) {
                                 // This is the second try of an order creation, last process could not be completed
-                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order already exists (id = ' . $order->IdOrder . '): notifying ShoppingFlux', $doEchoLog);
+                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order already exists based on address alias (id = ' . $order->IdOrder . '): notifying ShoppingFlux', $doEchoLog);
                             
                                 // Re set the carrier
                                 $orderLoaded = new Order((int) $orderExists['id_order']);
