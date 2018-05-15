@@ -1477,6 +1477,10 @@ class ShoppingFluxExport extends Module
             $productLink = $link->getProductLink($product, null, null, null, $configuration['PS_LANG_DEFAULT']);
             $ret .= '<'.$this->_translateField('combination_link').'><![CDATA['.$productLink.$product->getAnchor($id, true).']]></'.$this->_translateField('combination_link').'>';
 
+            if (method_exists('Product', 'combinationFeaturesAsXml')) {
+                $ret .= Product::combinationFeaturesAsXml($product->id, $id);
+            }
+
             $ret .= '</attributs>';
             $ret .= '</declinaison>';
 
