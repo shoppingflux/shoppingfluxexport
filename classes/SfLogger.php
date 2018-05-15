@@ -5,6 +5,7 @@
  * @author    ShoppingFlux <support@shopping-flux.com>
  * @copyright 2017-2018 ShoppingFlux
  */
+
 define('SF_LOG_CRON', 1);
 define('SF_LOG_ORDERS', 2);
 define('SF_LOG_WEBSERVICE', 3);
@@ -76,28 +77,19 @@ class SfLogger
         
         // Compute the output file and if we will do a log
         $outputFile = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/';
-        $doLog = false;
         $outputMode = 'a';
         switch ($level) {
             case SF_LOG_CRON:
                 $outputFile .= 'cronexport_' . $sf->getTokenValue() . '.txt';
-                if (self::$debug) {
-                    $doLog = true;
-                }
                 break;
             case SF_LOG_ORDERS:
                 $outputFile .= 'orders_debug_' . $sf->getTokenValue() . '.txt';
-                if (self::$debugOrders) {
-                    $doLog = true;
-                }
                 break;
             case SF_LOG_WEBSERVICE:
                 $outputFile .= 'callWebService_' . $sf->getTokenValue() . '.txt';
-                $doLog = true;
                 break;
             case SF_LOG_DEBUG:
                 $outputFile .= 'orders_debug_errors_on_' . $sf->getTokenValue() . '.txt';
-                $doLog = true;
                 break;
             default:
                 return;
@@ -118,7 +110,6 @@ class SfLogger
     protected function rotateLogFile($fileName)
     {
         if (self::$logRotateMegaBites) {
-
             if (!file_exists($fileName)) {
                 return;
             }
@@ -127,9 +118,9 @@ class SfLogger
             if ($fileSizeMbs >= (self::$logRotateMegaBites)) {
 
                 // Base file
-                $baseFile = substr($fileName, 0,strrpos($fileName, '.'));
+                $baseFile = Tools::substr($fileName, 0, strrpos($fileName, '.'));
                 // The file extension (.txt, .log...)
-                $extension = substr($fileName, strrpos($fileName, '.'));
+                $extension = Tools::substr($fileName, strrpos($fileName, '.'));
                 // Compose the new name of the file
                 $rotatedLogFileBase = $baseFile . '_' . self::$logRotateMegaBites . 'mb';
 
@@ -137,12 +128,12 @@ class SfLogger
                 $filesRotated = glob($rotatedLogFileBase."*".$extension);
                 $nbAlreadyRotated = count($filesRotated);
 
-                if($nbAlreadyRotated >= self::$maxRotateIteration) {
+                if ($nbAlreadyRotated >= self::$maxRotateIteration) {
                     // We exhausted the number of combination
                     
                     // We order the files by last modified
                     array_multisort(
-                        array_map( 'filemtime', $filesRotated ),
+                        array_map('filemtime', $filesRotated),
                         SORT_NUMERIC,
                         SORT_ASC,
                         $filesRotated
@@ -160,5 +151,4 @@ class SfLogger
             }
         }
     }
-
 }

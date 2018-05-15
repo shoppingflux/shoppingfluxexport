@@ -23,6 +23,7 @@
  * @license   http://opensource.org/licenses/afl-3.0.php Academic Free License (AFL 3.0)
  * International Registered Trademark & Property of PrestaShop SA
  */
+
 define('_PS_MODE_DEV_', true);
 include(dirname(__FILE__) . '/../../config/config.inc.php');
 include(dirname(__FILE__) . '/../../init.php');
@@ -84,7 +85,6 @@ function getConfigForm($sf)
     }
     $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['HTTP_HOST'];
     
-    $idOrder = Tools::getValue('IdOrder');
     $output = '<fieldset id="debug_content">';
     $output .= '<legend>' . $sf->l('Configurations') . '</legend>';
     
@@ -225,7 +225,8 @@ function getLogsConfiguration($sf)
 /**
  * Main menu for accessing the logs
  */
-function getLogsContent($sf) {
+function getLogsContent($sf)
+{
     $html = '<fieldset>
                 <legend>Logs</legend>';
     $allTokens = $sf->getAllTokensOfShop(true, false, true);
@@ -280,7 +281,7 @@ function echoLogsTopScripts()
     }
     </script>
     ';
-}   
+}
 
 function echoLogsBottomScripts()
 {
@@ -326,7 +327,8 @@ function echoLogsBottomScripts()
 /**
  * Reads the logs and displays them gently into HTML format
  */
-function getLogsParsed($sf) {
+function getLogsParsed()
+{
     $fileName = dirname(__FILE__) . Tools::getValue('log');
     $content = file_get_contents($fileName);
     
@@ -341,15 +343,14 @@ function getLogsParsed($sf) {
     echo '<div class="logs">';
 
     if ($isXMLLogs) {
-
         $contentExploded = explode('<?xml', $content);
         foreach ($contentExploded as $currentSegment) {
             $currentSegment = str_replace(' version="1.0" encoding="utf-8"?>', '', $currentSegment);
             $currentSegment = str_replace(' version="1.0" encoding="UTF-8"?>', '', $currentSegment);
             if (strpos($currentSegment, '>')) {
                 // Has xml
-                $xmlContent = substr($currentSegment, 0, strrpos($currentSegment, '>') + 1);
-                $textContent = substr($currentSegment, strrpos($currentSegment, '>') + 1, strlen($currentSegment));
+                $xmlContent = Tools::substr($currentSegment, 0, strrpos($currentSegment, '>') + 1);
+                $textContent = Tools::substr($currentSegment, strrpos($currentSegment, '>') + 1, Tools::strlen($currentSegment));
             } else {
                 // Has no XML
                 $xmlContent = '';
@@ -362,7 +363,7 @@ function getLogsParsed($sf) {
             
             // Then echo text, removing first line break
             $textContent = nl2br($textContent);
-            $textContent = substr($textContent, 6, strlen($textContent));
+            $textContent = Tools::substr($textContent, 6, Tools::strlen($textContent));
             echo $textContent;
         }
 
@@ -376,7 +377,7 @@ function getLogsParsed($sf) {
             // Remove extra line breaks
             $textContent = str_replace('<br /><br />', '<br />', $textContent);
         }
-        $textContent = substr($textContent, 6, strlen($textContent));
+        $textContent = Tools::substr($textContent, 6, Tools::strlen($textContent));
         echo $textContent;
     }
 
@@ -386,20 +387,21 @@ function getLogsParsed($sf) {
 /**
  * Builds an ergonomic XML tree from a XML String
  */
-function makeXmlTree($xmlContent) {
+function makeXmlTree($xmlContent)
+{
     $xmlContent = '<?xml version="1.0" encoding="UTF-8"?>' . $xmlContent;
     
     echo '<textarea class="textarea_xml" style="display: none;">'.$xmlContent.'</textarea>
-	<ul class="treeView_xml">
-		<li></li>
-	</ul>';
-	
+    <ul class="treeView_xml">
+        <li></li>
+    </ul>';
 }
 
 /**
  * Get the fieldset for the logs of a specific token
  */
-function getLogsContentOfToken($sf, $token) {
+function getLogsContentOfToken($sf, $token)
+{
     $html = '<fieldset>
                 <legend>' . $sf->l('Logs du token') . ' : ' . $token . '</legend>';
     $fileName = '/logs/cronexport_' . $token . '.txt';
@@ -545,10 +547,10 @@ pre {
     <?php
     $action = Tools::getValue('action');
     switch ($action) {
-        case 'viewLog' :
-            echo getLogsParsed($sf);
+        case 'viewLog':
+            echo getLogsParsed();
             break;
-        default :
+        default:
             echo getDebugForm($sf);
             echo getLogsContent($sf);
             echo getConfigForm($sf);

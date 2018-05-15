@@ -1,11 +1,11 @@
 <?php
-
 /**
  * 2017-2018 ShoppingFlux
  *
  * @author    ShoppingFlux <support@shopping-flux.com>
  * @copyright 2017-2018 ShoppingFlux
  */
+
 class SfDebugger
 {
 
