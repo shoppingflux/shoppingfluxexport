@@ -1582,7 +1582,6 @@ class ShoppingFluxExport extends Module
         $doEchoLog = $forcedOrder ? true : $orderDebugEnabled;
 
         if ($timeDiffFromLastCall > $minTimeDiff || $forcedOrder) {
-            Configuration::updateValue('SHOPPING_BACKOFFICE_CALL', $now);
             $controller = Tools::strtolower(Tools::getValue('controller'));
             $ordersConfig = Configuration::get('SHOPPING_FLUX_ORDERS');
             $curlInstalled = $this->isCurlInstalled(true);
@@ -1592,6 +1591,10 @@ class ShoppingFluxExport extends Module
                 $no_cron == false ||
                 $forcedOrder) {
                 SfDebugger::getInstance()->startDebug();
+
+                // We update the flag stating that a call has been performed in order to respect 
+                // the minTimeDiff interval
+                Configuration::updateValue('SHOPPING_BACKOFFICE_CALL', $now);
 
                 // Get all tokens of this shop
                 $allTokens = $this->getAllTokensOfShop();
