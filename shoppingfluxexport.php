@@ -2009,14 +2009,12 @@ class ShoppingFluxExport extends Module
             $shipping = $order->getShipping();
             $carrier = new Carrier((int)$order->id_carrier);
             
-            $message = $order->getFirstMessage();
-            $id_order_marketplace = explode(':', $message);
-            $id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
+            $id_order_marketplace = $this->getMkpOrderIdFromMessage((int)$params['id_order']);
 
             $xml = '<?xml version="1.0" encoding="UTF-8"?>';
             $xml .= '<UpdateOrders>';
             $xml .= '<Order>';
-            $xml .= '<IdOrder>'.$id_order_marketplace[1].'</IdOrder>';
+            $xml .= '<IdOrder>'.$id_order_marketplace.'</IdOrder>';
             $xml .= '<Marketplace>'.$order->payment.'</Marketplace>';
             $xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
             $xml .= '<Status>Shipped</Status>';
@@ -2049,14 +2047,12 @@ class ShoppingFluxExport extends Module
             $order = new Order((int)$params['id_order']);
             $shipping = $order->getShipping();
 
-            $message = $order->getFirstMessage();
-            $id_order_marketplace = explode(':', $message);
-            $id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
+            $id_order_marketplace = $this->getMkpOrderIdFromMessage((int)$params['id_order']);
 
             $xml = '<?xml version="1.0" encoding="UTF-8"?>';
             $xml .= '<UpdateOrders>';
             $xml .= '<Order>';
-            $xml .= '<IdOrder>'.$id_order_marketplace[1].'</IdOrder>';
+            $xml .= '<IdOrder>'.$id_order_marketplace.'</IdOrder>';
             $xml .= '<Marketplace>'.$order->payment.'</Marketplace>';
             $xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
             $xml .= '<Status>Canceled</Status>';
@@ -3307,6 +3303,39 @@ class ShoppingFluxExport extends Module
                             WHERE m.message LIKE "%Numéro de commande '.pSQL($orderMarkerplace).' :'.pSQL($orderIdSf).'%"');
         
         return $orderExists['id_order'];
+    }
+
+    /**
+     * Get the MarketPlace order ID (ShoppingFlux Order ID) from the PrestaShop order ID.
+     * This information is extracted from the message added to the order
+     * @param  int $ps_id_order  The PrestaShop order ID
+     * @return bool|string The MarketPlace order ID or false if not found
+     */
+    public function getMkpOrderIdFromMessage($ps_id_order)
+    {
+
+        // We cannot rely on the marketplace name as it may be in lower/upper case, so
+        // we can all the messages containing Numéro de commande et we retrieve the first
+        // one (With the ORDER BY). This eleminate the risk of other modules adding a
+        // message that may contains the same string by taking the one that has been
+        // created first (by ShoppingFlux)
+        $message = Db::getInstance()->getValue('SELECT m.message, m.id_order '.
+            'FROM '._DB_PREFIX_.'message m '.
+            'WHERE m.message LIKE "Numéro de commande%" '.
+            'AND id_order = '.(int)$ps_id_order.' '.
+            'ORDER BY id_message ASC');
+
+        if (empty($message)) {
+            // Message not found
+            return false;
+        }
+
+        $id_order_marketplace = explode(':', $message);
+
+        // The trim() == "True" was in the previous version of the code when retrieving the
+        // message with $order->getFirstMessage();. It's kept for compatibility reasons while
+        // I'm not sure what's the purpose of this check. 
+        return trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
     }
 
     /**
