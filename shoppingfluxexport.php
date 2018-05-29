@@ -2407,9 +2407,17 @@ class ShoppingFluxExport extends Module
         // Cdiscount fees handling
         if ((float) $order->TotalFees > 0) {
             $orderLoaded = new Order((int)$id_order);
+
+            // Retrieve the order invoice ID to associate it with the FDG.
+            // This way, the FDG will appears in the invoice.
+            $idOrderInvoice = Db::getInstance()->getValue('
+            SELECT `id_order_invoice`
+            FROM `'._DB_PREFIX_.'order_invoice`
+            WHERE `id_order` =  '.(int)$id_order);
+
             $fdgInsertFields = array(
                 'id_order' => (int) $id_order,
-                'id_order_invoice' => 0,
+                'id_order_invoice' => empty($idOrderInvoice) ? 0 : (int)$idOrderInvoice,
                 'id_warehouse' => 0,
                 'id_shop' => (int) $orderLoaded->id_shop,
                 'product_id' => 0,
