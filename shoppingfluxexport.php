@@ -2359,6 +2359,9 @@ class ShoppingFluxExport extends Module
         $tax_rate = 0;
         $total_products_tax_excl = 0;
 
+        // The id_tax linked to one of the product
+        $id_tax = 0;
+
         foreach ($order->Products->Product as $product) {
             if (Configuration::get('SHOPPING_FLUX_REF') == 'true') {
                 $skus = $this->getIDs($product->SKU);
@@ -2366,7 +2369,7 @@ class ShoppingFluxExport extends Module
                 $skus = explode('_', $product->SKU);
             }
 
-            $sql = 'SELECT t.rate, od.id_order_detail  FROM '._DB_PREFIX_.'tax t
+            $sql = 'SELECT t.rate, od.id_order_detail, t.id_tax FROM '._DB_PREFIX_.'tax t
                 LEFT JOIN '._DB_PREFIX_.'order_detail_tax odt ON t.id_tax = odt.id_tax
                 LEFT JOIN '._DB_PREFIX_.'order_detail od ON odt.id_order_detail = od.id_order_detail
                 WHERE od.id_order = '.(int)$id_order.' AND product_id = '.(int)$skus[0];
@@ -2378,6 +2381,8 @@ class ShoppingFluxExport extends Module
             $tax_rate = $row['rate'];
             
             $id_order_detail = $row['id_order_detail'];
+
+            $id_tax = $row['id_tax'];
 
             $total_price_tax_excl = (float)(((float)$product->Price / (1 + ($tax_rate / 100))) * $product->Quantity);
             $total_products_tax_excl += $total_price_tax_excl;
@@ -2458,10 +2463,28 @@ class ShoppingFluxExport extends Module
                 'purchase_supplier_price' => 0,
                 'original_product_price' => 0
             );
+
+            // Insert the FDG-ShoppingFlux in the order details
             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Inserting Cdiscount fees, total fees = ' . $order->TotalFees);
-
-
             Db::getInstance()->insert('order_detail', $fdgInsertFields);
+
+            // insert doesn't return the id, we therefore need to make another request to find out the id_order_detail_fdg
+            $sql = 'SELECT od.id_order_detail FROM '._DB_PREFIX_.'order_detail od
+                WHERE od.id_order = '.(int)$id_order.' AND od.product_reference = "FDG-ShoppingFlux"';
+            $id_order_detail_fdg = Db::getInstance()->getValue($sql);
+
+            // calculate the tax of the FDG
+            $fdg_tax_amount = Tools::ps_round((float)((float)$order->TotalFees - ((float)$order->TotalFees / (1 + ($tax_rate / 100)))), 2);
+
+            // Insert the FDG in the tax details
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Inserting Cdiscount fees in order_detail_tax, id_order_detail_fdg = '.$id_order_detail_fdg.', fdg_tax_amount = '.$fdg_tax_amount, $doEchoLog);
+            $insertOrderDetailTaxFgd = array(
+                'id_order_detail' => $id_order_detail_fdg,
+                'id_tax' => $id_tax,
+                'unit_amount'  => $fdg_tax_amount,
+                'total_amount' => $fdg_tax_amount,
+            );
+            Db::getInstance()->insert('order_detail_tax', $insertOrderDetailTaxFgd);
         }
         
         $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
@@ -2475,7 +2498,11 @@ class ShoppingFluxExport extends Module
         //manage case PS_CARRIER_DEFAULT is deleted
         $carrier = is_object($carrier) ? $carrier : new Carrier($carrier_to_load);
 
-        $total_products_tax_excl = Tools::ps_round($total_products_tax_excl + $order->TotalFees / (1 + ($tax_rate / 100)), 2);
+        $fdgTaxExcluded = 0;
+        if ((float)$order->TotalFees > 0) {
+            $fdgTaxExcluded = (float)((float)$order->TotalFees / (1 + ($tax_rate / 100)));
+        }
+        $total_products_tax_excl = Tools::ps_round($total_products_tax_excl + $fdgTaxExcluded / (1 + ($tax_rate / 100)), 2);
 
         // Carrier tax calculation START
         $ps_order = new Order($id_order);
