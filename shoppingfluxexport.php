@@ -2358,6 +2358,7 @@ class ShoppingFluxExport extends Module
     {
         $tax_rate = 0;
         $total_products_tax_excl = 0;
+        $fdgTaxExcluded = 0;
 
         // The id_tax linked to one of the product
         $id_tax = 0;
@@ -2411,6 +2412,9 @@ class ShoppingFluxExport extends Module
         
         // Cdiscount fees handling
         if ((float) $order->TotalFees > 0) {
+
+            $fdgTaxExcluded = (float)((float)$order->TotalFees / (1 + ($tax_rate / 100)));
+            
             $orderLoaded = new Order((int)$id_order);
 
             // Retrieve the order invoice ID to associate it with the FDG.
@@ -2455,9 +2459,9 @@ class ShoppingFluxExport extends Module
                 'download_nb' => 0,
                 'download_deadline' => null,
                 'total_price_tax_incl' => (float) $order->TotalFees,
-                'total_price_tax_excl' => (float) $order->TotalFees,
+                'total_price_tax_excl' => $fdgTaxExcluded,
                 'unit_price_tax_incl' => (float) $order->TotalFees,
-                'unit_price_tax_excl' => (float) $order->TotalFees,
+                'unit_price_tax_excl' => $fdgTaxExcluded,
                 'total_shipping_price_tax_incl' => 0,
                 'total_shipping_price_tax_excl' => 0,
                 'purchase_supplier_price' => 0,
@@ -2498,11 +2502,7 @@ class ShoppingFluxExport extends Module
         //manage case PS_CARRIER_DEFAULT is deleted
         $carrier = is_object($carrier) ? $carrier : new Carrier($carrier_to_load);
 
-        $fdgTaxExcluded = 0;
-        if ((float)$order->TotalFees > 0) {
-            $fdgTaxExcluded = (float)((float)$order->TotalFees / (1 + ($tax_rate / 100)));
-        }
-        $total_products_tax_excl = Tools::ps_round($total_products_tax_excl + $fdgTaxExcluded / (1 + ($tax_rate / 100)), 2);
+        $total_products_tax_excl = Tools::ps_round($total_products_tax_excl + $fdgTaxExcluded, 2);
 
         // Carrier tax calculation START
         $ps_order = new Order($id_order);
