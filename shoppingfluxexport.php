@@ -2023,18 +2023,31 @@ class ShoppingFluxExport extends Module
             $xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
             $xml .= '<Status>Shipped</Status>';
 
+            // Retrieve the carrier tracking number
+            $trackingNumber = isset($shipping[0]) && !empty($shipping[0]['tracking_number']) ? 
+                $shipping[0]['tracking_number'] : 
+                $order->shipping_number;
+
+            // Retrieve the carrier tracking URL
+            $carrierUrl = isset($shipping[0]) && !empty($shipping[0]['url']) ? 
+                $shipping[0]['url'] : 
+                $carrier->url;
+
+            $url = str_replace('http://http://', 'http://', $carrierUrl);
+            $url = str_replace('@', $trackingNumber, $url);
+
+            $xml .= '<TrackingNumber><![CDATA['.$trackingNumber.']]></TrackingNumber>';
+
             if (isset($shipping[0])) {
-                $url = str_replace('http://http://', 'http://', $carrier->url);
-                $url = str_replace('@', $shipping[0]['tracking_number'], $url);
-                $xml .= '<TrackingNumber><![CDATA['.$shipping[0]['tracking_number'].']]></TrackingNumber>';
                 $xml .= '<CarrierName><![CDATA['.$shipping[0]['state_name'].']]></CarrierName>';
-                $xml .= '<TrackingUrl><![CDATA['.$url.']]></TrackingUrl>';
             }
+
+            $xml .= '<TrackingUrl><![CDATA['.$url.']]></TrackingUrl>';
 
             $xml .= '</Order>';
             $xml .= '</UpdateOrders>';
 
-            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Sending change of status and tracking number (' . $shipping[0]['tracking_number'] . ') to ShoppingFlux for order ' . $params['id_order']);
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Sending change of status and tracking number (' . $trackingNumber . ') to ShoppingFlux for order ' . $params['id_order']);
             $responseXML = $this->_callWebService('UpdateOrders', $xml, (int)$order->id_shop, $this->getOrderToken((int)$params['id_order']));
 
             if (!$responseXML->Response->Error) {
