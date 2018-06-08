@@ -4,6 +4,7 @@
  *
  * @author    ShoppingFlux <support@shopping-flux.com>
  * @copyright 2017-2018 ShoppingFlux
+ * @license   http://opensource.org/licenses/afl-3.0.php Academic Free License (AFL 3.0)
  */
 
 class SfDebugger
@@ -28,7 +29,8 @@ class SfDebugger
 
     public function isDebugEnabled()
     {
-        return ((int) Configuration::get('SHOPPING_FLUX_DEBUG_ERRORS') || Configuration::get('SHOPPING_FLUX_DEBUG_ERRORS') == 'true') ? true : false;
+        return ((int) Configuration::get('SHOPPING_FLUX_DEBUG_ERRORS')
+            || Configuration::get('SHOPPING_FLUX_DEBUG_ERRORS') == 'true') ? true : false;
     }
 
     /**

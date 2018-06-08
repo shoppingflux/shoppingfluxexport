@@ -560,7 +560,7 @@ class ShoppingFluxExport extends Module
     /* Form record */
     protected function _treatForm()
     {
-        $rec_config = Tools::getValue('rec_config');
+        $rec_config_adv = Tools::getValue('rec_config_adv');
         $rec_shipping_config = Tools::getValue('rec_shipping_config');
 
         $rec_config2 = Tools::getValue('SHOPPING_FLUX_TOKEN');
@@ -599,9 +599,9 @@ class ShoppingFluxExport extends Module
                     Configuration::updateValue($valueName, Tools::getValue($valueName) == '1' ? '1' : '0');
                 }
             }
-        } elseif (isset($rec_shipping_config) && $rec_shipping_config != null) {
+        } elseif (!empty($rec_shipping_config)) {
             Configuration::updateValue('SHOPPING_FLUX_SHIPPING_MATCHING', serialize(Tools::getValue('MATCHING')));
-        } elseif (isset($rec_config_adv) && $rec_config_adv != null) {
+        } elseif (!empty($rec_config_adv)) {
             $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_PASSES'));
             
             $passes = Tools::getValue('SHOPPING_FLUX_PASSES');
@@ -1094,7 +1094,6 @@ class ShoppingFluxExport extends Module
             $this->closeFeed();
             
             // Remove previous feed an place the newly generated one
-            $shop_id = $this->context->shop->id;
             unlink($this->getFeedName(false));
             rename($this->getFeedName(), $this->getFeedName(false));
             
@@ -1128,7 +1127,7 @@ class ShoppingFluxExport extends Module
                 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 10);
                 curl_setopt($curl, CURLOPT_TIMEOUT, 1);
-                $curl_response = curl_exec($curl);
+                curl_exec($curl);
                 curl_close($curl);
                 die();
             } else {
@@ -1592,7 +1591,7 @@ class ShoppingFluxExport extends Module
                 $forcedOrder) {
                 SfDebugger::getInstance()->startDebug();
 
-                // We update the flag stating that a call has been performed in order to respect 
+                // We update the flag stating that a call has been performed in order to respect
                 // the minTimeDiff interval
                 Configuration::updateValue('SHOPPING_BACKOFFICE_CALL', $now);
 
@@ -2024,13 +2023,13 @@ class ShoppingFluxExport extends Module
             $xml .= '<Status>Shipped</Status>';
 
             // Retrieve the carrier tracking number
-            $trackingNumber = isset($shipping[0]) && !empty($shipping[0]['tracking_number']) ? 
-                $shipping[0]['tracking_number'] : 
+            $trackingNumber = isset($shipping[0]) && !empty($shipping[0]['tracking_number']) ?
+                $shipping[0]['tracking_number'] :
                 $order->shipping_number;
 
             // Retrieve the carrier tracking URL
-            $carrierUrl = isset($shipping[0]) && !empty($shipping[0]['url']) ? 
-                $shipping[0]['url'] : 
+            $carrierUrl = isset($shipping[0]) && !empty($shipping[0]['url']) ?
+                $shipping[0]['url'] :
                 $carrier->url;
 
             $url = str_replace('http://http://', 'http://', $carrierUrl);
@@ -2425,7 +2424,6 @@ class ShoppingFluxExport extends Module
         
         // Cdiscount fees handling
         if ((float) $order->TotalFees > 0) {
-
             $fdgTaxExcluded = (float)((float)$order->TotalFees / (1 + ($tax_rate / 100)));
             
             $orderLoaded = new Order((int)$id_order);
@@ -2494,7 +2492,7 @@ class ShoppingFluxExport extends Module
             $fdg_tax_amount = Tools::ps_round((float)((float)$order->TotalFees - ((float)$order->TotalFees / (1 + ($tax_rate / 100)))), 2);
 
             // Insert the FDG in the tax details
-            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Inserting Cdiscount fees in order_detail_tax, id_order_detail_fdg = '.$id_order_detail_fdg.', fdg_tax_amount = '.$fdg_tax_amount, $doEchoLog);
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Inserting Cdiscount fees in order_detail_tax, id_order_detail_fdg = '.$id_order_detail_fdg.', fdg_tax_amount = '.$fdg_tax_amount);
             $insertOrderDetailTaxFgd = array(
                 'id_order_detail' => $id_order_detail_fdg,
                 'id_tax' => $id_tax,
@@ -2844,7 +2842,6 @@ class ShoppingFluxExport extends Module
         
         // Load override Product info
         $overrideProductFields = Product::$definition['fields'];
-        $overrideFields = array();
         
         $newFields = array();
         
@@ -3386,7 +3383,7 @@ class ShoppingFluxExport extends Module
 
         // The trim() == "True" was in the previous version of the code when retrieving the
         // message with $order->getFirstMessage();. It's kept for compatibility reasons while
-        // I'm not sure what's the purpose of this check. 
+        // I'm not sure what's the purpose of this check.
         return trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
     }
 

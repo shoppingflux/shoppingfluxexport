@@ -4,6 +4,7 @@
  *
  * @author    ShoppingFlux <support@shopping-flux.com>
  * @copyright 2017-2018 ShoppingFlux
+ * @license   http://opensource.org/licenses/afl-3.0.php Academic Free License (AFL 3.0)
  */
 
 define('SF_LOG_CRON', 1);
@@ -42,10 +43,12 @@ class SfLogger
 
     protected function __construct()
     {
-        if ((int) Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG') || Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG') == 'true') {
+        if ((int) Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG')
+            || Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG') == 'true') {
             self::$debugOrders = true;
         }
-        if ((int) Configuration::get('SHOPPING_FLUX_DEBUG') || Configuration::get('SHOPPING_FLUX_DEBUG') == 'true') {
+        if ((int) Configuration::get('SHOPPING_FLUX_DEBUG')
+            || Configuration::get('SHOPPING_FLUX_DEBUG') == 'true') {
             self::$debug = true;
         }
     }
@@ -93,7 +96,6 @@ class SfLogger
                 break;
             default:
                 return;
-                break;
         }
         
         // Rotate logs and write to file
@@ -116,7 +118,6 @@ class SfLogger
 
             $fileSizeMbs = filesize($fileName) / 1024 / 1024;
             if ($fileSizeMbs >= (self::$logRotateMegaBites)) {
-
                 // Base file
                 $baseFile = Tools::substr($fileName, 0, strrpos($fileName, '.'));
                 // The file extension (.txt, .log...)
