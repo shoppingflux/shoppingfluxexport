@@ -35,7 +35,10 @@ ini_set('display_errors', 'on');
 
 $sf = Module::getInstanceByName('shoppingfluxexport');
 
-if ((Tools::getValue('token') == '' || Tools::getValue('token') != $sf->getTokenValue()) && ! (isset($_GET['test_homepage']) || isset($_GET['test_curl']))) {
+$testHomePage = Tools::getValue('test_homepage');
+$testCurl = Tools::getValue('test_curl');
+
+if ((Tools::getValue('token') == '' || Tools::getValue('token') != $sf->getTokenValue()) && ! ($testHomePage || $testCurl)) {
     die("Invalid Token");
 }
 
@@ -330,7 +333,7 @@ function echoLogsBottomScripts()
 function getLogsParsed()
 {
     $fileName = dirname(__FILE__) . Tools::getValue('log');
-    $content = file_get_contents($fileName);
+    $content = Tools::file_get_contents($fileName);
     
     $logType = Tools::getValue('type');
     $isXMLLogs = $logType === "xml" ? true : false;
@@ -558,7 +561,7 @@ pre {
             echo getReplayOrdersForm($sf);
             $urlBase = Tools::getCurrentUrlProtocolPrefix() . $_SERVER['HTTP_HOST'];
             
-            if (isset($_GET['test_homepage']) && $_GET['test_homepage'] != '') {
+            if ($testHomePage && $testHomePage != '') {
                 $curl_response = curl_file_get_contents($urlBase);
                 ?>
                     <fieldset id="debug_content">
@@ -567,11 +570,12 @@ pre {
                     </fieldset>
                 <?php
             }
-            if (isset($_GET['test_curl']) && $_GET['test_curl'] != '') {
+            if ($testCurl && $testCurl != '') {
                 $outputFile = dirname(__FILE__) . '/logs/testCurl.txt';
                 // To test timeout
                 sleep(2);
-                if (! isset($_GET['index'])) {
+                $indexValue = Tools::getValue('index');
+                if (!$indexValue) {
                     // First call
                     logDebug('Starting first call');
                     $fp = fopen($outputFile, 'w');
@@ -582,7 +586,7 @@ pre {
                     logDebug('Going to call : ' . $nextUrl);
                     $curl_response = curl_file_get_contents($nextUrl);
                 } else {
-                    $index = $_GET['index'];
+                    $index = $indexValue;
                     $index ++;
                     if ($index > 100) {
                         // Ended
@@ -591,7 +595,7 @@ pre {
                     } else {
                         // Call next URL
                         $nextUrl = $urlBase . '/modules/shoppingfluxexport/utils.php?test_curl=1&index=' . $index;
-                        logDebug('Call received, index = ' . $_GET['index']);
+                        logDebug('Call received, index = ' . $indexValue);
                         logDebug('Going to call : ' . $nextUrl);
                         $curl_response = curl_file_get_contents($nextUrl);
                     }
