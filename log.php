@@ -34,13 +34,13 @@ ini_set('display_errors', 'on');
 
 $sf = Module::getInstanceByName('shoppingfluxexport');
 
-if (Tools::getValue('token') == '' || Tools::getValue('token') != $f->getTokenValue()) {
+if (Tools::getValue('token') == '' || Tools::getValue('token') != $sf->getTokenValue()) {
     die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
 }
 
 // Check if file exists
 $outputFileCronexport = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/cronexport_';
-$outputFileCronexport .= $f->getTokenValue().'.txt';
+$outputFileCronexport .= $sf->getTokenValue().'.txt';
 
 if (!file_exists($outputFileCronexport)) {
     p('cronexport file does not exists');
@@ -52,7 +52,7 @@ if (!file_exists($outputFileCronexport)) {
 }
 
 $outputFilecallWebService = _PS_MODULE_DIR_ . 'shoppingfluxexport/logs/callWebService_';
-$outputFilecallWebService .= $f->getTokenValue().'.txt';
+$outputFilecallWebService .= $sf->getTokenValue().'.txt';
 
 if (!file_exists($outputFilecallWebService)) {
     p('callWebService file does not exists');

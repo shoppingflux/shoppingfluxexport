@@ -228,8 +228,8 @@ class ShoppingFluxExport extends Module
                 !Configuration::deleteByName('SHOPPING_FLUX_DEBUG') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_XML_SHOP_ID') ||
                 !Configuration::deleteByName('SHOPPING_FLUX_CRON_TIME') ||
-                !$this->uninstallCustomConfiguration(['SHOPPING_FLUX_CRON_TIME']) ||
-                !$this->uninstallCustomConfiguration(['SHOPPING_FLUX_TOKEN']) ||
+                !$this->uninstallCustomConfiguration(array('SHOPPING_FLUX_CRON_TIME')) ||
+                !$this->uninstallCustomConfiguration(array('SHOPPING_FLUX_TOKEN')) ||
                 !parent::uninstall()) {
             return false;
         }
@@ -281,7 +281,6 @@ class ShoppingFluxExport extends Module
         
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
-        $price = is_object($status_xml) ? (float)$status_xml->Response->Price : 0;
         
         switch ($status) {
             case 'Client':
@@ -294,7 +293,7 @@ class ShoppingFluxExport extends Module
                 // No break, we want the code below to be executed
             case 'New':
             default:
-                $this->_html .= $this->_defaultView($price);
+                $this->_html .= $this->_defaultView();
                 break;
         }
         //we do this here for retro compatibility
@@ -329,7 +328,7 @@ class ShoppingFluxExport extends Module
     }
 
     /* Default view when site isn't in Shopping Flux DB */
-    protected function _defaultView($price = 0)
+    protected function _defaultView()
     {
         //uri feed
         if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
@@ -341,10 +340,6 @@ class ShoppingFluxExport extends Module
             $uri = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/flux.php?token='.$this->getTokenValue();
         }
 
-        //uri images
-        $uri_img = Tools::getCurrentUrlProtocolPrefix().Tools::getHttpHost().__PS_BASE_URI__.'modules/shoppingfluxexport/views/img/';
-        //owner object
-        $owner = new Employee($this->context->cookie->id_employee);
         //post process
         $send_mail = Tools::getValue('send_mail');
         if (isset($send_mail) && $send_mail != null) {
@@ -396,7 +391,7 @@ class ShoppingFluxExport extends Module
         
         // Retrieve custom fields from override that can be in products
         $fields = $this->getOverrideFields();
-        foreach ($fields as $key => $fieldname) {
+        foreach ($fields as $fieldname) {
             $configuration['SHOPPING_FLUX_CUSTOM_'.$fieldname] = Configuration::get('SHOPPING_FLUX_CUSTOM_'.$fieldname);
         }
 
@@ -565,7 +560,7 @@ class ShoppingFluxExport extends Module
     /* Form record */
     protected function _treatForm()
     {
-        $rec_config = Tools::getValue('rec_config');
+        $rec_config_adv = Tools::getValue('rec_config_adv');
         $rec_shipping_config = Tools::getValue('rec_shipping_config');
 
         $rec_config2 = Tools::getValue('SHOPPING_FLUX_TOKEN');
@@ -604,9 +599,9 @@ class ShoppingFluxExport extends Module
                     Configuration::updateValue($valueName, Tools::getValue($valueName) == '1' ? '1' : '0');
                 }
             }
-        } elseif (isset($rec_shipping_config) && $rec_shipping_config != null) {
+        } elseif (!empty($rec_shipping_config)) {
             Configuration::updateValue('SHOPPING_FLUX_SHIPPING_MATCHING', serialize(Tools::getValue('MATCHING')));
-        } elseif (isset($rec_config_adv) && $rec_config_adv != null) {
+        } elseif (!empty($rec_config_adv)) {
             $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_PASSES'));
             
             $passes = Tools::getValue('SHOPPING_FLUX_PASSES');
@@ -966,9 +961,7 @@ class ShoppingFluxExport extends Module
         if ($token == '' || ($token != $tokenInConfig && !in_array($token, $allTokens))) {
             die("<?xml version='1.0' encoding='utf-8'?><error>Invalid Token</error>");
         }
-        
-        $shop_id = $this->context->shop->id;
-        
+                
         $file = fopen($this->getFeedName(), 'a+');
 
         $configuration = Configuration::getMultiple(
@@ -1101,7 +1094,6 @@ class ShoppingFluxExport extends Module
             $this->closeFeed();
             
             // Remove previous feed an place the newly generated one
-            $shop_id = $this->context->shop->id;
             unlink($this->getFeedName(false));
             rename($this->getFeedName(), $this->getFeedName(false));
             
@@ -1135,7 +1127,7 @@ class ShoppingFluxExport extends Module
                 curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 10);
                 curl_setopt($curl, CURLOPT_TIMEOUT, 1);
-                $curl_response = curl_exec($curl);
+                curl_exec($curl);
                 curl_close($curl);
                 die();
             } else {
@@ -1373,7 +1365,7 @@ class ShoppingFluxExport extends Module
         
         // Add the overrided fields if any
         $fields = $this->getOverrideFields();
-        foreach ($fields as $key => $fieldname) {
+        foreach ($fields as $fieldname) {
             if (Configuration::get('SHOPPING_FLUX_CUSTOM_'.$fieldname) == 1) {
                 $ret .= '<'.$fieldname.'><![CDATA['.$product->$fieldname.']]></'.$fieldname.'>';
             }
@@ -1589,7 +1581,6 @@ class ShoppingFluxExport extends Module
         $doEchoLog = $forcedOrder ? true : $orderDebugEnabled;
 
         if ($timeDiffFromLastCall > $minTimeDiff || $forcedOrder) {
-            Configuration::updateValue('SHOPPING_BACKOFFICE_CALL', $now);
             $controller = Tools::strtolower(Tools::getValue('controller'));
             $ordersConfig = Configuration::get('SHOPPING_FLUX_ORDERS');
             $curlInstalled = $this->isCurlInstalled(true);
@@ -1599,6 +1590,10 @@ class ShoppingFluxExport extends Module
                 $no_cron == false ||
                 $forcedOrder) {
                 SfDebugger::getInstance()->startDebug();
+
+                // We update the flag stating that a call has been performed in order to respect
+                // the minTimeDiff interval
+                Configuration::updateValue('SHOPPING_BACKOFFICE_CALL', $now);
 
                 // Get all tokens of this shop
                 $allTokens = $this->getAllTokensOfShop();
@@ -1634,24 +1629,25 @@ class ShoppingFluxExport extends Module
                                 WHERE m.message LIKE "%Numéro de commande '.pSQL($order->Marketplace).' :'.pSQL($order->IdOrder).'%"');
         
                             if (! $forcedOrder && isset($orderExists['id_message']) && isset($orderExists['id_order'])) {
-                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order already exists (id = '.$order->IdOrder.'): notifying ShoppingFlux', $doEchoLog);
+                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order already exists based on message content (id = '.$order->IdOrder.'): notifying ShoppingFlux', $doEchoLog);
                                 $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, (int)$orderExists['id_order'], false, $currentToken['token']);
                                 continue;
                             }
                             
-                            // Check if the order already exists by lookig at the adress alias and first/last name
+                            // Check if the order already exists by looking at the address alias
+                            // This will look for orders having the email "do-not-send@alerts-shopping-flux.com", which means the order was not fully created
+                            $aliasAddress = "Shipping-".(string)$order->IdOrder;
                             $orderExists = Db::getInstance()->getRow("SELECT * FROM " . _DB_PREFIX_ . "orders o, " . _DB_PREFIX_ . "customer c, " . _DB_PREFIX_ . "address a
                                 WHERE o.id_customer = c.id_customer
                                 AND c.email = 'do-not-send@alerts-shopping-flux.com'
-                                AND (c.lastname = '" . (string)$order->BillingAddress->LastName . "' OR c.firstname = '" . (string)$order->BillingAddress->LastName . "')
                                 AND a.id_address = o.id_address_delivery
-                                AND a.alias LIKE '%" . $orderExists['id_order'] . "%'
+                                AND a.alias LIKE '" . $aliasAddress . "'
                                 ORDER BY o.id_order DESC
                             ");
                             
                             if (! $forcedOrder && isset($orderExists['id_order'])) {
                                 // This is the second try of an order creation, last process could not be completed
-                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order already exists (id = ' . $order->IdOrder . '): notifying ShoppingFlux', $doEchoLog);
+                                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order already exists based on address alias (id = ' . $order->IdOrder . '): notifying ShoppingFlux', $doEchoLog);
                             
                                 // Re set the carrier
                                 $orderLoaded = new Order((int) $orderExists['id_order']);
@@ -2016,30 +2012,41 @@ class ShoppingFluxExport extends Module
             $shipping = $order->getShipping();
             $carrier = new Carrier((int)$order->id_carrier);
             
-            $message = $order->getFirstMessage();
-            $id_order_marketplace = explode(':', $message);
-            $id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
+            $id_order_marketplace = $this->getMkpOrderIdFromMessage((int)$params['id_order']);
 
             $xml = '<?xml version="1.0" encoding="UTF-8"?>';
             $xml .= '<UpdateOrders>';
             $xml .= '<Order>';
-            $xml .= '<IdOrder>'.$id_order_marketplace[1].'</IdOrder>';
+            $xml .= '<IdOrder>'.$id_order_marketplace.'</IdOrder>';
             $xml .= '<Marketplace>'.$order->payment.'</Marketplace>';
             $xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
             $xml .= '<Status>Shipped</Status>';
 
+            // Retrieve the carrier tracking number
+            $trackingNumber = isset($shipping[0]) && !empty($shipping[0]['tracking_number']) ?
+                $shipping[0]['tracking_number'] :
+                $order->shipping_number;
+
+            // Retrieve the carrier tracking URL
+            $carrierUrl = isset($shipping[0]) && !empty($shipping[0]['url']) ?
+                $shipping[0]['url'] :
+                $carrier->url;
+
+            $url = str_replace('http://http://', 'http://', $carrierUrl);
+            $url = str_replace('@', $trackingNumber, $url);
+
+            $xml .= '<TrackingNumber><![CDATA['.$trackingNumber.']]></TrackingNumber>';
+
             if (isset($shipping[0])) {
-                $url = str_replace('http://http://', 'http://', $carrier->url);
-                $url = str_replace('@', $shipping[0]['tracking_number'], $url);
-                $xml .= '<TrackingNumber><![CDATA['.$shipping[0]['tracking_number'].']]></TrackingNumber>';
                 $xml .= '<CarrierName><![CDATA['.$shipping[0]['state_name'].']]></CarrierName>';
-                $xml .= '<TrackingUrl><![CDATA['.$url.']]></TrackingUrl>';
             }
+
+            $xml .= '<TrackingUrl><![CDATA['.$url.']]></TrackingUrl>';
 
             $xml .= '</Order>';
             $xml .= '</UpdateOrders>';
 
-            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Sending change of status and tracking number (' . $shipping[0]['tracking_number'] . ') to ShoppingFlux for order ' . $params['id_order']);
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Sending change of status and tracking number (' . $trackingNumber . ') to ShoppingFlux for order ' . $params['id_order']);
             $responseXML = $this->_callWebService('UpdateOrders', $xml, (int)$order->id_shop, $this->getOrderToken((int)$params['id_order']));
 
             if (!$responseXML->Response->Error) {
@@ -2056,14 +2063,12 @@ class ShoppingFluxExport extends Module
             $order = new Order((int)$params['id_order']);
             $shipping = $order->getShipping();
 
-            $message = $order->getFirstMessage();
-            $id_order_marketplace = explode(':', $message);
-            $id_order_marketplace[1] = trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
+            $id_order_marketplace = $this->getMkpOrderIdFromMessage((int)$params['id_order']);
 
             $xml = '<?xml version="1.0" encoding="UTF-8"?>';
             $xml .= '<UpdateOrders>';
             $xml .= '<Order>';
-            $xml .= '<IdOrder>'.$id_order_marketplace[1].'</IdOrder>';
+            $xml .= '<IdOrder>'.$id_order_marketplace.'</IdOrder>';
             $xml .= '<Marketplace>'.$order->payment.'</Marketplace>';
             $xml .= '<MerchantIdOrder>'.(int)$params['id_order'].'</MerchantIdOrder>';
             $xml .= '<Status>Canceled</Status>';
@@ -2247,8 +2252,8 @@ class ShoppingFluxExport extends Module
         $firstname = preg_replace('/\-?\d+/', '', $firstname);
 
         // Avoid Prestashop error on length
-        $lastname = substr($lastname, 0, 32);
-        $firstname = substr($firstname, 0, 32);
+        $lastname = Tools::substr($lastname, 0, 32);
+        $firstname = Tools::substr($firstname, 0, 32);
 
         $address->id_customer = (int)$id_customer;
         $address->id_country = (int)Country::getByIso(trim($addressNode->Country));
@@ -2310,8 +2315,8 @@ class ShoppingFluxExport extends Module
         $lastname = preg_replace('/\-?\d+/', '', $lastname);
         $firstname = preg_replace('/\-?\d+/', '', $firstname);
         // Avoid Prestashop error on length
-        $lastname = substr($lastname, 0, 32);
-        $firstname = substr($firstname, 0, 32);
+        $lastname = Tools::substr($lastname, 0, 32);
+        $firstname = Tools::substr($firstname, 0, 32);
 
         $customer = new Customer();
         $customer->lastname = (!empty($lastname)) ? pSQL($lastname) : '-';
@@ -2365,6 +2370,10 @@ class ShoppingFluxExport extends Module
     {
         $tax_rate = 0;
         $total_products_tax_excl = 0;
+        $fdgTaxExcluded = 0;
+
+        // The id_tax linked to one of the product
+        $id_tax = 0;
 
         foreach ($order->Products->Product as $product) {
             if (Configuration::get('SHOPPING_FLUX_REF') == 'true') {
@@ -2373,7 +2382,7 @@ class ShoppingFluxExport extends Module
                 $skus = explode('_', $product->SKU);
             }
 
-            $sql = 'SELECT t.rate, od.id_order_detail  FROM '._DB_PREFIX_.'tax t
+            $sql = 'SELECT t.rate, od.id_order_detail, t.id_tax FROM '._DB_PREFIX_.'tax t
                 LEFT JOIN '._DB_PREFIX_.'order_detail_tax odt ON t.id_tax = odt.id_tax
                 LEFT JOIN '._DB_PREFIX_.'order_detail od ON odt.id_order_detail = od.id_order_detail
                 WHERE od.id_order = '.(int)$id_order.' AND product_id = '.(int)$skus[0];
@@ -2385,6 +2394,8 @@ class ShoppingFluxExport extends Module
             $tax_rate = $row['rate'];
             
             $id_order_detail = $row['id_order_detail'];
+
+            $id_tax = $row['id_tax'];
 
             $total_price_tax_excl = (float)(((float)$product->Price / (1 + ($tax_rate / 100))) * $product->Quantity);
             $total_products_tax_excl += $total_price_tax_excl;
@@ -2413,10 +2424,20 @@ class ShoppingFluxExport extends Module
         
         // Cdiscount fees handling
         if ((float) $order->TotalFees > 0) {
+            $fdgTaxExcluded = (float)((float)$order->TotalFees / (1 + ($tax_rate / 100)));
+            
             $orderLoaded = new Order((int)$id_order);
+
+            // Retrieve the order invoice ID to associate it with the FDG.
+            // This way, the FDG will appears in the invoice.
+            $idOrderInvoice = Db::getInstance()->getValue('
+            SELECT `id_order_invoice`
+            FROM `'._DB_PREFIX_.'order_invoice`
+            WHERE `id_order` =  '.(int)$id_order);
+
             $fdgInsertFields = array(
                 'id_order' => (int) $id_order,
-                'id_order_invoice' => 0,
+                'id_order_invoice' => empty($idOrderInvoice) ? 0 : (int)$idOrderInvoice,
                 'id_warehouse' => 0,
                 'id_shop' => (int) $orderLoaded->id_shop,
                 'product_id' => 0,
@@ -2449,18 +2470,36 @@ class ShoppingFluxExport extends Module
                 'download_nb' => 0,
                 'download_deadline' => null,
                 'total_price_tax_incl' => (float) $order->TotalFees,
-                'total_price_tax_excl' => (float) $order->TotalFees,
+                'total_price_tax_excl' => $fdgTaxExcluded,
                 'unit_price_tax_incl' => (float) $order->TotalFees,
-                'unit_price_tax_excl' => (float) $order->TotalFees,
+                'unit_price_tax_excl' => $fdgTaxExcluded,
                 'total_shipping_price_tax_incl' => 0,
                 'total_shipping_price_tax_excl' => 0,
                 'purchase_supplier_price' => 0,
                 'original_product_price' => 0
             );
+
+            // Insert the FDG-ShoppingFlux in the order details
             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Inserting Cdiscount fees, total fees = ' . $order->TotalFees);
-
-
             Db::getInstance()->insert('order_detail', $fdgInsertFields);
+
+            // insert doesn't return the id, we therefore need to make another request to find out the id_order_detail_fdg
+            $sql = 'SELECT od.id_order_detail FROM '._DB_PREFIX_.'order_detail od
+                WHERE od.id_order = '.(int)$id_order.' AND od.product_reference = "FDG-ShoppingFlux"';
+            $id_order_detail_fdg = Db::getInstance()->getValue($sql);
+
+            // calculate the tax of the FDG
+            $fdg_tax_amount = Tools::ps_round((float)((float)$order->TotalFees - ((float)$order->TotalFees / (1 + ($tax_rate / 100)))), 2);
+
+            // Insert the FDG in the tax details
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Inserting Cdiscount fees in order_detail_tax, id_order_detail_fdg = '.$id_order_detail_fdg.', fdg_tax_amount = '.$fdg_tax_amount);
+            $insertOrderDetailTaxFgd = array(
+                'id_order_detail' => $id_order_detail_fdg,
+                'id_tax' => $id_tax,
+                'unit_amount'  => $fdg_tax_amount,
+                'total_amount' => $fdg_tax_amount,
+            );
+            Db::getInstance()->insert('order_detail_tax', $insertOrderDetailTaxFgd);
         }
         
         $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
@@ -2474,7 +2513,7 @@ class ShoppingFluxExport extends Module
         //manage case PS_CARRIER_DEFAULT is deleted
         $carrier = is_object($carrier) ? $carrier : new Carrier($carrier_to_load);
 
-        $total_products_tax_excl = Tools::ps_round($total_products_tax_excl + $order->TotalFees / (1 + ($tax_rate / 100)), 2);
+        $total_products_tax_excl = Tools::ps_round($total_products_tax_excl + $fdgTaxExcluded, 2);
 
         // Carrier tax calculation START
         $ps_order = new Order($id_order);
@@ -2803,7 +2842,6 @@ class ShoppingFluxExport extends Module
         
         // Load override Product info
         $overrideProductFields = Product::$definition['fields'];
-        $overrideFields = array();
         
         $newFields = array();
         
@@ -2841,7 +2879,7 @@ class ShoppingFluxExport extends Module
         $html .= '<p><label>'.$this->l('Select additional fields to export').' :</label>'.$message.'</p>';
         $html .= '<p style="clear: both"></p>';
 
-        foreach ($fields as $key => $field) {
+        foreach ($fields as $field) {
             $html .= '<p><label>'.$field.' : </label>';
             $html .= '<input type="checkbox" name="SHOPPING_FLUX_CUSTOM_'.$field.'" ';
             $html .= 'value="1" '.($configuration['SHOPPING_FLUX_CUSTOM_'.$field] == 1 ? 'checked="checked"' : '');
@@ -3314,6 +3352,39 @@ class ShoppingFluxExport extends Module
                             WHERE m.message LIKE "%Numéro de commande '.pSQL($orderMarkerplace).' :'.pSQL($orderIdSf).'%"');
         
         return $orderExists['id_order'];
+    }
+
+    /**
+     * Get the MarketPlace order ID (ShoppingFlux Order ID) from the PrestaShop order ID.
+     * This information is extracted from the message added to the order
+     * @param  int $ps_id_order  The PrestaShop order ID
+     * @return bool|string The MarketPlace order ID or false if not found
+     */
+    public function getMkpOrderIdFromMessage($ps_id_order)
+    {
+
+        // We cannot rely on the marketplace name as it may be in lower/upper case, so
+        // we can all the messages containing Numéro de commande et we retrieve the first
+        // one (With the ORDER BY). This eleminate the risk of other modules adding a
+        // message that may contains the same string by taking the one that has been
+        // created first (by ShoppingFlux)
+        $message = Db::getInstance()->getValue('SELECT m.message, m.id_order '.
+            'FROM '._DB_PREFIX_.'message m '.
+            'WHERE m.message LIKE "Numéro de commande%" '.
+            'AND id_order = '.(int)$ps_id_order.' '.
+            'ORDER BY id_message ASC');
+
+        if (empty($message)) {
+            // Message not found
+            return false;
+        }
+
+        $id_order_marketplace = explode(':', $message);
+
+        // The trim() == "True" was in the previous version of the code when retrieving the
+        // message with $order->getFirstMessage();. It's kept for compatibility reasons while
+        // I'm not sure what's the purpose of this check.
+        return trim($id_order_marketplace[1]) == 'True' ? '' : $id_order_marketplace[1];
     }
 
     /**
