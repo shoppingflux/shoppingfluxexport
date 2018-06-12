@@ -1683,12 +1683,20 @@ class ShoppingFluxExport extends Module
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress delivery created or found : '.$id_address_billing, $doEchoLog);
                             $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other, (string)$order->Marketplace, (string)$order->ShippingMethod);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress shipping or found : '.$id_address_shipping, $doEchoLog);
+
                             $products_available = $this->_checkProducts($order->Products);
-                            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check products availabilityresult : '.$products_available, $doEchoLog);
-                            
+                            $is_products_available_str = $products_available === true ? "yes" : "no";
+                            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check products availabilityresult : '.$is_products_available_str, $doEchoLog);
+
+                            if ($products_available !== true) {
+                                SfLogger::getInstance()->log(SF_LOG_ORDERS, $products_available, $doEchoLog);
+                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $products_available, $currentToken['token']);
+                                continue;
+                            }
+
                             $current_customer = new Customer((int)$id_customer);
         
-                            if ($products_available && $id_address_shipping && $id_address_billing && $id_customer) {
+                            if ($id_address_shipping && $id_address_billing && $id_customer) {
                                 $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees, $currentToken['id_lang'], $doEchoLog);
             
                                 if ($cart) {
@@ -2692,6 +2700,11 @@ class ShoppingFluxExport extends Module
         return $cart;
     }
 
+    /**
+     * Adapt product quantity and check Advanced stock management quantities and warehouse availability
+     * @param  Object $productsNode
+     * @return bool|string success true or error message
+     */
     protected function _checkProducts($productsNode)
     {
         $available = true;
@@ -2703,22 +2716,84 @@ class ShoppingFluxExport extends Module
                 $skus = explode('_', $product->SKU);
             }
 
-            if (isset($skus[1]) && $skus[1] !== false) {
-                $quantity = StockAvailable::getQuantityAvailableByProduct((int)$skus[0], (int)$skus[1]);
-
-                if ($quantity - $product->Quantity < 0) {
-                    StockAvailable::updateQuantity((int)$skus[0], (int)$skus[1], (int)$product->Quantity);
+            // Check if the advanced stock management is enabled
+            $isAdvStockEnabled = Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1 ? true : false;
+            if ($isAdvStockEnabled) {
+                $productObj = new Product($skus[0]);
+                if ($productObj->advanced_stock_management == 0) {
+                    // Advanced stock management not enabled for this product
+                    $isAdvStockEnabled = false;
+                }
+            }
+            
+            if ($isAdvStockEnabled) {
+                // When advanced stock management is enabled, we do not force the product quantity.
+                $idAttribute = isset($skus[1]) ? $skus[1] : 0;
+                $warehouseIds = $this->getAvailableWarehouses($skus[0], $idAttribute);
+                if (empty($warehouseIds)) {
+                    SfLogger::getInstance()->log(SF_LOG_ORDERS, "No warehouse found with a quantity available for product ".$skus[0].", attribute = ".$idAttribute);
+                    // No warehouse found with a quantity available for this product
+                    return "No warehouse found with a quantity available for product = ".$skus[0].", attribute = ".$idAttribute;
                 }
             } else {
-                $quantity = StockAvailable::getQuantityAvailableByProduct((int)$product->SKU);
+                if (isset($skus[1]) && $skus[1] !== false) {
+                    $quantity = StockAvailable::getQuantityAvailableByProduct((int)$skus[0], (int)$skus[1]);
 
-                if ($quantity - $product->Quantity < 0) {
-                    StockAvailable::updateQuantity((int)$product->SKU, 0, (int)$product->Quantity);
+                    if ($quantity - $product->Quantity < 0) {
+                        StockAvailable::updateQuantity((int)$skus[0], (int)$skus[1], (int)$product->Quantity);
+                    }
+                } else {
+                    $quantity = StockAvailable::getQuantityAvailableByProduct((int)$product->SKU);
+
+                    if ($quantity - $product->Quantity < 0) {
+                        StockAvailable::updateQuantity((int)$product->SKU, 0, (int)$product->Quantity);
+                    }
                 }
             }
         }
 
         return $available;
+    }
+
+    /**
+     * Retrieve warehouse IDs where the given product is available
+     *
+     * @param  integer $idProduct
+     * @param  integer $idAttribute
+     * @return array               List of wharehouse ids with available quantity
+     */
+    protected function getAvailableWarehouses($idProduct, $idAttribute = 0)
+    {
+
+        $warehouses = array();
+        $stock_manager = StockManagerFactory::getManager();
+
+        $warehouseInfos = Warehouse::getWarehousesByProductId($idProduct, $idAttribute);
+
+        if (count($warehouseInfos) == 0) {
+            // No warehouses associated to this product
+            return array();
+        }
+        
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check stock in warehouses for id_product '.$idProduct.' and id_product_attribute '.$idAttribute);
+
+        // Profileo #786 - 
+        foreach ($warehouseInfos as $aWarehouse) {
+            $id_warehouse = (int)$aWarehouse['id_warehouse'];
+
+            $physicalQuantity = $stock_manager->getProductPhysicalQuantities(
+            $idProduct,
+            $idAttribute,
+            $id_warehouse);
+
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, '-- Warehouse #'.$id_warehouse.' - Physical quantity: '.$physicalQuantity);
+
+            if($physicalQuantity > 0) {
+                $warehouses[] = array('id_warehouse' => $id_warehouse, 'quantity' => $physicalQuantity);
+            }
+        }
+        
+        return $warehouses;
     }
 
     protected function _validOrders($id_order, $marketplace, $id_order_merchant = false, $error = false, $token = null)
