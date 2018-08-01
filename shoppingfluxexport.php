@@ -1618,10 +1618,17 @@ class ShoppingFluxExport extends Module
                         }
                         
                         try {
+
+                            // By default the RelayID is in the "other" field
+                            $mondialRelayID = isset($order->ShippingAddress->RelayID) ? $order->ShippingAddress->RelayID : $order->Other;
                             if ((Tools::strtolower($order->Marketplace) == 'rdc' || Tools::strtolower($order->Marketplace) == 'rueducommerce') && strpos($order->ShippingMethod, 'Mondial Relay') !== false) {
+                                // RDC is using RelayID from the delivery adresse and Other for the order number instead of the relay ID.
+                                // The relay ID is located in the ShippingMethod
+                                // Therefore we need to extract the relay ID from the ShiippingMethod and then rebuild the ShiippingMethod witjout the relay ID
                                 $num = explode(' ', $order->ShippingMethod);
-                                $order->Other = end($num);
-                                $order->ShippingMethod = 'Mondial Relay';
+                                $mondialRelayID = end($num);
+                                $stringImplode = array_slice($num, 0, count($num)-1);
+                                $order->ShippingMethod = implode($stringImplode, " ");
                             }
         
                             // Check if the order already exists by lookig at the messages in the order
@@ -1829,8 +1836,11 @@ class ShoppingFluxExport extends Module
                                     Db::getInstance()->execute($sql_update);
                                     
                                     // Sets the relay information to be able to print with mondial relay module
-                                    if ($order->ShippingMethod == 'Mondial Relay') {
-                                        $this->setMondialRelayData($order->Other, $id_order);
+                                    if ($order->ShippingMethod == 'REL' || strpos($order->ShippingMethod, 'Mondial Relay') !== false) {
+                                        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'RelayID : '.$mondialRelayID, $doEchoLog);
+                                        if (!empty($mondialRelayID)) {
+                                            $this->setMondialRelayData($mondialRelayID, $id_order);
+                                        }
                                     }
                                     
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Order successfully created, Prestashop order id = ' . $id_order, $doEchoLog);
@@ -3414,13 +3424,20 @@ class ShoppingFluxExport extends Module
     /**
      * Gets relay data from webservice, and inserts into mondial relay module
      */
-    protected function setMondialRelayData($idRelay, $idOrder)
+    private function setMondialRelayData($idRelay, $idOrder)
     {
-        $order = new Order((int)Tools::getValue('id_order'));
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'setMondialRelayData('.$idRelay.', '.$idOrder.')');
+
+        $order = new Order($idOrder);
         $carrier = new Carrier((int)$order->id_carrier);
+
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'setMondialRelayData() - id_address_delivery: '.$order->id_address_delivery);
     
         $address = new Address($order->id_address_delivery);
         $isoCountry = Country::getIsoById($address->id_country);
+
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'setMondialRelayData() - isoCountry: '.$isoCountry);
+
         // Get relay data
         $relayData = $this->getPointRelaisData($idRelay, $isoCountry);
         if ($relayData) {
@@ -3430,12 +3447,14 @@ class ShoppingFluxExport extends Module
                                                     WHERE `id_carrier`=" . $carrier->id . "
                                                     ORDER BY `id_mr_method` DESC");
             if ($method) {
+                $idRelayFormatted = "0".$idRelay;
+                
                 // Insert data into mondial relay module's table
                 $query = "INSERT INTO `" . _DB_PREFIX_ . "mr_selected`
                             (`id_customer`, `id_method`, `id_cart`, `id_order`, `MR_Selected_Num`, `MR_Selected_LgAdr1`, `MR_Selected_LgAdr2`,
                              `MR_Selected_LgAdr3`, `MR_Selected_LgAdr4`, `MR_Selected_CP`, `MR_Selected_Ville`, `MR_Selected_Pays`)
-						  VALUES (" . $order->id_customer . ", " . (int)$method . ", " . $order->id_cart . ", " .
-                              $idOrder . ", '" . pSQL($idRelay) . "', '" . pSQL($relayData->LgAdr1) . "', '" . pSQL($relayData->LgAdr2) . "', '".
+                          VALUES (" . $order->id_customer . ", " . (int)$method . ", " . $order->id_cart . ", " .
+                              $idOrder . ", '" . pSQL($idRelayFormatted) . "', '" . pSQL($relayData->LgAdr1) . "', '" . pSQL($relayData->LgAdr2) . "', '".
                               pSQL($relayData->LgAdr3) . "', '" . pSQL($relayData->LgAdr4) . "', '" . pSQL($relayData->CP) . "', '" . pSQL($relayData->Ville) . "', '" .
                               pSQL($isoCountry) . "')";
                 if (Db::getInstance()->execute($query)) {
@@ -3447,11 +3466,11 @@ class ShoppingFluxExport extends Module
         }
         return false;
     }
-    
+
     /**
      * Retrieve relay details from webservice
      */
-    protected function getPointRelaisData($id_relay, $isoCountry)
+    private function getPointRelaisData($id_relay, $isoCountry)
     {
         $urlWebService = 'http://www.mondialrelay.fr/webservice/Web_Services.asmx?WSDL';
         $mondialRelayConfig = Configuration::get('MR_ACCOUNT_DETAIL');
@@ -3477,13 +3496,20 @@ class ShoppingFluxExport extends Module
             $params = array (
                 'Enseigne' => $enseigne,
                 'Num' => $id_relay,
-                'Pays' => $country,
+                'Pays' => $isoCountry,
                 'Security' => Tools::strtoupper(md5($enseigne.$id_relay.$isoCountry.$apiKey))
             );
+
+            //SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Params : '.print_r($params, true));
+
             $result = $client->WSI2_AdressePointRelais($params);
-            if (!empty($result->WSI2_AdressePointRelaisResult->STAT)) {
+
+            //SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Result : '.print_r($result, true));
+
+            if (!isset($result->WSI2_AdressePointRelaisResult->STAT) || $result->WSI2_AdressePointRelaisResult->STAT != 0 ) {
                 // Web service did not return expected data
-                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Error getting relay data, id relay = ' . $id_relay);
+                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Error '.$result->WSI2_AdressePointRelaisResult->STAT.' getting relay data, id relay = ' . $id_relay);
+                return false;
             } else {
                 return $result->WSI2_AdressePointRelaisResult;
             }
