@@ -3447,7 +3447,13 @@ class ShoppingFluxExport extends Module
                                                     WHERE `id_carrier`=" . $carrier->id . "
                                                     ORDER BY `id_mr_method` DESC");
             if ($method) {
-                $idRelayFormatted = "0".$idRelay;
+
+                $lengthRelayId = strlen($idRelay);
+                while ($lengthRelayId !== 6) {
+                    $idRelay = "0".$idRelay;
+                    $lengthRelayId = strlen($idRelay);
+                }
+                $idRelayFormatted = $idRelay;
                 
                 // Insert data into mondial relay module's table
                 $query = "INSERT INTO `" . _DB_PREFIX_ . "mr_selected`
