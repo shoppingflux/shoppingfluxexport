@@ -3424,7 +3424,7 @@ class ShoppingFluxExport extends Module
     /**
      * Gets relay data from webservice, and inserts into mondial relay module
      */
-    private function setMondialRelayData($idRelay, $idOrder)
+    protected function setMondialRelayData($idRelay, $idOrder)
     {
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'setMondialRelayData('.$idRelay.', '.$idOrder.')');
 
@@ -3476,7 +3476,7 @@ class ShoppingFluxExport extends Module
     /**
      * Retrieve relay details from webservice
      */
-    private function getPointRelaisData($id_relay, $isoCountry)
+    protected function getPointRelaisData($id_relay, $isoCountry)
     {
         $urlWebService = 'http://www.mondialrelay.fr/webservice/Web_Services.asmx?WSDL';
         $mondialRelayConfig = Configuration::get('MR_ACCOUNT_DETAIL');
