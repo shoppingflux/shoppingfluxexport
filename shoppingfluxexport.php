@@ -1684,7 +1684,7 @@ class ShoppingFluxExport extends Module
                             $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other, (string)$order->Marketplace, (string)$order->ShippingMethod);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress shipping or found : '.$id_address_shipping, $doEchoLog);
 
-                            $products_available = $this->_checkProducts($order->Products);
+                            $products_available = $this->_checkProducts($order->Products, $currentToken);
                             $is_products_available_str = $products_available === true ? "yes" : "no";
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check products availabilityresult : '.$is_products_available_str, $doEchoLog);
 
@@ -2724,9 +2724,10 @@ class ShoppingFluxExport extends Module
     /**
      * Adapt product quantity and check Advanced stock management quantities and warehouse availability
      * @param  Object $productsNode
+     * @param  array Current token used
      * @return bool|string success true or error message
      */
-    protected function _checkProducts($productsNode)
+    protected function _checkProducts($productsNode, $currentToken)
     {
         $available = true;
 
@@ -2740,7 +2741,7 @@ class ShoppingFluxExport extends Module
             // Check if the advanced stock management is enabled
             $isAdvStockEnabled = Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1 ? true : false;
             if ($isAdvStockEnabled) {
-                $productObj = new Product($skus[0]);
+                $productObj = new Product($skus[0], false, Configuration::get('PS_LANG_DEFAULT'), (int)$currentToken['id_shop']);
                 if ($productObj->advanced_stock_management == 0) {
                     // Advanced stock management not enabled for this product
                     $isAdvStockEnabled = false;
@@ -2783,7 +2784,7 @@ class ShoppingFluxExport extends Module
      * @param  integer $idAttribute
      * @return array               List of wharehouse ids with available quantity
      */
-    protected function getAvailableWarehouses($idProduct, $idAttribute = 0)
+    protected function getAvailableWarehouses($idProduct, $idAttribute)
     {
 
         $warehouses = array();
