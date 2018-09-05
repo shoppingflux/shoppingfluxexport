@@ -3531,6 +3531,11 @@ class ShoppingFluxExport extends Module
         return $html;
     }
 
+    /**
+     * Check if the marketplace is managing the stock and expedition
+     * @param  string  $marketplace Name of the marketplace
+     * @return boolean
+     */
     protected static function isMarketplaceExpeditedOrder($marketplace)
     {
         $marketplace = Tools::strtolower($marketplace);
@@ -3545,6 +3550,11 @@ class ShoppingFluxExport extends Module
         return in_array($marketplace, $listExpedited);
     }
 
+    /**
+     * Change the order state for an order for which expedition is managed by the marketplace
+     * @param  int $orderId   ID of the order
+     * @param  bool $doEchoLog
+     */
     protected static function changeMarketplaceExpeditedOrderStatut($orderId, $doEchoLog)
     {
         $orderState = Configuration::get('SHOPPING_FLUX_STATE_MP_EXP');
