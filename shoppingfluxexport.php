@@ -572,7 +572,7 @@ class ShoppingFluxExport extends Module
             $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TRACKING',
                         'SHOPPING_FLUX_ORDERS', 'SHOPPING_FLUX_STATUS_SHIPPED', 'SHOPPING_FLUX_STATUS_CANCELED',
                         'SHOPPING_FLUX_LOGIN', 'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
-                        'SHOPPING_FLUX_PACKS', 'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPED'));
+                        'SHOPPING_FLUX_PACKS', 'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPED', 'SHOPPING_FLUX_STATE_MP_EXP'));
 
             $configuration['SHOPPING_FLUX_XML_SHOP_ID'] = Configuration::getGlobalValue('SHOPPING_FLUX_XML_SHOP_ID');
 
