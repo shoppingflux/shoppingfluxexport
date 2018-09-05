@@ -2023,6 +2023,12 @@ class ShoppingFluxExport extends Module
             $carrier = new Carrier((int)$order->id_carrier);
             
             $id_order_marketplace = $this->getMkpOrderIdFromMessage((int)$params['id_order']);
+            if (!$id_order_marketplace) {
+                // This can be the case when multiple orders are created in PrestaShop for the same MKP order (cas of
+                // advanced stock management with products dispatched in multiple warehouses).
+                // In this case only the last order created will have the MKP ID linked.
+                return true;
+            }
 
             $xml = '<?xml version="1.0" encoding="UTF-8"?>';
             $xml .= '<UpdateOrders>';
@@ -2074,6 +2080,12 @@ class ShoppingFluxExport extends Module
             $shipping = $order->getShipping();
 
             $id_order_marketplace = $this->getMkpOrderIdFromMessage((int)$params['id_order']);
+            if (!$id_order_marketplace) {
+                // This can be the case when multiple orders are created in PrestaShop for the same MKP order (cas of
+                // advanced stock management with products dispatched in multiple warehouses).
+                // In this case only the last order created will have the MKP ID linked.
+                return true;
+            }
 
             $xml = '<?xml version="1.0" encoding="UTF-8"?>';
             $xml .= '<UpdateOrders>';
