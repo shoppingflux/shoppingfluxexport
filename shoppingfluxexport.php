@@ -1094,8 +1094,12 @@ class ShoppingFluxExport extends Module
             $this->closeFeed();
             
             // Remove previous feed an place the newly generated one
-            unlink($this->getFeedName(false));
-            rename($this->getFeedName(), $this->getFeedName(false));
+            $feed_name = $this->getFeedName(false);
+            if (file_exists($feed_name)) {
+                unlink($feed_name);
+            }
+            
+            rename($this->getFeedName(), $feed_name);
             
             // Notify end of cron execution
             SfLogger::getInstance()->log(SF_LOG_CRON, 'EXPORT SUCCESSFULL');
