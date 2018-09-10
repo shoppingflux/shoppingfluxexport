@@ -3541,11 +3541,11 @@ class ShoppingFluxExport extends Module
         $marketplace = Tools::strtolower($marketplace);
         
         // List of marketplaces managing expedition (lower-case)
-        $listExpedited = [
+        $listExpedited = array(
             'amazon fba',
             'epmm',
             'clogistique'
-        ];
+        );
         
         return in_array($marketplace, $listExpedited);
     }
