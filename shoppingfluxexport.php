@@ -1370,7 +1370,15 @@ class ShoppingFluxExport extends Module
                 $ret .= '<'.$fieldname.'><![CDATA['.$product->$fieldname.']]></'.$fieldname.'>';
             }
         }
-
+        
+        $combination = $product->getAttributeCombinations($configuration['PS_LANG_DEFAULT']);
+        if(count($combination) > 0){
+            $ret .= '<hierararchy><![CDATA[parent]]></hierararchy>';
+        }
+        else{
+            $ret .= '<hierararchy><![CDATA[simple]]></hierararchy>';
+        }
+        
         $ret .= '</caracteristiques>';
         return $ret;
     }
@@ -1462,7 +1470,9 @@ class ShoppingFluxExport extends Module
 
             $ret .= '</images>';
             $ret .= '<attributs>';
-
+            
+            $ret .= '<hierararchy><![CDATA[child]]></hierararchy>';
+            
             asort($combination['attributes']);
             foreach ($combination['attributes'] as $attributeName => $attributeValue) {
                 $attributeName = $this->_clean($attributeName);
