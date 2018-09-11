@@ -1372,10 +1372,9 @@ class ShoppingFluxExport extends Module
         }
         
         $combination = $product->getAttributeCombinations($configuration['PS_LANG_DEFAULT']);
-        if(count($combination) > 0){
+        if (count($combination) > 0) {
             $ret .= '<hierararchy><![CDATA[parent]]></hierararchy>';
-        }
-        else{
+        } else {
             $ret .= '<hierararchy><![CDATA[simple]]></hierararchy>';
         }
         
