@@ -1419,6 +1419,7 @@ class ShoppingFluxExport extends Module
             $combinations[$combinaison['id_product_attribute']]['quantity'] = $combinaison['quantity'];
             $combinations[$combinaison['id_product_attribute']]['weight'] = $combinaison['weight'] + $product->weight;
             $combinations[$combinaison['id_product_attribute']]['reference'] = $combinaison['reference'];
+            $combinations[$combinaison['id_product_attribute']]['wholesale_price'] = $combinaison['wholesale_price'];
         }
 
         $j = 0;
@@ -1449,6 +1450,7 @@ class ShoppingFluxExport extends Module
             $ret .= '<'.$this->_translateField('price').'><![CDATA['.$product->getPrice(true, $id, 2, null, false, true, 1).']]></'.$this->_translateField('price').'>';
             $ret .= '<'.$this->_translateField('old_price').'><![CDATA['.$product->getPrice(true, $id, 2, null, false, false, 1).']]></'.$this->_translateField('old_price').'>';
             $ret .= '<'.$this->_translateField('shipping_cost').'><![CDATA['.$this->_getShipping($product, $configuration, $carrier, $id, $combination['weight']).']]></'.$this->_translateField('shipping_cost').'>';
+            $ret .= '<wholesale-price><![CDATA['.$combination['wholesale_price'].']]></wholesale-price>';
             $ret .= '<images>';
 
             $image_child = true;
