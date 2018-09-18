@@ -128,7 +128,8 @@ class ShoppingFluxExport extends Module
                 !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300', false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', true, false, null, $shop['id_shop']) ||
                 !Configuration::updateValue('SHOPPING_FLUX_DEBUG_ERRORS', false, false, null, $shop['id_shop']) ||
-                !Configuration::updateValue('SHOPPING_FLUX_DEBUG', true, false, null, $shop['id_shop'])
+                !Configuration::updateValue('SHOPPING_FLUX_DEBUG', true, false, null, $shop['id_shop']) ||
+                !Configuration::updateValue('SHOPPING_FLUX_STATE_MP_EXP', Configuration::get('PS_OS_SHIPPING'), false, null, $shop['id_shop'])
                 ) {
                     $installResult = false;
                 }
@@ -151,7 +152,8 @@ class ShoppingFluxExport extends Module
                      !Configuration::updateValue('SHOPPING_FLUX_PASSES', '300') ||
                      !Configuration::updateValue('SHOPPING_FLUX_ORDERS_DEBUG', true) ||
                      !Configuration::updateValue('SHOPPING_FLUX_DEBUG_ERRORS', false) ||
-                     !Configuration::updateValue('SHOPPING_FLUX_DEBUG', true)
+                     !Configuration::updateValue('SHOPPING_FLUX_DEBUG', true) ||
+                     !Configuration::updateValue('SHOPPING_FLUX_STATE_MP_EXP', Configuration::get('PS_OS_SHIPPING'))
                  ) {
                 $installResult = false;
             }
@@ -230,6 +232,7 @@ class ShoppingFluxExport extends Module
                 !Configuration::deleteByName('SHOPPING_FLUX_CRON_TIME') ||
                 !$this->uninstallCustomConfiguration(array('SHOPPING_FLUX_CRON_TIME')) ||
                 !$this->uninstallCustomConfiguration(array('SHOPPING_FLUX_TOKEN')) ||
+                !Configuration::deleteByName('SHOPPING_FLUX_STATE_MP_EXP') ||
                 !parent::uninstall()) {
             return false;
         }
@@ -385,7 +388,7 @@ class ShoppingFluxExport extends Module
                     'SHOPPING_FLUX_ORDERS', 'SHOPPING_FLUX_STATUS_SHIPPED', 'SHOPPING_FLUX_STATUS_CANCELED', 'SHOPPING_FLUX_LOGIN',
                     'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_PACKS', 'SHOPPING_FLUX_INDEX', 'PS_LANG_DEFAULT', 'SHOPPING_FLUX_CARRIER',
                     'SHOPPING_FLUX_IMAGE', 'SHOPPING_FLUX_SHIPPED', 'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPING_MATCHING',
-                    'SHOPPING_FLUX_PASSES'));
+                    'SHOPPING_FLUX_STATE_MP_EXP', 'SHOPPING_FLUX_PASSES'));
         
         $configuration['SHOPPING_FLUX_XML_SHOP_ID'] = Configuration::getGlobalValue('SHOPPING_FLUX_XML_SHOP_ID');
         
@@ -424,6 +427,7 @@ class ShoppingFluxExport extends Module
                         <p><label>'.$this->l('Shop ID in feed name').' : </label><input type="checkbox" name="SHOPPING_FLUX_XML_SHOP_ID" '.Tools::safeOutput($configuration['SHOPPING_FLUX_XML_SHOP_ID']).'/> '.$this->l('Add the shop ID to the name of the generated xml file (such as feed_1.xml)').'</p>
                         <p><label>'.$this->l('Default carrier').' : </label>'.$this->_getCarriersSelect($configuration, $configuration['SHOPPING_FLUX_CARRIER']).'</p>
                         <p><label>'.$this->l('Default image type').' : </label>'.$this->_getImageTypeSelect($configuration).'</p>
+                        <p style="display: inline-block;"><label>' . $this->l('Default status for orders coming from marketplaces managing stocks and delivery') . ' : </label>' . $this->getContentMarketPlaceExpeditedOrderState($configuration) . '</p>
                         <p><label>'.$this->l('Call marketplace for shipping when order state become').' : </label>'.$this->_getOrderStateShippedSelect($configuration).'</p>
                         <p style="margin-top:20px"><label>'.$this->l('Call marketplace for cancellation when order state become').' : </label>'.$this->_getOrderStateCanceledSelect($configuration).'</p>'
                          .$this->getOverrideFieldsContent($configuration).'
@@ -568,7 +572,7 @@ class ShoppingFluxExport extends Module
             $configuration = Configuration::getMultiple(array('SHOPPING_FLUX_TRACKING',
                         'SHOPPING_FLUX_ORDERS', 'SHOPPING_FLUX_STATUS_SHIPPED', 'SHOPPING_FLUX_STATUS_CANCELED',
                         'SHOPPING_FLUX_LOGIN', 'SHOPPING_FLUX_STOCKS', 'SHOPPING_FLUX_CARRIER', 'SHOPPING_FLUX_IMAGE',
-                        'SHOPPING_FLUX_PACKS', 'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPED'));
+                        'SHOPPING_FLUX_PACKS', 'SHOPPING_FLUX_CANCELED', 'SHOPPING_FLUX_SHIPPED', 'SHOPPING_FLUX_STATE_MP_EXP'));
 
             $configuration['SHOPPING_FLUX_XML_SHOP_ID'] = Configuration::getGlobalValue('SHOPPING_FLUX_XML_SHOP_ID');
 
@@ -1666,7 +1670,7 @@ class ShoppingFluxExport extends Module
                                 continue;
                             }
         
-                            $check = $this->checkData($order);
+                            $check = $this->checkData($order, $order->Marketplace);
                             if ($check !== true) {
                                 SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check data incorrect - '.$check, $doEchoLog);
                                 $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $check, $currentToken['token']);
@@ -1683,7 +1687,7 @@ class ShoppingFluxExport extends Module
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress delivery created or found : '.$id_address_billing, $doEchoLog);
                             $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other, (string)$order->Marketplace, (string)$order->ShippingMethod);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress shipping or found : '.$id_address_shipping, $doEchoLog);
-                            $products_available = $this->_checkProducts($order->Products);
+                            $products_available = $this->_checkProducts($order->Products, $order->Marketplace);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check products availabilityresult : '.$products_available, $doEchoLog);
                             
                             $current_customer = new Customer((int)$id_customer);
@@ -1809,6 +1813,11 @@ class ShoppingFluxExport extends Module
                                     $payment = $this->_validateOrder($cart, $order->Marketplace, $doEchoLog, $forcedOrder);
                                     $id_order = $payment->currentOrder;
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'validateOrder successfull, id_order = '.$id_order, $doEchoLog);
+
+                                    // If this is a market place expedited order, then we change the order state to what was determined in the config
+                                    if (self::isMarketplaceExpeditedOrder($order->Marketplace)) {
+                                         self::changeMarketplaceExpeditedOrderStatut($id_order, $doEchoLog);
+                                    }
         
                                     //we valid there
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Notifying ShoppingFlux of order creation', $doEchoLog);
@@ -1877,7 +1886,7 @@ class ShoppingFluxExport extends Module
      * Check Data to avoid errors
      * @return string|boolean : true if everything ok, error message if not
      */
-    protected function checkData($order)
+    protected function checkData($order, $marketplace)
     {
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Checking order data');
         
@@ -1933,8 +1942,9 @@ class ShoppingFluxExport extends Module
                 $minimalQuantity = (int)Attribute::getAttributeMinimalQty((int)$ids[1]);
             }
 
-
-            if ($minimalQuantity > $product->Quantity) {
+            if ($minimalQuantity > $product->Quantity && !self::isMarketplaceExpeditedOrder($marketplace)) {
+                // There is not enough stock for this product.
+                // This doesn't apply when the order stock is managed by the market place
                 return 'Minimal quantity for product '.$product->SKU.' is '.$minimalQuantity.', product_id = '.$product->id;
             }
         }
@@ -2692,9 +2702,12 @@ class ShoppingFluxExport extends Module
         return $cart;
     }
 
-    protected function _checkProducts($productsNode)
+    protected function _checkProducts($productsNode, $marketplace)
     {
         $available = true;
+
+        // Check if the order stock is managed by the market place
+        $isMarketPlaceExpedited = self::isMarketplaceExpeditedOrder($marketplace);
 
         foreach ($productsNode->Product as $product) {
             if (Configuration::get('SHOPPING_FLUX_REF') == 'true') {
@@ -2705,16 +2718,30 @@ class ShoppingFluxExport extends Module
 
             if (isset($skus[1]) && $skus[1] !== false) {
                 $quantity = StockAvailable::getQuantityAvailableByProduct((int)$skus[0], (int)$skus[1]);
-
-                if ($quantity - $product->Quantity < 0) {
-                    StockAvailable::updateQuantity((int)$skus[0], (int)$skus[1], (int)$product->Quantity);
-                }
+                $idProduct = (int)$skus[0];
+                $idProductAttribute = (int)$skus[1];
             } else {
                 $quantity = StockAvailable::getQuantityAvailableByProduct((int)$product->SKU);
+                $idProduct = (int)$product->SKU;
+                $idProductAttribute = 0;
+            }
 
-                if ($quantity - $product->Quantity < 0) {
-                    StockAvailable::updateQuantity((int)$product->SKU, 0, (int)$product->Quantity);
-                }
+            if ($isMarketPlaceExpedited) {
+                // The stock is managed by the market place.
+                // We directly add the required quantity to the product that will be
+                // later on deduced when the order is validated by PrestaShop
+                $tmpQuantity = $quantity + ((int) $product->Quantity);
+                SfLogger::getInstance()->log(SF_LOG_ORDERS, $marketplace . ': '.
+                    'Changing quantity of product (' . $idProduct . '_' . $idProductAttribute . ') '.
+                    'from ' . $quantity . ' to ' . $tmpQuantity);
+                StockAvailable::updateQuantity($idProduct, $idProductAttribute, $tmpQuantity);
+                
+                // No need to continue
+                continue;
+            }
+
+            if ($quantity - $product->Quantity < 0) {
+                StockAvailable::updateQuantity($idProduct, $idProductAttribute, (int)$product->Quantity);
             }
         }
 
@@ -3489,4 +3516,58 @@ class ShoppingFluxExport extends Module
             }
         }
     }
+
+    protected function getContentMarketPlaceExpeditedOrderState($configuration)
+    {
+        $html = '<select name="SHOPPING_FLUX_STATE_MP_EXP">';
+        
+        foreach (OrderState::getOrderStates($configuration['PS_LANG_DEFAULT']) as $orderState) {
+            $selected = (int) $configuration['SHOPPING_FLUX_STATE_MP_EXP'] === (int) $orderState['id_order_state'] ? 'selected = "selected"' : '';
+            $html .= '<option value="' . $orderState['id_order_state'] . '" ' . $selected . '>' . Tools::safeOutput($orderState['name']) . '</option>';
+        }
+        
+        $html .= '</select>';
+        
+        return $html;
+    }
+
+    /**
+     * Check if the marketplace is managing the stock and expedition
+     * @param  string  $marketplace Name of the marketplace
+     * @return boolean
+     */
+    protected static function isMarketplaceExpeditedOrder($marketplace)
+    {
+        $marketplace = Tools::strtolower($marketplace);
+        
+        // List of marketplaces managing expedition (lower-case)
+        $listExpedited = array(
+            'amazon fba',
+            'epmm',
+            'clogistique'
+        );
+        
+        return in_array($marketplace, $listExpedited);
+    }
+
+    /**
+     * Change the order state for an order for which expedition is managed by the marketplace
+     * @param  int $orderId   ID of the order
+     * @param  bool $doEchoLog
+     */
+    protected static function changeMarketplaceExpeditedOrderStatut($orderId, $doEchoLog)
+    {
+        $orderState = Configuration::get('SHOPPING_FLUX_STATE_MP_EXP');
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Marketplace expedited order - Changing order state to ' . $orderState, $doEchoLog);
+        
+        $order = new Order($orderId);
+        $new_history = new OrderHistory();
+        $new_history->id_order = (int) $orderId;
+        $new_history->changeIdOrderState((int) $orderState, $order, true);
+        $new_history->id_order_state = (int) $orderState;
+        $new_history->add(true, false, false);
+        
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Marketplace expedited order - Change completed', $doEchoLog);
+    }
+
 }
