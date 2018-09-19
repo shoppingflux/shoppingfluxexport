@@ -68,6 +68,11 @@ class ShoppingFluxExport extends Module
         if (empty($productsToBeTreated) || !isset($productsToBeTreated)) {
             Configuration::updateValue('SHOPPING_FLUX_PASSES', '200');
         }
+            
+        // Check if matching carrier exist or active
+        if ($this->checkMatchingCarrierExist() === false) {
+            $this->warning = $this->l('There is a carrier that is not active or has been deleted.');
+        }
     }
 
     public function install()
@@ -285,6 +290,11 @@ class ShoppingFluxExport extends Module
         $status_xml = $this->_checkToken();
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
         
+        //Show a message if matching carrier does not exist
+        if ($this->checkMatchingCarrierExist() === false) {
+            $this->_html .= $this->displayWarning($this->l('There is a carrier that is not active or has been deleted.'));
+        }
+        
         switch ($status) {
             case 'Client':
                 $this->_html .= $this->_clientView();
@@ -457,7 +467,10 @@ class ShoppingFluxExport extends Module
         foreach ($sf_carriers_xml->Response->Carriers->Carrier as $carrier) {
             $sf_carriers[] = (string)$carrier;
         }
-
+        
+        //Save carrier list 
+        Configuration::updateValue('SHOPPING_FLUX_CARRIERS_LIST', serialize($sf_carriers));
+        
         $html = '<h3>'.$this->l('Advanced Parameters').'</h3>
             <form method="post" action="'.Tools::safeOutput($_SERVER['REQUEST_URI']).'">
                 <fieldset>
@@ -3621,5 +3634,30 @@ class ShoppingFluxExport extends Module
         
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Marketplace expedited order - Change completed', $doEchoLog);
     }
-
+    
+    /**
+     * Check marching carrier if exist
+     * @return boolean
+     */
+    protected function checkMatchingCarrierExist()
+    {
+        $cacheCarrierList = Configuration::get('SHOPPING_FLUX_CARRIERS_LIST');
+        if (empty($cacheCarrierList)) {
+            return true;
+        }
+        
+        $sf_carriers = unserialize($cacheCarrierList);
+        $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
+        foreach ($sf_carriers as $sf_carrier) {
+            $actual_value = isset($actual_configuration[base64_encode(Tools::safeOutput($sf_carrier))]) ?
+            $actual_configuration[base64_encode(Tools::safeOutput($sf_carrier))] :
+            Configuration::get('SHOPPING_FLUX_CARRIER');
+            $actual_carrier = new Carrier((int) $actual_value);
+            if (!Validate::isLoadedObject($actual_carrier) || $actual_carrier->active == 0 || $actual_carrier->deleted == 1) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
 }
