@@ -3651,7 +3651,7 @@ class ShoppingFluxExport extends Module
         $mondialRelayConfig = unserialize($mondialRelayConfig);
         $client = new SoapClient($urlWebService);
         if (!is_object($client)) {
-                // Error connecting to webservice
+            // Error connecting to webservice
             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Could not create SOAP client for URL ' . $urlWebService);
             return false;
         }
