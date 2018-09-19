@@ -3648,35 +3648,35 @@ class ShoppingFluxExport extends Module
             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Account is not configured');
             return false;
         }
-            $mondialRelayConfig = unserialize($mondialRelayConfig);
-            $client = new SoapClient($urlWebService);
+        $mondialRelayConfig = unserialize($mondialRelayConfig);
+        $client = new SoapClient($urlWebService);
         if (!is_object($client)) {
                 // Error connecting to webservice
-                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Could not create SOAP client for URL ' . $urlWebService);
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Could not create SOAP client for URL ' . $urlWebService);
             return false;
-            }
-            $client->soap_defencoding = 'UTF-8';
-            $client->decode_utf8 = false;
+        }
+        $client->soap_defencoding = 'UTF-8';
+        $client->decode_utf8 = false;
 
-            $enseigne = $mondialRelayConfig['MR_ENSEIGNE_WEBSERVICE'];
-            $apiKey = $mondialRelayConfig['MR_KEY_WEBSERVICE'];
-            $params = array (
-                'Enseigne' => $enseigne,
-                'Num' => $id_relay,
+        $enseigne = $mondialRelayConfig['MR_ENSEIGNE_WEBSERVICE'];
+        $apiKey = $mondialRelayConfig['MR_KEY_WEBSERVICE'];
+        $params = array (
+            'Enseigne' => $enseigne,
+            'Num' => $id_relay,
             'Pays' => $isoCountry,
-                'Security' => Tools::strtoupper(md5($enseigne.$id_relay.$isoCountry.$apiKey))
-            );
+            'Security' => Tools::strtoupper(md5($enseigne.$id_relay.$isoCountry.$apiKey))
+        );
 
-            $result = $client->WSI2_AdressePointRelais($params);
+        $result = $client->WSI2_AdressePointRelais($params);
 
         if (!isset($result->WSI2_AdressePointRelaisResult->STAT) || $result->WSI2_AdressePointRelaisResult->STAT != 0 ) {
-                // Web service did not return expected data
+            // Web service did not return expected data
             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Error '.$result->WSI2_AdressePointRelaisResult->STAT.' getting relay data, id relay = ' . $id_relay);
             return false;
-            } else {
-                return $result->WSI2_AdressePointRelaisResult;
-            }
+        } else {
+            return $result->WSI2_AdressePointRelaisResult;
         }
+    }
 
     protected function getContentMarketPlaceExpeditedOrderState($configuration)
     {
@@ -3685,7 +3685,7 @@ class ShoppingFluxExport extends Module
         foreach (OrderState::getOrderStates($configuration['PS_LANG_DEFAULT']) as $orderState) {
             $selected = (int) $configuration['SHOPPING_FLUX_STATE_MP_EXP'] === (int) $orderState['id_order_state'] ? 'selected = "selected"' : '';
             $html .= '<option value="' . $orderState['id_order_state'] . '" ' . $selected . '>' . Tools::safeOutput($orderState['name']) . '</option>';
-    }
+        }
         
         $html .= '</select>';
         
