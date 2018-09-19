@@ -70,7 +70,7 @@ class ShoppingFluxExport extends Module
         }
             
         // Check if matching carrier exist or active
-        if ($this->checkMatchingCarrierExist() === false) {
+        if ($this->checkCarriersInconsistencies() === false) {
             $this->warning = $this->l('There is a carrier that is not active or has been deleted.');
         }
     }
@@ -291,7 +291,7 @@ class ShoppingFluxExport extends Module
         $status = is_object($status_xml) ? $status_xml->Response->Status : '';
         
         //Show a message if matching carrier does not exist
-        if ($this->checkMatchingCarrierExist() === false) {
+        if ($this->checkCarriersInconsistencies() === false) {
             $this->_html .= $this->displayWarning($this->l('There is a carrier that is not active or has been deleted.'));
         }
         
@@ -3636,28 +3636,36 @@ class ShoppingFluxExport extends Module
     }
     
     /**
-     * Check marching carrier if exist
+     * Will check if there are inconsistencies in the matches between ShoppingFlux carriers and PrestaShop carriers.
+     * An inconsistency may happen when a carrier that has been matched with a market place carrier has been delete or disabled.
      * @return boolean
      */
-    protected function checkMatchingCarrierExist()
+    protected function checkCarriersInconsistencies()
     {
+        // The list of carriers has been cached to avoid API call in the module list
         $cacheCarrierList = Configuration::get('SHOPPING_FLUX_CARRIERS_LIST');
         if (empty($cacheCarrierList)) {
+            // The list of carriers is not cached yet, we do not process (we consider that the matching is correct)
             return true;
         }
         
         $sf_carriers = unserialize($cacheCarrierList);
         $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
+
+        // We go through each carriers comming from ShoppingFlux to find the PrestaShop match
         foreach ($sf_carriers as $sf_carrier) {
-            $actual_value = isset($actual_configuration[base64_encode(Tools::safeOutput($sf_carrier))]) ?
-            $actual_configuration[base64_encode(Tools::safeOutput($sf_carrier))] :
-            Configuration::get('SHOPPING_FLUX_CARRIER');
-            $actual_carrier = new Carrier((int) $actual_value);
-            if (!Validate::isLoadedObject($actual_carrier) || $actual_carrier->active == 0 || $actual_carrier->deleted == 1) {
+            $id_carrier = isset($actual_configuration[base64_encode(Tools::safeOutput($sf_carrier))]) ?
+                $actual_configuration[base64_encode(Tools::safeOutput($sf_carrier))] :
+                Configuration::get('SHOPPING_FLUX_CARRIER');
+
+            $carrier_ps = new Carrier((int)$id_carrier);
+            if (!Validate::isLoadedObject($carrier_ps) || $carrier_ps->active == 0 || $carrier_ps->deleted == 1) {
+                // Inconsistency
                 return false;
             }
         }
         
+        // Teh matching is correct
         return true;
     }
 }
