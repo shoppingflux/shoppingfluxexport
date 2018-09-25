@@ -1712,8 +1712,7 @@ class ShoppingFluxExport extends Module
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress delivery created or found : '.$id_address_billing, $doEchoLog);
                             $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other, (string)$order->Marketplace, (string)$order->ShippingMethod);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress shipping or found : '.$id_address_shipping, $doEchoLog);
-                            $products_available = $this->_checkProducts($order->Products, $order->Marketplace);
-                            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check products availabilityresult : '.$products_available, $doEchoLog);
+                            $this->checkProductsQuantity($order->Products, $order->Marketplace);
                             
                             $current_customer = new Customer((int)$id_customer);
         
@@ -1916,7 +1915,8 @@ class ShoppingFluxExport extends Module
     
 
     /**
-     * Check Data to avoid errors
+     * Check Data to avoid errors when creating the order
+     * 
      * @return string|boolean : true if everything ok, error message if not
      */
     protected function checkData($order, $marketplace)
@@ -1975,10 +1975,10 @@ class ShoppingFluxExport extends Module
                 $minimalQuantity = (int)Attribute::getAttributeMinimalQty((int)$ids[1]);
             }
 
-            if ($minimalQuantity > $product->Quantity && !self::isMarketplaceExpeditedOrder($marketplace)) {
-                // There is not enough stock for this product.
-                // This doesn't apply when the order stock is managed by the market place
-                return 'Minimal quantity for product '.$product->SKU.' is '.$minimalQuantity.', product_id = '.$product->id;
+            // We check that we are ordering enough quantity for each product. (Based on the minimal quantity to buy)
+            if ($minimalQuantity > $product->Quantity) {
+                // There is not enough quantity to buy for this product
+                return 'Minimal quantity to buy for product '.$product->SKU.' is '.$minimalQuantity.', SKU = '.$product->SKU.', ID = '.$product->id;
             }
         }
 
@@ -2735,10 +2735,23 @@ class ShoppingFluxExport extends Module
         return $cart;
     }
 
-    protected function _checkProducts($productsNode, $marketplace)
+    /**
+     * Check and update product quantity
+     *
+     * Check if there is enough quantity associated to the products before creating the order. If
+     * the quantity is not sufficient, when update the quantity of the product to avoid an error
+     * durant the creation of the order.
+     *
+     * For orders expedited directly from a marketplace, the product quantity should not be impacted,
+     * therefore, we temporarily increase the quantity that will then be decrease by PrestaShop while
+     * creating the order. So the final quantity will not change on the shop once the order has been
+     * created.
+     * 
+     * @param  Object $productsNode the product node coming from the API
+     * @param  string $marketplace name of the markeplace
+     */
+    protected function checkProductsQuantity($productsNode, $marketplace)
     {
-        $available = true;
-
         // Check if the order stock is managed by the market place
         $isMarketPlaceExpedited = self::isMarketplaceExpeditedOrder($marketplace);
 
@@ -2777,8 +2790,6 @@ class ShoppingFluxExport extends Module
                 StockAvailable::updateQuantity($idProduct, $idProductAttribute, (int)$product->Quantity);
             }
         }
-
-        return $available;
     }
 
     protected function _validOrders($id_order, $marketplace, $id_order_merchant = false, $error = false, $token = null)
