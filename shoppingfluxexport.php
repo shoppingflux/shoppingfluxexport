@@ -1921,7 +1921,7 @@ class ShoppingFluxExport extends Module
      */
     protected function checkData($order, $marketplace)
     {
-        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Checking order data');
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Checking order '.$order->IdOrder.' ('.$marketplace.') data');
         
         $id_shop = $this->context->shop->id;
         foreach ($order->Products->Product as $product) {
