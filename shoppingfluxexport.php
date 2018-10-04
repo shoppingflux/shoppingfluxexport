@@ -2435,7 +2435,6 @@ class ShoppingFluxExport extends Module
     {
         $tax_rate = 0;
         $total_products_tax_excl = 0;
-        $fdgTaxExcluded = 0;
 
         // We may have multiple orders created for the same reference, (advanced stock management)
         // therefore the total price of each orders needs to be calculated separately
@@ -2516,8 +2515,6 @@ class ShoppingFluxExport extends Module
         
         // Cdiscount fees handling
         if ((float) $order->TotalFees > 0) {
-            $fdgTaxExcluded = (float)((float)$order->TotalFees / (1 + ($tax_rate / 100)));
-
             // Retrieve the order invoice ID to associate it with the FDG.
             // This way, the FDG will appears in the invoice.
             $idOrderInvoice = Db::getInstance()->getValue('
@@ -2560,9 +2557,9 @@ class ShoppingFluxExport extends Module
                 'download_nb' => 0,
                 'download_deadline' => null,
                 'total_price_tax_incl' => (float) $order->TotalFees,
-                'total_price_tax_excl' => $fdgTaxExcluded,
+                'total_price_tax_excl' => (float) $order->TotalFees,
                 'unit_price_tax_incl' => (float) $order->TotalFees,
-                'unit_price_tax_excl' => $fdgTaxExcluded,
+                'unit_price_tax_excl' => (float) $order->TotalFees,
                 'total_shipping_price_tax_incl' => 0,
                 'total_shipping_price_tax_excl' => 0,
                 'purchase_supplier_price' => 0,
@@ -2578,16 +2575,13 @@ class ShoppingFluxExport extends Module
                 WHERE od.id_order = '.(int)$id_order.' AND od.product_reference = "FDG-ShoppingFlux"';
             $id_order_detail_fdg = Db::getInstance()->getValue($sql);
 
-            // calculate the tax of the FDG
-            $fdg_tax_amount = Tools::ps_round((float)((float)$order->TotalFees - ((float)$order->TotalFees / (1 + ($tax_rate / 100)))), 2);
-
             // Insert the FDG in the tax details
-            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Inserting Cdiscount fees in order_detail_tax, id_order_detail_fdg = '.$id_order_detail_fdg.', fdg_tax_amount = '.$fdg_tax_amount);
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Inserting Cdiscount fees in order_detail_tax, id_order_detail_fdg = '.$id_order_detail_fdg.', fdg_tax_amount = 0');
             $insertOrderDetailTaxFgd = array(
                 'id_order_detail' => $id_order_detail_fdg,
-                'id_tax' => $id_tax,
-                'unit_amount'  => $fdg_tax_amount,
-                'total_amount' => $fdg_tax_amount,
+                'id_tax' => 0,
+                'unit_amount'  => 0,
+                'total_amount' => 0,
             );
             Db::getInstance()->insert('order_detail_tax', $insertOrderDetailTaxFgd);
         }
@@ -2604,7 +2598,8 @@ class ShoppingFluxExport extends Module
         $carrier = is_object($carrier) ? $carrier : new Carrier($carrier_to_load);
 
         // FDG price is only added to the main order
-        $priceByRef[$id_order]['total_products_tax_excl'] = Tools::ps_round($priceByRef[$id_order]['total_products_tax_excl'] + $fdgTaxExcluded, 2);
+        $priceByRef[$id_order]['total_products_tax_excl'] = Tools::ps_round($priceByRef[$id_order]['total_products_tax_excl'] + (float) $order->TotalFees, 2);
+        $priceByRef[$id_order]['total_products_tax_incl'] = Tools::ps_round($priceByRef[$id_order]['total_products_tax_incl'] + (float) $order->TotalFees, 2);
 
         // Carrier tax calculation START
         if (Configuration::get('PS_TAX_ADDRESS_TYPE') == 'id_address_invoice') {
@@ -2621,7 +2616,7 @@ class ShoppingFluxExport extends Module
             // Only on main order
             if ($anOrderId == (int)$id_order) {
                 // main order
-                $total_paid = (float)($total_paid + (float)$order->TotalShipping + (float) $order->TotalFees);
+                $total_paid = (float)($total_paid + (float)$order->TotalShipping);
                 $total_paid_tax_excl = (float)($priceByRef[$id_order]['total_products_tax_excl'] + (float)$total_shipping_tax_excl);
                 $priceByRef[$anOrderId]['total_shipping'] = (float)($order->TotalShipping);
                 $priceByRef[$anOrderId]['total_shipping_tax_incl'] = (float)($order->TotalShipping);
