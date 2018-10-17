@@ -2871,7 +2871,6 @@ class ShoppingFluxExport extends Module
         
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check stock in warehouses for id_product '.$idProduct.' and id_product_attribute '.$idAttribute);
 
-        // Profileo #786 - 
         foreach ($warehouseInfos as $aWarehouse) {
             $id_warehouse = (int)$aWarehouse['id_warehouse'];
 
