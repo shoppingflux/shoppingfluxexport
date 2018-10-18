@@ -2309,8 +2309,6 @@ class ShoppingFluxExport extends Module
         } else {
             $lastname = (string)$addressNode->LastName;
             $firstname = (string)$addressNode->FirstName;
-            $address->company = pSQL($addressNode->Company);
-            $address->address2 = pSQL($street2);
         }
 
         $lastname = preg_replace('/\-?\d+/', '', $lastname);
@@ -2326,8 +2324,8 @@ class ShoppingFluxExport extends Module
         $address->lastname = (!empty($lastname)) ? pSQL($lastname) : $customer->lastname;
         $address->firstname = (!empty($firstname)) ? pSQL($firstname) : $customer->firstname;
         $address->address1 = pSQL($street1);
-        $address->address2 = pSQL($street2);
-        $address->company = pSQL($addressNode->Company);
+        $address->address2 = empty($address->address2) ? pSQL($street2) : $address->address2;
+        $address->company = empty($address->company) ? pSQL($addressNode->Company) : $address->company;
         $address->other = pSQL($other);
         $address->postcode = pSQL($addressNode->PostalCode);
         $address->city = pSQL($addressNode->Town);
