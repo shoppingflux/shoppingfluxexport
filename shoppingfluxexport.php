@@ -446,16 +446,9 @@ class ShoppingFluxExport extends Module
             return;
         }
 
-        $sf_carriers_xml = $this->_callWebService('GetCarriers');
-
-        if (!isset($sf_carriers_xml->Response->Carriers->Carrier[0])) {
+        $sf_carriers = $this->getCarriersFromWebService();
+        if (!$sf_carriers) {
             return;
-        }
-
-        $sf_carriers = array();
-
-        foreach ($sf_carriers_xml->Response->Carriers->Carrier as $carrier) {
-            $sf_carriers[] = (string)$carrier;
         }
 
         $html = '<h3>'.$this->l('Advanced Parameters').'</h3>
@@ -2585,9 +2578,9 @@ class ShoppingFluxExport extends Module
         }
         
         $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
-
-        $carrier_to_load = isset($actual_configuration[base64_encode(Tools::safeOutput((string)$order->ShippingMethod))]) ?
-                (int)$actual_configuration[base64_encode(Tools::safeOutput((string)$order->ShippingMethod))] :
+        $shipping_method = Tools::strtolower((string)$order->ShippingMethod);     // uniformise using lowercase only
+        $carrier_to_load = isset($actual_configuration[base64_encode(Tools::safeOutput($shipping_method))]) ?
+                (int)$actual_configuration[base64_encode(Tools::safeOutput($shipping_method))] :
                 (int)Configuration::get('SHOPPING_FLUX_CARRIER');
 
         $carrier = Carrier::getCarrierByReference($carrier_to_load);
@@ -2721,6 +2714,7 @@ class ShoppingFluxExport extends Module
         $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
         
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Retrieving carrier, shipping method = '.$shipping_method.', configured carrier reference = '.Configuration::get('SHOPPING_FLUX_CARRIER'), $doEchoLog);
+        $shipping_method = Tools::strtolower($shipping_method);     // uniformise using lowercase only
         $carrier_to_load = isset($actual_configuration[base64_encode(Tools::safeOutput($shipping_method))]) ?
             (int)$actual_configuration[base64_encode(Tools::safeOutput($shipping_method))] :
             (int)Configuration::get('SHOPPING_FLUX_CARRIER');
@@ -3667,6 +3661,52 @@ class ShoppingFluxExport extends Module
             return false;
         } else {
             return $result->WSI2_AdressePointRelaisResult;
+        }
+    }
+
+    /**
+     * Retrieve the list of carriers from the webservice
+     * @param  boolean $to_lower return the list in lower string
+     * @return boolean|array false if no carriers retrieved, otherwise a formated array of carriers
+     */
+    protected function getCarriersFromWebService($to_lower = true)
+    {
+        $sf_carriers_xml = $this->_callWebService('GetCarriers');
+        if (!isset($sf_carriers_xml->Response->Carriers->Carrier[0])) {
+            return false;
+        }
+
+        $sf_carriers = array();
+        foreach ($sf_carriers_xml->Response->Carriers->Carrier as $carrier) {
+            if ($to_lower) {
+                $sf_carriers[] = Tools::strtolower((string)$carrier);    // uniformise using lowercase only
+            } else {
+                $sf_carriers[] = (string)$carrier;  // legacy used by migrateToNewCarrierMatching
+            }
+        }
+
+        return $sf_carriers;
+    }
+
+    /**
+     * 4.6.2 updgrade to migrate legacy matching carriers to new matching (all carrier names in lowercase)
+     */
+    public function migrateToNewCarrierMatching()
+    {
+        $matching_carriers     = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
+        $new_matching_carriers = array();
+        $sf_carriers           = $this->getCarriersFromWebService(false);
+        if (!empty($sf_carriers)) {
+            foreach ($sf_carriers as $sf_carrier) {
+                $existing_hash = base64_encode(Tools::safeOutput($sf_carrier));
+                $new_hash      = base64_encode(Tools::safeOutput(Tools::strtolower($sf_carrier)));
+                $id_carrier    = (int)Configuration::get('SHOPPING_FLUX_CARRIER');
+                if (isset($matching_carriers[$existing_hash])) {
+                    $id_carrier = $matching_carriers[$existing_hash];
+                }
+                $new_matching_carriers[$new_hash] = $id_carrier;
+            }
+            Configuration::updateValue('SHOPPING_FLUX_SHIPPING_MATCHING', serialize($new_matching_carriers));
         }
     }
 
