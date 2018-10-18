@@ -1725,12 +1725,20 @@ class ShoppingFluxExport extends Module
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress delivery created or found : '.$id_address_billing, $doEchoLog);
                             $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other, (string)$order->Marketplace, (string)$order->ShippingMethod);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress shipping or found : '.$id_address_shipping, $doEchoLog);
-                            $products_available = $this->_checkProducts($order->Products, $order->Marketplace);
-                            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check products availabilityresult : '.$products_available, $doEchoLog);
-                            
+
+                            $products_available = $this->_checkProducts($order->Products, $currentToken, $order->Marketplace);
+                            $is_products_available_str = $products_available === true ? "yes" : "no";
+                            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check products availabilityresult : '.$is_products_available_str, $doEchoLog);
+
+                            if ($products_available !== true) {
+                                SfLogger::getInstance()->log(SF_LOG_ORDERS, $products_available, $doEchoLog);
+                                $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, false, $products_available, $currentToken['token']);
+                                continue;
+                            }
+
                             $current_customer = new Customer((int)$id_customer);
         
-                            if ($products_available && $id_address_shipping && $id_address_billing && $id_customer) {
+                            if ($id_address_shipping && $id_address_billing && $id_customer) {
                                 $cart = $this->_getCart($id_customer, $id_address_billing, $id_address_shipping, $order->Products, (string)$order->Currency, (string)$order->ShippingMethod, $order->TotalFees, $currentToken['id_lang'], $doEchoLog);
             
                                 if ($cart) {
@@ -1868,12 +1876,14 @@ class ShoppingFluxExport extends Module
 
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Real customer email set again : ' . $email, $doEchoLog);
                                     
-                                    $this->_updatePrices($id_order, $order, $reference_order);
+                                    $idOrdersList = $this->_updatePrices($id_order, $order, $reference_order);
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Prices of the order successfully set', $doEchoLog);
     
                                     // Avoid SoColissimo module to change the address by the one he created
-                                    $sql_update = 'UPDATE '._DB_PREFIX_.'orders SET id_address_delivery = '.(int)$id_address_shipping.' WHERE id_order = '.(int)$id_order;
-                                    Db::getInstance()->execute($sql_update);
+                                    foreach ($idOrdersList as $anOrderId) {
+                                        $sql_update = 'UPDATE '._DB_PREFIX_.'orders SET id_address_delivery = '.(int)$id_address_shipping.' WHERE id_order = '.(int)$anOrderId;
+                                        Db::getInstance()->execute($sql_update);
+                                    }
                                     
                                     // Sets the relay information to be able to print with mondial relay module
                                     // Before that, it's required to clear the Order object cache in order to make sure to get the updated carrier information
@@ -1934,7 +1944,7 @@ class ShoppingFluxExport extends Module
      */
     protected function checkData($order, $marketplace)
     {
-        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Checking order data');
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Checking order '.$order->IdOrder.' ('.$marketplace.') data');
         
         $id_shop = $this->context->shop->id;
         foreach ($order->Products->Product as $product) {
@@ -2069,6 +2079,12 @@ class ShoppingFluxExport extends Module
             $carrier = new Carrier((int)$order->id_carrier);
             
             $id_order_marketplace = $this->getMkpOrderIdFromMessage((int)$params['id_order']);
+            if (!$id_order_marketplace) {
+                // This can be the case when multiple orders are created in PrestaShop for the same MKP order (cas of
+                // advanced stock management with products dispatched in multiple warehouses).
+                // In this case only the last order created will have the MKP ID linked.
+                return true;
+            }
 
             $xml = '<?xml version="1.0" encoding="UTF-8"?>';
             $xml .= '<UpdateOrders>';
@@ -2120,6 +2136,12 @@ class ShoppingFluxExport extends Module
             $shipping = $order->getShipping();
 
             $id_order_marketplace = $this->getMkpOrderIdFromMessage((int)$params['id_order']);
+            if (!$id_order_marketplace) {
+                // This can be the case when multiple orders are created in PrestaShop for the same MKP order (cas of
+                // advanced stock management with products dispatched in multiple warehouses).
+                // In this case only the last order created will have the MKP ID linked.
+                return true;
+            }
 
             $xml = '<?xml version="1.0" encoding="UTF-8"?>';
             $xml .= '<UpdateOrders>';
@@ -2428,8 +2450,15 @@ class ShoppingFluxExport extends Module
         $total_products_tax_excl = 0;
         $fdgTaxExcluded = 0;
 
+        // We may have multiple orders created for the same reference, (advanced stock management)
+        // therefore the total price of each orders needs to be calculated separately
+        $priceByRef = array();
+        $idOrdersList = array();
+
         // The id_tax linked to one of the product
         $id_tax = 0;
+
+        $psOrder = new Order((int)$id_order);
 
         foreach ($order->Products->Product as $product) {
             if (Configuration::get('SHOPPING_FLUX_REF') == 'true') {
@@ -2438,10 +2467,11 @@ class ShoppingFluxExport extends Module
                 $skus = explode('_', $product->SKU);
             }
 
-            $sql = 'SELECT t.rate, od.id_order_detail, t.id_tax FROM '._DB_PREFIX_.'tax t
+            $sql = 'SELECT t.rate, od.id_order_detail, od.id_order, t.id_tax FROM '._DB_PREFIX_.'tax t
                 LEFT JOIN '._DB_PREFIX_.'order_detail_tax odt ON t.id_tax = odt.id_tax
                 LEFT JOIN '._DB_PREFIX_.'order_detail od ON odt.id_order_detail = od.id_order_detail
-                WHERE od.id_order = '.(int)$id_order.' AND product_id = '.(int)$skus[0];
+                LEFT JOIN '._DB_PREFIX_.'orders o ON o.id_order = od.id_order
+                WHERE o.reference LIKE "'.pSQL($reference_order).'" AND product_id = '.(int)$skus[0];
             if (isset($skus[1]) && $skus[1]) {
                 $sql .= ' AND product_attribute_id = '.(int)$skus[1];
             }
@@ -2453,8 +2483,27 @@ class ShoppingFluxExport extends Module
 
             $id_tax = $row['id_tax'];
 
+            // Retrive the id_order linked to the order_reference (as there might be multiple orders created 
+            // from the same reference)
+            $id_order_from_reference = (int)$row['id_order'];
+            if (!in_array($id_order_from_reference, $idOrdersList)) {
+                // We populate the list of orders with the same reference
+                $idOrdersList[] = $id_order_from_reference;
+            }
+
             $total_price_tax_excl = (float)(((float)$product->Price / (1 + ($tax_rate / 100))) * $product->Quantity);
-            $total_products_tax_excl += $total_price_tax_excl;
+
+            if (!isset($priceByRef[$id_order_from_reference])) {
+                $priceByRef[$id_order_from_reference] = array();
+            }
+            if (!isset($priceByRef[$id_order_from_reference]['total_products_tax_excl'])) {
+                $priceByRef[$id_order_from_reference]['total_products_tax_excl'] = 0;
+            }
+            if (!isset($priceByRef[$id_order_from_reference]['total_products_tax_incl'])) {
+                $priceByRef[$id_order_from_reference]['total_products_tax_incl'] = 0;
+            }
+            $priceByRef[$id_order_from_reference]['total_products_tax_excl'] += $total_price_tax_excl;
+            $priceByRef[$id_order_from_reference]['total_products_tax_incl'] += (float)((float)$product->Price * $product->Quantity);
             
             $id_product_attribute = (isset($skus[1]) && $skus[1]) ? (int)$skus[1] : 0;
             $original_product_price = Product::getPriceStatic((int)$skus[0], false, $id_product_attribute, 6);
@@ -2469,7 +2518,7 @@ class ShoppingFluxExport extends Module
                 'unit_price_tax_excl'  => (float)((float)$product->Price / (1 + ($tax_rate / 100))),
                 'original_product_price' => $original_product_price,
             );
-            Db::getInstance()->update('order_detail', $updateOrderDetail, '`id_order` = '.(int)$id_order.' AND `product_id` = '.(int)$skus[0].' AND `product_attribute_id` = '.$id_product_attribute);
+            Db::getInstance()->update('order_detail', $updateOrderDetail, '`id_order` = '.(int)$id_order_from_reference.' AND `product_id` = '.(int)$skus[0].' AND `product_attribute_id` = '.$id_product_attribute);
             
             $updateOrderDetailTax = array(
                 'unit_amount'  => Tools::ps_round((float)((float)$product->Price - ((float)$product->Price / (1 + ($tax_rate / 100)))), 2),
@@ -2481,8 +2530,6 @@ class ShoppingFluxExport extends Module
         // Cdiscount fees handling
         if ((float) $order->TotalFees > 0) {
             $fdgTaxExcluded = (float)((float)$order->TotalFees / (1 + ($tax_rate / 100)));
-            
-            $orderLoaded = new Order((int)$id_order);
 
             // Retrieve the order invoice ID to associate it with the FDG.
             // This way, the FDG will appears in the invoice.
@@ -2495,7 +2542,7 @@ class ShoppingFluxExport extends Module
                 'id_order' => (int) $id_order,
                 'id_order_invoice' => empty($idOrderInvoice) ? 0 : (int)$idOrderInvoice,
                 'id_warehouse' => 0,
-                'id_shop' => (int) $orderLoaded->id_shop,
+                'id_shop' => (int) $psOrder->id_shop,
                 'product_id' => 0,
                 'product_attribute_id' => 0,
                 'product_name' => 'CDiscount fees - ShoppingFlux',
@@ -2569,83 +2616,77 @@ class ShoppingFluxExport extends Module
         //manage case PS_CARRIER_DEFAULT is deleted
         $carrier = is_object($carrier) ? $carrier : new Carrier($carrier_to_load);
 
-        $total_products_tax_excl = Tools::ps_round($total_products_tax_excl + $fdgTaxExcluded, 2);
+        // FDG price is only added to the main order
+        $priceByRef[$id_order]['total_products_tax_excl'] = Tools::ps_round($priceByRef[$id_order]['total_products_tax_excl'] + $fdgTaxExcluded, 2);
 
         // Carrier tax calculation START
-        $ps_order = new Order($id_order);
         if (Configuration::get('PS_TAX_ADDRESS_TYPE') == 'id_address_invoice') {
-            $address = new Address($ps_order->id_address_invoice);
+            $address = new Address($psOrder->id_address_invoice);
         } else {
-            $address = new Address($ps_order->id_address_delivery);
+            $address = new Address($psOrder->id_address_delivery);
         }
         $carrier_tax_rate = $carrier->getTaxesRate($address);
         $total_shipping_tax_excl = Tools::ps_round((float)((float)$order->TotalShipping / (1 + ($carrier_tax_rate / 100))), 2);
 
-        // Total paid tax excluded calculation
-        $total_paid_tax_excl = $total_products_tax_excl + $total_shipping_tax_excl;
+        foreach ($idOrdersList as $anOrderId) {
+            $total_paid = (float)$priceByRef[$anOrderId]['total_products_tax_incl'];
+            $total_paid_tax_excl = (float)$priceByRef[$anOrderId]['total_products_tax_excl'];
+            // Only on main order
+            if ($anOrderId == (int)$id_order) {
+                // main order
+                $total_paid = (float)($total_paid + (float)$order->TotalShipping + (float) $order->TotalFees);
+                $total_paid_tax_excl = (float)($priceByRef[$id_order]['total_products_tax_excl'] + (float)$total_shipping_tax_excl);
+                $priceByRef[$anOrderId]['total_shipping'] = (float)($order->TotalShipping);
+                $priceByRef[$anOrderId]['total_shipping_tax_incl'] = (float)($order->TotalShipping);
+                $priceByRef[$anOrderId]['total_shipping_tax_excl'] = $total_shipping_tax_excl;
+            } else {
+                $priceByRef[$anOrderId]['total_shipping'] = 0;
+                $priceByRef[$anOrderId]['total_shipping_tax_incl'] = 0;
+                $priceByRef[$anOrderId]['total_shipping_tax_excl'] = 0;
+            }
 
-        if ((float)$order->TotalFees > 0) {
+            $priceByRef[$anOrderId]['total_paid'] = (float)$total_paid;
+            $priceByRef[$anOrderId]['total_paid_tax_incl'] = (float)$total_paid;
+            $priceByRef[$anOrderId]['total_paid_tax_excl'] = (float)$total_paid_tax_excl;
+        
             $updateOrder = array(
-                'total_paid'              => (float)($order->TotalAmount),
-                'total_paid_tax_incl'     => (float)($order->TotalAmount),
-                'total_paid_tax_excl'     => (float)$total_paid_tax_excl,
-                'total_paid_real'         => (float)($order->TotalAmount),
-                'total_products'          => (float)$total_products_tax_excl,
-                'total_products_wt'       => (float)((float)$order->TotalProducts + (float)$order->TotalFees),
-                'total_shipping'          => (float)($order->TotalShipping),
-                'total_shipping_tax_incl' => (float)($order->TotalShipping),
-                'total_shipping_tax_excl' => $total_shipping_tax_excl,
+                'total_paid'              => (float)$priceByRef[$anOrderId]['total_paid'],
+                'total_paid_tax_incl'     => (float)$priceByRef[$anOrderId]['total_paid_tax_incl'],
+                'total_paid_tax_excl'     => (float)$priceByRef[$anOrderId]['total_paid_tax_excl'],
+                'total_paid_real'         => (float)$priceByRef[$anOrderId]['total_paid'],
+                'total_products'          => (float)$priceByRef[$anOrderId]['total_products_tax_excl'],
+                'total_products_wt'       => (float)$priceByRef[$anOrderId]['total_products_tax_incl'],
+                'total_shipping'          => (float)$priceByRef[$anOrderId]['total_shipping'],
+                'total_shipping_tax_incl' => (float)$priceByRef[$anOrderId]['total_shipping_tax_incl'],
+                'total_shipping_tax_excl' => (float)$priceByRef[$anOrderId]['total_shipping_tax_excl'],
                 'carrier_tax_rate'        => $carrier_tax_rate,
                 'id_carrier'              => $carrier->id
             );
-        } else {
-            $updateOrder = array(
-                'total_paid'              => (float)($order->TotalAmount),
-                'total_paid_tax_incl'     => (float)($order->TotalAmount),
-                'total_paid_tax_excl'     => (float)$total_paid_tax_excl,
-                'total_paid_real'         => (float)($order->TotalAmount),
-                'total_products'          => (float)$total_products_tax_excl,
-                'total_products_wt'       => (float)($order->TotalProducts),
-                'total_shipping'          => (float)($order->TotalShipping),
-                'total_shipping_tax_incl' => (float)($order->TotalShipping),
-                'total_shipping_tax_excl' => $total_shipping_tax_excl,
-                'carrier_tax_rate'        => $carrier_tax_rate,
-                'id_carrier'              => $carrier->id
+
+            $updateOrderInvoice = array(
+                'total_paid_tax_incl'     => (float)$priceByRef[$anOrderId]['total_paid_tax_incl'],
+                'total_paid_tax_excl'     => (float)$priceByRef[$anOrderId]['total_paid_tax_excl'],
+                'total_products'          => (float)$priceByRef[$anOrderId]['total_products_tax_excl'],
+                'total_products_wt'       => (float)$priceByRef[$anOrderId]['total_products_tax_incl'],
+                'total_shipping_tax_incl' => (float)$priceByRef[$anOrderId]['total_shipping_tax_incl'],
+                'total_shipping_tax_excl' => (float)$priceByRef[$anOrderId]['total_shipping_tax_excl'],
             );
+
+            $updateOrderTracking = array(
+                'shipping_cost_tax_incl' => (float)$priceByRef[$anOrderId]['total_shipping'],
+                'shipping_cost_tax_excl' => (float)$priceByRef[$anOrderId]['total_shipping_tax_excl'],
+                'id_carrier' => $carrier->id
+            );
+        
+            Db::getInstance()->update('orders', $updateOrder, '`id_order` = '.(int)$anOrderId);
+            Db::getInstance()->update('order_invoice', $updateOrderInvoice, '`id_order` = '.(int)$anOrderId);
+            Db::getInstance()->update('order_carrier', $updateOrderTracking, '`id_order` = '.(int)$anOrderId);
         }
 
-        if ((float)$order->TotalFees > 0) {
-            $updateOrderInvoice = array(
-                'total_paid_tax_incl'     => (float)($order->TotalAmount),
-                'total_paid_tax_excl'     => (float)$total_paid_tax_excl,
-                'total_products'          => (float)$total_products_tax_excl,
-                'total_products_wt'       => (float)((float)$order->TotalProducts + (float)$order->TotalFees),
-                'total_shipping_tax_incl' => (float)($order->TotalShipping),
-                'total_shipping_tax_excl' => $total_shipping_tax_excl,
-            );
-        } else {
-            $updateOrderInvoice = array(
-                'total_paid_tax_incl'     => (float)($order->TotalAmount),
-                'total_paid_tax_excl'     => (float)$total_paid_tax_excl,
-                'total_products'          => (float)$total_products_tax_excl,
-                'total_products_wt'       => (float)($order->TotalProducts),
-                'total_shipping_tax_incl' => (float)($order->TotalShipping),
-                'total_shipping_tax_excl' => $total_shipping_tax_excl,
-            );
-        }
-        
-        $updateOrderTracking = array(
-            'shipping_cost_tax_incl' => (float)($order->TotalShipping),
-            'shipping_cost_tax_excl' => $total_shipping_tax_excl,
-            'id_carrier' => $carrier->id
-        );
-        
         $updatePayment = array('amount' => (float)$order->TotalAmount);
-        
-        Db::getInstance()->update('orders', $updateOrder, '`id_order` = '.(int)$id_order);
-        Db::getInstance()->update('order_invoice', $updateOrderInvoice, '`id_order` = '.(int)$id_order);
-        Db::getInstance()->update('order_carrier', $updateOrderTracking, '`id_order` = '.(int)$id_order);
         Db::getInstance()->update('order_payment', $updatePayment, '`order_reference` = "'.$reference_order.'"');
+
+        return $idOrdersList;
     }
 
     protected function _validateOrder($cart, $marketplace, $doEchoLog, $forcedOrder)
@@ -2748,7 +2789,13 @@ class ShoppingFluxExport extends Module
         return $cart;
     }
 
-    protected function _checkProducts($productsNode, $marketplace)
+    /**
+     * Adapt product quantity and check Advanced stock management quantities and warehouse availability
+     * @param  Object $productsNode
+     * @param  array Current token used
+     * @return bool|string success true or error message
+     */
+    protected function _checkProducts($productsNode, $currentToken, $marketplace)
     {
         $available = true;
 
@@ -2762,36 +2809,98 @@ class ShoppingFluxExport extends Module
                 $skus = explode('_', $product->SKU);
             }
 
-            if (isset($skus[1]) && $skus[1] !== false) {
-                $quantity = StockAvailable::getQuantityAvailableByProduct((int)$skus[0], (int)$skus[1]);
-                $idProduct = (int)$skus[0];
-                $idProductAttribute = (int)$skus[1];
+            // Check if the advanced stock management is enabled
+            $isAdvStockEnabled = Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1 ? true : false;
+            if ($isAdvStockEnabled) {
+                $productObj = new Product($skus[0], false, Configuration::get('PS_LANG_DEFAULT'), (int)$currentToken['id_shop']);
+                if ($productObj->advanced_stock_management == 0) {
+                    // Advanced stock management not enabled for this product
+                    $isAdvStockEnabled = false;
+                }
+            }
+            
+            if ($isAdvStockEnabled && !$isMarketPlaceExpedited) {
+                // When advanced stock management is enabled, we do not force the product quantity.
+                $idAttribute = isset($skus[1]) ? $skus[1] : 0;
+                $warehouseIds = $this->getAvailableWarehouses($skus[0], $idAttribute);
+                if (empty($warehouseIds)) {
+                    SfLogger::getInstance()->log(SF_LOG_ORDERS, "No warehouse found with a quantity available for product ".$skus[0].", attribute = ".$idAttribute);
+                    // No warehouse found with a quantity available for this product
+                    return "No warehouse found with a quantity available for product = ".$skus[0].", attribute = ".$idAttribute;
+                }
             } else {
-                $quantity = StockAvailable::getQuantityAvailableByProduct((int)$product->SKU);
-                $idProduct = (int)$product->SKU;
-                $idProductAttribute = 0;
-            }
+                if (isset($skus[1]) && $skus[1] !== false) {
+                    $quantity = StockAvailable::getQuantityAvailableByProduct((int)$skus[0], (int)$skus[1]);
+                    $idProduct = (int)$skus[0];
+                    $idProductAttribute = (int)$skus[1];
+                } else {
+                    $quantity = StockAvailable::getQuantityAvailableByProduct((int)$product->SKU);
+                    $idProduct = (int)$product->SKU;
+                    $idProductAttribute = 0;
+                }
 
-            if ($isMarketPlaceExpedited) {
-                // The stock is managed by the market place.
-                // We directly add the required quantity to the product that will be
-                // later on deduced when the order is validated by PrestaShop
-                $tmpQuantity = $quantity + ((int) $product->Quantity);
-                SfLogger::getInstance()->log(SF_LOG_ORDERS, $marketplace . ': '.
-                    'Changing quantity of product (' . $idProduct . '_' . $idProductAttribute . ') '.
-                    'from ' . $quantity . ' to ' . $tmpQuantity);
-                StockAvailable::updateQuantity($idProduct, $idProductAttribute, $tmpQuantity);
-                
-                // No need to continue
-                continue;
-            }
+                if ($isMarketPlaceExpedited) {
+                    // The stock is managed by the market place.
+                    // We directly add the required quantity to the product that will be
+                    // later on deduced when the order is validated by PrestaShop
+                    $tmpQuantity = $quantity + ((int) $product->Quantity);
+                    SfLogger::getInstance()->log(SF_LOG_ORDERS, $marketplace . ': '.
+                        'Changing quantity of product (' . $idProduct . '_' . $idProductAttribute . ') '.
+                        'from ' . $quantity . ' to ' . $tmpQuantity);
+                    StockAvailable::updateQuantity($idProduct, $idProductAttribute, $tmpQuantity);
+                    
+                    // No need to continue
+                    continue;
+                }
 
-            if ($quantity - $product->Quantity < 0) {
-                StockAvailable::updateQuantity($idProduct, $idProductAttribute, (int)$product->Quantity);
+                if ($quantity - $product->Quantity < 0) {
+                    StockAvailable::updateQuantity($idProduct, $idProductAttribute, (int)$product->Quantity);
+                }
             }
         }
 
         return $available;
+    }
+
+    /**
+     * Retrieve warehouse IDs where the given product is available
+     *
+     * @param  integer $idProduct
+     * @param  integer $idAttribute
+     * @return array               List of wharehouse ids with available quantity
+     */
+    protected function getAvailableWarehouses($idProduct, $idAttribute)
+    {
+
+        $warehouses = array();
+        $stock_manager = StockManagerFactory::getManager();
+
+        $warehouseInfos = Warehouse::getWarehousesByProductId($idProduct, $idAttribute);
+
+        if (count($warehouseInfos) == 0) {
+            // No warehouses associated to this product
+            return array();
+        }
+        
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Check stock in warehouses for id_product '.$idProduct.' and id_product_attribute '.$idAttribute);
+
+        // Profileo #786 - 
+        foreach ($warehouseInfos as $aWarehouse) {
+            $id_warehouse = (int)$aWarehouse['id_warehouse'];
+
+            $physicalQuantity = $stock_manager->getProductPhysicalQuantities(
+            $idProduct,
+            $idAttribute,
+            $id_warehouse);
+
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, '-- Warehouse #'.$id_warehouse.' - Physical quantity: '.$physicalQuantity);
+
+            if($physicalQuantity > 0) {
+                $warehouses[] = array('id_warehouse' => $id_warehouse, 'quantity' => $physicalQuantity);
+            }
+        }
+        
+        return $warehouses;
     }
 
     protected function _validOrders($id_order, $marketplace, $id_order_merchant = false, $error = false, $token = null)
