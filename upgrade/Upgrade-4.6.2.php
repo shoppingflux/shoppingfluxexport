@@ -39,5 +39,8 @@ function upgrade_module_4_6_2($object)
         Configuration::updateValue('SHOPPING_FLUX_STATE_MP_EXP', Configuration::get('PS_OS_SHIPPING'));
     }
 
+    // uniformise carrier matching by using lowercase only
+    $object->migrateToNewCarrierMatching();
+
     return true;
 }
