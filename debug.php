@@ -129,6 +129,48 @@ function getConfigForm($sf)
     $output .= '<label>URL test CURL</label>' . $urlBase . '/modules/shoppingfluxexport/debug.php?test_curl=1';
     $output .= '<p style="clear: both"></p>';
     
+    $sfCarriers = array();
+    $cacheCarrierList = Configuration::get('SHOPPING_FLUX_CARRIERS_LIST');
+    $sfCarriers = !empty($cacheCarrierList) ? unserialize($cacheCarrierList) : $sfCarriers;
+    $output .= '<label>SHOPPING_FLUX_CARRIERS_LIST</label>' . print_r($sfCarriers, true);
+    $output .= '<p style="clear: both"></p>';
+
+    if (!empty($sfCarriers)) {
+        $output .= '<label>CARRIER MATCHING</label>';
+        $actualConfiguration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
+
+        $displayCarrierConsistency = array();
+        // We go through each carrier comming from ShoppingFlux to find the PrestaShop match
+        foreach ($sfCarriers as $sfCarrier) {
+            $carrierReference = isset($actualConfiguration[base64_encode(Tools::safeOutput($sfCarrier))]) ?
+                $actualConfiguration[base64_encode(Tools::safeOutput($sfCarrier))] :
+                Configuration::get('SHOPPING_FLUX_CARRIER');
+            $carrierMatching = array();
+            $carrierMatching['sfCarrier'] = $sfCarrier;
+            $carrierMatching['carrierReference'] = $carrierReference;
+
+            // Check if the carrier is coherent (existing and active)
+            if ($sf->isCarrierConsistent($carrierReference)) {
+                // Inconsistency detected
+                $carrierMatching['isCarrierConsistent'] = "YES";
+            } else {
+                $carrierMatching['isCarrierConsistent'] = "NO";
+            }
+
+            $displayCarrierConsistency[] = $carrierMatching;
+        }
+
+        $output .= print_r($displayCarrierConsistency, true);
+        $output .= '<p style="clear: both"></p>';
+
+
+        $output .= '<label>DEFAULT CARRIER MATCHING</label>';
+        $isConsistent = $sf->isCarrierConsistent(Configuration::get('SHOPPING_FLUX_CARRIER')) ? "YES" : "NO";
+        $output .= print_r(array('SHOPPING_FLUX_CARRIER (reference)' => Configuration::get('SHOPPING_FLUX_CARRIER'), 'isCarrierConsistent' => $isConsistent), true);
+        $output .= '<p style="clear: both"></p>';
+
+    }
+
     $output .= '</fieldset>';
     return $output;
 }
