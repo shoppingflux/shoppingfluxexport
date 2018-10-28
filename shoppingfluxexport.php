@@ -2792,7 +2792,7 @@ class ShoppingFluxExport extends Module
                     $isAdvStockEnabled = false;
                 }
             }
-            
+
             if ($isAdvStockEnabled && !$isMarketPlaceExpedited) {
                 // When advanced stock management is enabled, we do not force the product quantity.
                 $idAttribute = isset($skus[1]) ? $skus[1] : 0;
@@ -2819,19 +2819,62 @@ class ShoppingFluxExport extends Module
                     // later on deduced when the order is validated by PrestaShop
                     $tmpQuantity = $quantity + ((int) $product->Quantity);
                     SfLogger::getInstance()->log(SF_LOG_ORDERS, $marketplace . ': '.
+                        'Order expedited by the marketplace - '.
                         'Changing quantity of product (' . $idProduct . '_' . $idProductAttribute . ') '.
                         'from ' . $quantity . ' to ' . $tmpQuantity);
                     StockAvailable::updateQuantity($idProduct, $idProductAttribute, $tmpQuantity);
-                    
                     // No need to continue
                     continue;
                 }
 
-                if ($quantity - $product->Quantity < 0) {
+                if ($quantity - $product->Quantity >= 0) {
+                    // Enough quantity
+                    continue;
+                }
+
+                // When there is not enough quantity for the product and that PrestaShop deny the order creation
+                // in this case, then we force the product quantity.
+                $outOfStockAuthorized = $this->isOutOfStockAuthorized($idProduct);
+                if (!$outOfStockAuthorized) {
+                    SfLogger::getInstance()->log(SF_LOG_ORDERS, $marketplace . ': '.
+                        'Not enough quantity for product (' . $idProduct . '_' . $idProductAttribute . ') - '.
+                        'Changing from ' . $quantity . ' to ' . (int)$product->Quantity);
                     StockAvailable::updateQuantity($idProduct, $idProductAttribute, (int)$product->Quantity);
                 }
             }
         }
+    }
+
+    /**
+     * Check whether or not an order can be created when a produit is out of stock.
+     * Based on PrestaShop configuration
+     * @param  int product ID
+     * @return boolean            Is order allowed when produit out of stock
+     */
+    protected function isOutOfStockAuthorized($productId)
+    {
+        $outOfStockAuthorized = false;
+
+        /**
+         * Check if orders can be created when the product is out of stock
+         * @var int|null
+         * 0|null -> Deny orders
+         * 1 -> Allow orders
+         * 2 -> Default as set in the Products Preferences page
+         */
+        $checkOutOfStock = StockAvailable::outOfStock((int)$productId);
+
+        if ($checkOutOfStock == 1) {
+            $outOfStockAuthorized = true;
+        } elseif ($checkOutOfStock == 2) {
+            if (Configuration::get('PS_ORDER_OUT_OF_STOCK') == 1) {
+                // 0|null -> Reject order
+                // 1 -> Allow order
+                $outOfStockAuthorized = true;
+            }
+        }
+
+        return $outOfStockAuthorized;
     }
 
     /**
