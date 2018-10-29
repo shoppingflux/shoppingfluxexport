@@ -1706,7 +1706,7 @@ class ShoppingFluxExport extends Module
                             $id_address_shipping = $this->_getAddress($order->ShippingAddress, $id_customer, 'Shipping-'.(string)$order->IdOrder, $order->Other, (string)$order->Marketplace, (string)$order->ShippingMethod);
                             SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Id adress shipping or found : '.$id_address_shipping, $doEchoLog);
 
-                            $this->checkProductsQuantity($order->Products, $order->Marketplace);
+                            $this->checkProductsQuantity($order->Products, $order->Marketplace, (int)$currentToken['id_shop']);
                             
                             $current_customer = new Customer((int)$id_customer);
         
@@ -2770,8 +2770,9 @@ class ShoppingFluxExport extends Module
      * 
      * @param  Object $productsNode the product node coming from the API
      * @param  string $marketplace name of the markeplace
+     * @param  int $idShop associated with the current token
      */
-    protected function checkProductsQuantity($productsNode, $marketplace)
+    protected function checkProductsQuantity($productsNode, $marketplace, $idShop)
     {
         // Check if the order stock is managed by the market place
         $isMarketPlaceExpedited = self::isMarketplaceExpeditedOrder($marketplace);
@@ -2786,7 +2787,7 @@ class ShoppingFluxExport extends Module
             // Check if the advanced stock management is enabled
             $isAdvStockEnabled = Configuration::get('PS_ADVANCED_STOCK_MANAGEMENT') == 1 ? true : false;
             if ($isAdvStockEnabled) {
-                $productObj = new Product($skus[0], false, Configuration::get('PS_LANG_DEFAULT'), (int)$currentToken['id_shop']);
+                $productObj = new Product($skus[0], false, Configuration::get('PS_LANG_DEFAULT'), $idShop);
                 if ($productObj->advanced_stock_management == 0) {
                     // Advanced stock management not enabled for this product
                     $isAdvStockEnabled = false;
@@ -2796,7 +2797,7 @@ class ShoppingFluxExport extends Module
             if ($isAdvStockEnabled && !$isMarketPlaceExpedited) {
                 // When advanced stock management is enabled, we do not force the product quantity.
                 $idAttribute = isset($skus[1]) ? $skus[1] : 0;
-                $warehouseIds = $this->getAvailableWarehouses($skus[0], $idAttribute);
+                $warehouseIds = $this->getAvailableWarehouses($skus[0], $idAttribute, (int)$product->Quantity, $idShop);
                 if (empty($warehouseIds)) {
                     SfLogger::getInstance()->log(SF_LOG_ORDERS, "No warehouse found with a quantity available for product ".$skus[0].", attribute = ".$idAttribute);
                     // No warehouse found with a quantity available for this product
@@ -2804,11 +2805,11 @@ class ShoppingFluxExport extends Module
                 }
             } else {
                 if (isset($skus[1]) && $skus[1] !== false) {
-                    $quantity = StockAvailable::getQuantityAvailableByProduct((int)$skus[0], (int)$skus[1]);
+                    $quantity = StockAvailable::getQuantityAvailableByProduct((int)$skus[0], (int)$skus[1], $idShop);
                     $idProduct = (int)$skus[0];
                     $idProductAttribute = (int)$skus[1];
                 } else {
-                    $quantity = StockAvailable::getQuantityAvailableByProduct((int)$product->SKU);
+                    $quantity = StockAvailable::getQuantityAvailableByProduct((int)$product->SKU, null, $idShop);
                     $idProduct = (int)$product->SKU;
                     $idProductAttribute = 0;
                 }
@@ -2822,7 +2823,8 @@ class ShoppingFluxExport extends Module
                         'Order expedited by the marketplace - '.
                         'Changing quantity of product (' . $idProduct . '_' . $idProductAttribute . ') '.
                         'from ' . $quantity . ' to ' . $tmpQuantity);
-                    StockAvailable::updateQuantity($idProduct, $idProductAttribute, $tmpQuantity);
+                    $deltaQuantity = (int)$tmpQuantity - (int)$quantity;
+                    StockAvailable::updateQuantity($idProduct, $idProductAttribute, $deltaQuantity, $idShop);
                     // No need to continue
                     continue;
                 }
@@ -2839,7 +2841,8 @@ class ShoppingFluxExport extends Module
                     SfLogger::getInstance()->log(SF_LOG_ORDERS, $marketplace . ': '.
                         'Not enough quantity for product (' . $idProduct . '_' . $idProductAttribute . ') - '.
                         'Changing from ' . $quantity . ' to ' . (int)$product->Quantity);
-                    StockAvailable::updateQuantity($idProduct, $idProductAttribute, (int)$product->Quantity);
+                    $deltaQuantity = (int)$product->Quantity - (int)$quantity;
+                    StockAvailable::updateQuantity($idProduct, $idProductAttribute, $deltaQuantity, $idShop);
                 }
             }
         }
@@ -2882,13 +2885,15 @@ class ShoppingFluxExport extends Module
      *
      * @param  integer $idProduct
      * @param  integer $idAttribute
+     * @param  integer $quantityOrdered the quantity ordered
+     * @param  integer $idShop
      * @return array               List of wharehouse ids with available quantity
      */
-    protected function getAvailableWarehouses($idProduct, $idAttribute)
+    protected function getAvailableWarehouses($idProduct, $idAttribute, $quantityOrdered, $idShop)
     {
-
+        $selectedWarehouses = array();
         $warehouses = array();
-        $stock_manager = StockManagerFactory::getManager();
+        $stockManager = StockManagerFactory::getManager();
 
         $warehouseInfos = Warehouse::getWarehousesByProductId($idProduct, $idAttribute);
 
@@ -2902,19 +2907,89 @@ class ShoppingFluxExport extends Module
         foreach ($warehouseInfos as $aWarehouse) {
             $id_warehouse = (int)$aWarehouse['id_warehouse'];
 
-            $physicalQuantity = $stock_manager->getProductPhysicalQuantities(
+            $physicalQuantity = $stockManager->getProductPhysicalQuantities(
             $idProduct,
             $idAttribute,
             $id_warehouse);
 
             SfLogger::getInstance()->log(SF_LOG_ORDERS, '-- Warehouse #'.$id_warehouse.' - Physical quantity: '.$physicalQuantity);
 
-            if($physicalQuantity > 0) {
-                $warehouses[] = array('id_warehouse' => $id_warehouse, 'quantity' => $physicalQuantity);
+            $warehouses[] = array('id_warehouse' => $id_warehouse, 'quantity' => $physicalQuantity);
+            if($physicalQuantity - $quantityOrdered >= 0) {
+                $selectedWarehouses[] = array('id_warehouse' => $id_warehouse, 'quantity' => $physicalQuantity);
             }
         }
-        
-        return $warehouses;
+
+        if (!empty($selectedWarehouses)) {
+            return $selectedWarehouses;
+        }
+
+        // When none of the warehouse have enough stock for the selected product, we check if PrestaShop allow out of stock orders.
+        // In which case we will return all warehouses
+        $outOfStockAuthorized = $this->isOutOfStockAuthorized($idProduct);
+        if ($outOfStockAuthorized) {
+            return $warehouses;
+        }
+
+        // When PrestaShop doesn't allow out of stock orders, we force the product quantity in one of the warehouse
+        $firstWarehouseFound = $warehouses[0];
+        $id_warehouse = (int)$firstWarehouseFound['id_warehouse'];
+        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Not enough quantity for product (' . $idProduct . '_' . $idAttribute . ') - '.
+            'Force in warehouse '.$id_warehouse.' - '.
+            'Changing from ' . $firstWarehouseFound['quantity'] . ' to ' . $quantityOrdered);
+        if ($this->addAdvancedStockToProduct($idProduct, $idAttribute, $id_warehouse, $quantityOrdered)) {
+            $selectedWarehouses[] = array('id_warehouse' => $id_warehouse, 'quantity' => $quantityOrdered);
+            return $selectedWarehouses;
+        } else {
+            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Failed adding stock to product (' . $idProduct . '_' . $idAttribute . ')');
+            return array();
+        }
+    }
+
+    /**
+     * Add quantity for product/combination when advanced stock is being used.
+     * It will record a stock movement.
+     * @param integer $idProduct
+     * @param integer $idProductAttribute
+     * @param integer $idWarehouse
+     * @param integer $quantity
+     * @param integer $$idShop
+     */
+    protected function addAdvancedStockToProduct($idProduct, $idProductAttribute, $idWarehouse, $quantity, $idShop)
+    {
+        $stockManager = StockManagerFactory::getManager();
+        $warehouse = new Warehouse($idWarehouse);
+        $idStockMvtReason = 0; // Will then take the default reason as 0 does not exists
+
+        // Retrieve the wholesale price (tax ecluded)
+        $product = new Product($id_product, false, null, $idShop);
+        $wholesalePrice = $product->wholesale_price;
+        if ($idProductAttribute != 0) {
+            $combination = new Combination($idProductAttribute);
+            if ($combination && $combination->wholesale_price != '0.000000') {
+                $wholesalePrice = $combination->wholesale_price;
+            }
+        }
+
+        // Retrive an admin employee (required for the context of addProduct)
+        $superAdmins = Employee::getEmployeesByProfile(_PS_ADMIN_PROFILE_);
+        $employee = new Employee((int)$superAdmins[0]['id_employee']);
+
+        if ($stockManager->addProduct(
+            (int)$idProduct,
+            $idProductAttribute,
+            $warehouse,
+            $quantity,
+            $idStockMvtReason,
+            $wholesalePrice,
+            true,
+            null,
+            $employee
+        )) {
+            StockAvailable::synchronize((int)$idProduct);
+            return true;
+        }
+        return false;
     }
 
     protected function _validOrders($id_order, $marketplace, $id_order_merchant = false, $error = false, $token = null)
