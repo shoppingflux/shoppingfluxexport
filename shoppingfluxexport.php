@@ -68,6 +68,12 @@ class ShoppingFluxExport extends Module
         if (empty($productsToBeTreated) || !isset($productsToBeTreated)) {
             Configuration::updateValue('SHOPPING_FLUX_PASSES', '200');
         }
+
+        // Check if matching carrier have inconsistencies
+        if (!$this->checkCarriersInconsistencies() || !$this->checkDefaultCarrierConsistency()) {
+            // Show a warning message when there is an inconsistency with carriers
+            $this->warning = $this->l('One of the carrier used for ShoppingFlux has been removed or disabled in your shop. Please check the module configuration.');
+        }
     }
 
     public function install()
@@ -541,8 +547,11 @@ class ShoppingFluxExport extends Module
         $uri = $base_uri.'modules/shoppingfluxexport/flux.php?token='.$this->getTokenValue();
         $logo = $this->default_country->iso_code == 'FR' ? 'fr' : 'us';
 
-        return '
+        $html = '
         <img style="margin:10px; width:250px" src="'.Tools::safeOutput($base_uri).'modules/shoppingfluxexport/views/img/logo_'.$logo.'.jpg" />
+        ';
+        $html .= $this->_getWarnings();
+        $html .= '
         <fieldset>
             <legend>'.$this->l('Your feeds').'</legend>
             <p>
@@ -552,6 +561,22 @@ class ShoppingFluxExport extends Module
             </p>
         </fieldset>
         <br/>';
+        return $html;
+    }
+
+    protected function _getWarnings()
+    {
+        $warnings = "";
+        // Check if matching carriers have inconsistencies
+        if (!$this->checkCarriersInconsistencies()) {
+            // Show a warning message when there is an inconsistency with carriers
+            $warnings .= $this->displayWarning($this->l('One of the carrier used for ShoppingFlux\'s orders has been removed or disabled. Please check and save the "Carriers Matching" configuration.'));
+        }
+        if (!$this->checkDefaultCarrierConsistency()) {
+            // Show a warning message when there is an inconsistency with carriers
+            $warnings .= $this->displayWarning($this->l('The default carrier used for ShoppingFlux\'s orders has been removed or disabled. Please check and save the "Parameters" configuration.'));
+        }
+        return $warnings;
     }
 
     /* Form record */
@@ -3685,6 +3710,9 @@ class ShoppingFluxExport extends Module
             }
         }
 
+        // Cache the updated carriers' ist in order to avoid webservice calls when used for consistencies check
+        Configuration::updateValue('SHOPPING_FLUX_CARRIERS_LIST', serialize($sf_carriers));
+
         return $sf_carriers;
     }
 
@@ -3762,5 +3790,78 @@ class ShoppingFluxExport extends Module
         
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Marketplace expedited order - Change completed', $doEchoLog);
     }
+    
+    /**
+     * Will check if there are inconsistencies in the matches between ShoppingFlux's carriers and PrestaShop's carriers.
+     * An inconsistency may happen when a carrier, that has been matched with a market place's carrier, has been delete 
+     * or disabled.
+     * @return boolean
+     */
+    protected function checkCarriersInconsistencies()
+    {
+        // The list of carriers has been cached to avoid API call in the module list
+        $cacheCarrierList = Configuration::get('SHOPPING_FLUX_CARRIERS_LIST');
+        if (empty($cacheCarrierList)) {
+            // The list of carriers is not cached yet, we do not process (we consider that the matching is correct)
+            return true;
+        }
+        
+        $sfCarriers = unserialize($cacheCarrierList);
+        $actualConfiguration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
 
+        // We go through each carrier comming from ShoppingFlux to find the PrestaShop match
+        foreach ($sfCarriers as $sfCarrier) {
+            $carrierReference = isset($actualConfiguration[base64_encode(Tools::safeOutput($sfCarrier))]) ?
+                $actualConfiguration[base64_encode(Tools::safeOutput($sfCarrier))] :
+                Configuration::get('SHOPPING_FLUX_CARRIER');
+            // Check if the carrier is coherent (existing and active)
+            if (!$this->isCarrierConsistent($carrierReference)) {
+                // Inconsistency detected
+                return false;
+            }
+        }
+        
+        // No inconsistencies
+        return true;
+    }
+
+    /**
+     * Will check if the default ShoppingFlux's carriers has been delete or disabled.
+     * @return boolean
+     */
+    protected function checkDefaultCarrierConsistency()
+    {
+        // The list of carriers has been cached to avoid API call in the module list
+        $cacheCarrierList = Configuration::get('SHOPPING_FLUX_CARRIERS_LIST');
+        if (empty($cacheCarrierList)) {
+            // The list of carriers is not cached yet, we do not process (we consider that the matching is correct)
+            return true;
+        }
+
+        // Check if the default carrier is coherent (existing and active)
+        if (!$this->isCarrierConsistent(Configuration::get('SHOPPING_FLUX_CARRIER'))) {
+            // Inconsistency detected
+            return false;
+        }
+
+        // No inconsistencies
+        return true;
+    }
+
+    /**
+     * Check if a carrier is existing and active based on its reference
+     * @param  int  $carrierReference The reference of the carrier
+     * @return boolean
+     */
+    public function isCarrierConsistent($carrierReference)
+    {
+        $carrierPs = Carrier::getCarrierByReference((int)$carrierReference);
+        if (!Validate::isLoadedObject($carrierPs) || $carrierPs->active == 0 || $carrierPs->deleted == 1) {
+            // Inconsistency detected
+            return false;
+        }
+
+        // No inconsistencies
+        return true;
+    }
 }
