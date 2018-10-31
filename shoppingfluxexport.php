@@ -2473,6 +2473,11 @@ class ShoppingFluxExport extends Module
             $row = Db::getInstance()->getRow($sql);
 
             $tax_rate = $row['rate'];
+
+            // disable tax if Amazon business 
+            if ($this->isAmazonBusiness($order)) {
+                $tax_rate = 0;                
+            }
             
             $id_order_detail = $row['id_order_detail'];
 
@@ -2515,11 +2520,17 @@ class ShoppingFluxExport extends Module
             );
             Db::getInstance()->update('order_detail', $updateOrderDetail, '`id_order` = '.(int)$id_order_from_reference.' AND `product_id` = '.(int)$skus[0].' AND `product_attribute_id` = '.$id_product_attribute);
             
-            $updateOrderDetailTax = array(
-                'unit_amount'  => Tools::ps_round((float)((float)$product->Price - ((float)$product->Price / (1 + ($tax_rate / 100)))), 2),
-                'total_amount' => Tools::ps_round((float)(((float)$product->Price - ((float)$product->Price / (1 + ($tax_rate / 100)))) * $product->Quantity), 2),
-            );
-            Db::getInstance()->update('order_detail_tax', $updateOrderDetailTax, '`id_order_detail` = '.(int)$id_order_detail);
+            if ($tax_rate > 0) {
+                $updateOrderDetailTax = array(
+                    'unit_amount'  => Tools::ps_round((float)((float)$product->Price - ((float)$product->Price / (1 + ($tax_rate / 100)))), 2),
+                    'total_amount' => Tools::ps_round((float)(((float)$product->Price - ((float)$product->Price / (1 + ($tax_rate / 100)))) * $product->Quantity), 2),
+                );
+                Db::getInstance()->update('order_detail_tax', $updateOrderDetailTax, '`id_order_detail` = '.(int)$id_order_detail);
+            } else {
+                // delete tax so that it does not appear in tax details block in invoice
+                Db::getInstance()->execute('
+                    DELETE FROM `'._DB_PREFIX_.'order_detail_tax` WHERE id_order_detail='.(int)$id_order_detail);
+            }            
         }
         
         // Cdiscount fees handling
@@ -2617,6 +2628,14 @@ class ShoppingFluxExport extends Module
             $address = new Address($psOrder->id_address_delivery);
         }
         $carrier_tax_rate = $carrier->getTaxesRate($address);
+
+        // disable tax if Amazon business 
+        if ($this->isAmazonBusiness($order)) {
+            $carrier_tax_rate = 0;
+        } else {
+            $carrier_tax_rate = $carrier->getTaxesRate($address);
+        }
+
         $total_shipping_tax_excl = Tools::ps_round((float)((float)$order->TotalShipping / (1 + ($carrier_tax_rate / 100))), 2);
 
         foreach ($idOrdersList as $anOrderId) {
@@ -3979,5 +3998,16 @@ class ShoppingFluxExport extends Module
 
         // No inconsistencies
         return true;
+    }
+
+    /**
+     * Check if order is Amazon business
+     * @param  SimpleXMLElement  $order
+     * @return boolean
+     */
+    public function isAmazonBusiness($order)
+    {
+        return Tools::strtolower($order->Marketplace) == 'amazon' &&
+            (int)$order->AdditionalFields->is_business_order == 1;
     }
 }
