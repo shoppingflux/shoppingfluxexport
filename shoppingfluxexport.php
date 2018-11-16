@@ -1977,8 +1977,9 @@ class ShoppingFluxExport extends Module
                 WHERE id_product = '.(int)$ids[0].'
                 AND id_product_attribute ='.(int)$ids[1]);
 
-                if ($exist === false) {
-                    return 'Product ID don\'t exist, product_id = '.$ids[0];
+                if (empty($exist)) {
+                    // note : getRow() may return an empty array or a boolean (false) depending of cache usage
+                    return 'Product or attribute doesn\'t exist, id_product = '.$ids[0].', id_product_attribute = '.$ids[1];
                 }
 
                 $res = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow('
