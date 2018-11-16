@@ -2450,9 +2450,6 @@ class ShoppingFluxExport extends Module
         $priceByRef = array();
         $idOrdersList = array();
 
-        // The id_tax linked to one of the product
-        $id_tax = 0;
-
         $psOrder = new Order((int)$id_order);
 
         foreach ($order->Products->Product as $product) {
@@ -2462,17 +2459,20 @@ class ShoppingFluxExport extends Module
                 $skus = explode('_', $product->SKU);
             }
 
-            $sql = 'SELECT t.rate, od.id_order_detail, od.id_order, t.id_tax FROM '._DB_PREFIX_.'tax t
-                LEFT JOIN '._DB_PREFIX_.'order_detail_tax odt ON t.id_tax = odt.id_tax
-                LEFT JOIN '._DB_PREFIX_.'order_detail od ON odt.id_order_detail = od.id_order_detail
+            $sql = 'SELECT t.rate, od.id_order_detail, od.id_order
+                FROM '._DB_PREFIX_.'order_detail od
                 LEFT JOIN '._DB_PREFIX_.'orders o ON o.id_order = od.id_order
+                LEFT JOIN '._DB_PREFIX_.'order_detail_tax odt ON odt.id_order_detail = od.id_order_detail
+                LEFT JOIN '._DB_PREFIX_.'tax t ON t.id_tax = odt.id_tax
                 WHERE o.reference LIKE "'.pSQL($reference_order).'" AND product_id = '.(int)$skus[0];
             if (isset($skus[1]) && $skus[1]) {
                 $sql .= ' AND product_attribute_id = '.(int)$skus[1];
             }
             $row = Db::getInstance()->getRow($sql);
 
-            $tax_rate = $row['rate'];
+            // The tax may not be defined for the country (linked to the invoice address)
+            // Eg: Switzerland invoice address received in french shop (will depends of PS configuration)
+            $tax_rate = $row['rate'] === NULL ? 0 : $row['rate'];
 
             // disable tax if Amazon business 
             if ($this->isAmazonBusiness($order)) {
@@ -2480,8 +2480,6 @@ class ShoppingFluxExport extends Module
             }
             
             $id_order_detail = $row['id_order_detail'];
-
-            $id_tax = $row['id_tax'];
 
             // Retrive the id_order linked to the order_reference (as there might be multiple orders created 
             // from the same reference)
