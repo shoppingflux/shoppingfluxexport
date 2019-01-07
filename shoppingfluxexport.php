@@ -1854,9 +1854,14 @@ class ShoppingFluxExport extends Module
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Calling validateOrder', $doEchoLog);
                                     $payment = $this->_validateOrder($cart, $order->Marketplace, $doEchoLog, $forcedOrder);
                                     $id_order = $payment->currentOrder;
-                                    SfLogger::getInstance()->log(SF_LOG_ORDERS, 'validateOrder successfull, id_order = '.$id_order, $doEchoLog);
+                                    SfLogger::getInstance()->log(
+                                        SF_LOG_ORDERS,
+                                        'validateOrder successfull, id_order = '.$id_order,
+                                        $doEchoLog
+                                    );
 
-                                    // If this is a market place expedited order, then we change the order state to what was determined in the config
+                                    // If this is a market place expedited order,
+                                    // then we change the order state to what was determined in the config
                                     if (self::isMarketplaceExpeditedOrder($order->Marketplace)) {
                                          self::changeMarketplaceExpeditedOrderStatut($id_order, $doEchoLog);
                                     }
@@ -1864,7 +1869,11 @@ class ShoppingFluxExport extends Module
                                     //we valid there
                                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Notifying ShoppingFlux of order creation', $doEchoLog);
                                     $orderCreation = $this->_validOrders((string)$order->IdOrder, (string)$order->Marketplace, $id_order, false, $currentToken['token']);
-                                    SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Notify result of order creation : ' . $orderCreation, $doEchoLog);
+                                    SfLogger::getInstance()->log(
+                                        SF_LOG_ORDERS,
+                                        'Notify result of order creation : ' . $orderCreation,
+                                        $doEchoLog
+                                    );
         
                                     $reference_order = $payment->currentOrderReference;
                                     Db::getInstance()->update('customer', array('email' => pSQL($email)), '`id_customer` = '.(int)$id_customer);
@@ -1882,7 +1891,8 @@ class ShoppingFluxExport extends Module
                                     }
                                     
                                     // Sets the relay information to be able to print with mondial relay module
-                                    // Before that, it's required to clear the Order object cache in order to make sure to get the updated carrier information
+                                    // Before that, it's required to clear the Order object cache in order to
+                                    // make sure to get the updated carrier information
                                     $orderClear = new Order();
                                     if (method_exists($orderClear, 'clearCache')) {
                                         $orderClear->clearCache(true);
@@ -1940,7 +1950,10 @@ class ShoppingFluxExport extends Module
      */
     protected function checkData($order, $marketplace)
     {
-        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Checking order '.$order->IdOrder.' ('.$marketplace.') data');
+        SfLogger::getInstance()->log(
+            SF_LOG_ORDERS,
+            'Checking order '.$order->IdOrder.' ('.$marketplace.') data'
+        );
         
         $id_shop = $this->context->shop->id;
         foreach ($order->Products->Product as $product) {
@@ -2115,7 +2128,10 @@ class ShoppingFluxExport extends Module
             $xml .= '</Order>';
             $xml .= '</UpdateOrders>';
 
-            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Sending change of status and tracking number (' . $trackingNumber . ') to ShoppingFlux for order ' . $params['id_order']);
+            SfLogger::getInstance()->log(
+                SF_LOG_ORDERS,
+                'Sending change of status and tracking number (' . $trackingNumber . ') to ShoppingFlux for order ' . $params['id_order']
+            );
             $responseXML = $this->_callWebService('UpdateOrders', $xml, (int)$order->id_shop, $this->getOrderToken((int)$params['id_order']));
 
             if (!$responseXML->Response->Error) {
@@ -2150,7 +2166,10 @@ class ShoppingFluxExport extends Module
             $xml .= '</Order>';
             $xml .= '</UpdateOrders>';
 
-            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Sending change of status cancelled to ShoppingFlux for order ' . $params['id_order']);
+            SfLogger::getInstance()->log(
+                SF_LOG_ORDERS,
+                'Sending change of status cancelled to ShoppingFlux for order ' . $params['id_order']
+            );
             $responseXML = $this->_callWebService('UpdateOrders', $xml, (int)$order->id_shop);
 
             if (!$responseXML->Response->Error) {
@@ -2717,7 +2736,11 @@ class ShoppingFluxExport extends Module
             }
         }
         $amount_paid = (float)Tools::ps_round((float)$cart->getOrderTotal(true, Cart::BOTH), 2);
-        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'calling validateOrder, amount = '.$amount_paid.', currency = '.$cart->id_currency.', marketplace = '.Tools::strtolower($marketplace), $doEchoLog);
+        SfLogger::getInstance()->log(
+            SF_LOG_ORDERS,
+            'calling validateOrder, amount = '.$amount_paid.', currency = '.$cart->id_currency.', marketplace = '.Tools::strtolower($marketplace),
+            $doEchoLog
+        );
         SfDebugger::getInstance()->endDebug($forcedOrder);
         $payment->validateOrder((int)$cart->id, 2, $amount_paid, Tools::strtolower($marketplace), null, array(), $cart->id_currency, false, $cart->secure_key);
         SfDebugger::getInstance()->startDebug();
@@ -2746,7 +2769,11 @@ class ShoppingFluxExport extends Module
 
         $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
         
-        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Retrieving carrier, shipping method = '.$shipping_method.', configured carrier reference = '.Configuration::get('SHOPPING_FLUX_CARRIER'), $doEchoLog);
+        SfLogger::getInstance()->log(
+            SF_LOG_ORDERS,
+            'Retrieving carrier, shipping method = '.$shipping_method.', configured carrier reference = '.Configuration::get('SHOPPING_FLUX_CARRIER'),
+            $doEchoLog
+        );
         $shipping_method = Tools::strtolower($shipping_method);     // uniformise using lowercase only
         $carrier_to_load = isset($actual_configuration[$this->toBase64(Tools::safeOutput($shipping_method))]) ?
             (int)$actual_configuration[$this->toBase64(Tools::safeOutput($shipping_method))] :
@@ -3127,7 +3154,7 @@ class ShoppingFluxExport extends Module
             if (isset($_SERVER['HTTP_CF_CONNECTING_IP'])) {
                 // Cloudflare is directly providing the client IP in this server variable (when correctly set)
                 $ip = $_SERVER['HTTP_CF_CONNECTING_IP'];
-            } else if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            } elseif (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
                 // We retrieve the proxy list
                 $ipForwardedFor = $_SERVER['HTTP_X_FORWARDED_FOR'];
                 // In case of multiple proxy, there values will be split by comma. It will list each server IP the request passed throug
