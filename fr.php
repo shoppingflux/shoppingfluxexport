@@ -5,6 +5,7 @@ $_MODULE = array();
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d29557ce7f62dd1717e2d1515ee11852'] = 'Advanced Shopping Flux';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_9f61ff0493120d928b4149a2947f0872'] = 'Exportez vos produits sur Google Shopping, eBay, Amazon, CDiscount...';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_9d9ce5ee47d93c3e7cbfa24f65021688'] = 'Supprimer ce module?';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_3dd8676a826210e5d78c87fc9b582646'] = 'Un des transporteurs utilisé pour ShoppingFlux a été supprimé ou désactivé sur votre boutique. Merci de vérifier la configuration du module.';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_3ded6c07524e0ef7f619ce547daca4b5'] = 'Votre enregistrement est effectif, vous serez contacté sous peu.';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_a68d0b4d9b0e65aa3e094fedb10d9fae'] = 'Vous devez installer l\'extension curl pour utiliser ce plugin, merci de contacter l\'administrateur de votre site.';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_47c1cd97f5787ec60674a0360ae32e69'] = 'Information(s)';
@@ -44,6 +45,8 @@ $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_c9d7eedc8be4380c021
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_944eb62ed1a48750a399825e633f420e'] = 'Matching transporteurs';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_189ef27ecdec3868dbf25f2a8b1650f8'] = 'Associez les transporteurs des places de marché à vos transporteurs Prestashop';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_d9b6d613daaa5fee5c15b0af367af6b0'] = 'Votre flux';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_efae680468f9604652bfe0a893c66722'] = 'Un des transporteurs utilisé pour ShoppingFlux a été supprimé ou désactivé sur votre boutique. Merci de vérifier et de sauvegarder la configuration \"Matching transporteurs\".';
+$_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_cf9ded082778e321dab45c8a67e6856f'] = 'La transporteur par défaut  utilisé pour ShoppingFlux a été supprimé ou désactivé sur votre boutique. Merci de vérifier et de sauvegarder la configuration \"Paramètres\".';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_4932a1a59df32d11f06092769a87ff3f'] = 'Aucun champ supplémentaire trouvé sur votre site';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_025fe640fe054b1f626a9c1b058fefee'] = 'Sélectionnez les champs supplémentaires à exporter';
 $_MODULE['<{shoppingfluxexport}prestashop>shoppingfluxexport_1f314c1480805fcdd50f9188f930d804'] = 'Nombre de produits sujets à l\'export';
