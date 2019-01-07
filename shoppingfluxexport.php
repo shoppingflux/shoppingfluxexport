@@ -466,8 +466,8 @@ class ShoppingFluxExport extends Module
         $actual_configuration = unserialize($configuration['SHOPPING_FLUX_SHIPPING_MATCHING']);
 
         foreach ($sf_carriers as $sf_carrier) {
-            $actual_value = isset($actual_configuration[base64_encode(Tools::safeOutput($sf_carrier))]) ? $actual_configuration[base64_encode(Tools::safeOutput($sf_carrier))] : $configuration['SHOPPING_FLUX_CARRIER'];
-            $html .= '<p><label>'.Tools::safeOutput($sf_carrier).' : </label>'.$this->_getCarriersSelect($configuration, $actual_value, 'MATCHING['.base64_encode(Tools::safeOutput($sf_carrier)).']').'</p>';
+            $actual_value = isset($actual_configuration[$this->toBase64(Tools::safeOutput($sf_carrier))]) ? $actual_configuration[$this->toBase64(Tools::safeOutput($sf_carrier))] : $configuration['SHOPPING_FLUX_CARRIER'];
+            $html .= '<p><label>'.Tools::safeOutput($sf_carrier).' : </label>'.$this->_getCarriersSelect($configuration, $actual_value, 'MATCHING['.$this->toBase64(Tools::safeOutput($sf_carrier)).']').'</p>';
         }
 
         $html .= '<p style="margin-top:20px"><input type="submit" value="'.$this->l('Update').'" name="rec_shipping_config" class="button"/></p>
@@ -2038,7 +2038,7 @@ class ShoppingFluxExport extends Module
             $ip = $this->getIp($ip);
 
             if (Configuration::get('SHOPPING_FLUX_TRACKING') != '' && Configuration::get('SHOPPING_FLUX_ID') != '' && $params['object']->module != 'sfpayment') {
-                Tools::file_get_contents('https://tag.shopping-flux.com/order/'.base64_encode(Configuration::get('SHOPPING_FLUX_ID').'|'.$params['object']->id.'|'.$params['object']->total_paid).'?ip='.$ip);
+                Tools::file_get_contents('https://tag.shopping-flux.com/order/'.$this->toBase64(Configuration::get('SHOPPING_FLUX_ID').'|'.$params['object']->id.'|'.$params['object']->total_paid).'?ip='.$ip);
             }
     
             if (Configuration::get('SHOPPING_FLUX_STOCKS') != '' && $params['object']->module != 'sfpayment') {
@@ -2444,7 +2444,6 @@ class ShoppingFluxExport extends Module
     protected function _updatePrices($id_order, $order, $reference_order)
     {
         $tax_rate = 0;
-        $total_products_tax_excl = 0;
 
         // We may have multiple orders created for the same reference, (advanced stock management)
         // therefore the total price of each orders needs to be calculated separately
@@ -2607,8 +2606,8 @@ class ShoppingFluxExport extends Module
         
         $actual_configuration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
         $shipping_method = Tools::strtolower((string)$order->ShippingMethod);     // uniformise using lowercase only
-        $carrier_to_load = isset($actual_configuration[base64_encode(Tools::safeOutput($shipping_method))]) ?
-                (int)$actual_configuration[base64_encode(Tools::safeOutput($shipping_method))] :
+        $carrier_to_load = isset($actual_configuration[$this->toBase64(Tools::safeOutput($shipping_method))]) ?
+                (int)$actual_configuration[$this->toBase64(Tools::safeOutput($shipping_method))] :
                 (int)Configuration::get('SHOPPING_FLUX_CARRIER');
 
         $carrier = Carrier::getCarrierByReference($carrier_to_load);
@@ -2751,8 +2750,8 @@ class ShoppingFluxExport extends Module
         
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Retrieving carrier, shipping method = '.$shipping_method.', configured carrier reference = '.Configuration::get('SHOPPING_FLUX_CARRIER'), $doEchoLog);
         $shipping_method = Tools::strtolower($shipping_method);     // uniformise using lowercase only
-        $carrier_to_load = isset($actual_configuration[base64_encode(Tools::safeOutput($shipping_method))]) ?
-            (int)$actual_configuration[base64_encode(Tools::safeOutput($shipping_method))] :
+        $carrier_to_load = isset($actual_configuration[$this->toBase64(Tools::safeOutput($shipping_method))]) ?
+            (int)$actual_configuration[$this->toBase64(Tools::safeOutput($shipping_method))] :
             (int)Configuration::get('SHOPPING_FLUX_CARRIER');
         SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Retrieved carrier reference = '.$carrier_to_load, $doEchoLog);
         
@@ -3623,7 +3622,7 @@ class ShoppingFluxExport extends Module
      */
     public function getLastOrdersTreated()
     {
-        $fromFile = file_get_contents($this->getLastOrderTreadFile(), 'w');
+        $fromFile = Tools::file_get_contents($this->getLastOrderTreadFile(), 'w');
         if (trim($fromFile) == '') {
             $fromFile = array();
         } else {
@@ -3754,10 +3753,10 @@ class ShoppingFluxExport extends Module
             if (!empty($method)) {
                 // Depending of the marketplace, the length of the relay ID is not the same. (5 digits, 6 digits).
                 // We force a 6 digits string required by Mondial Relay
-                $lengthRelayId = strlen($idRelay);
+                $lengthRelayId = Tools::strlen($idRelay);
                 while ($lengthRelayId !== 6) {
                     $idRelay = "0".$idRelay;
-                    $lengthRelayId = strlen($idRelay);
+                    $lengthRelayId = Tools::strlen($idRelay);
                 }
                 $idRelayFormatted = $idRelay;
                 
@@ -3860,8 +3859,8 @@ class ShoppingFluxExport extends Module
         $sf_carriers           = $this->getCarriersFromWebService(false);
         if (!empty($sf_carriers)) {
             foreach ($sf_carriers as $sf_carrier) {
-                $existing_hash = base64_encode(Tools::safeOutput($sf_carrier));
-                $new_hash      = base64_encode(Tools::safeOutput(Tools::strtolower($sf_carrier)));
+                $existing_hash = $this->toBase64(Tools::safeOutput($sf_carrier));
+                $new_hash      = $this->toBase64(Tools::safeOutput(Tools::strtolower($sf_carrier)));
                 $id_carrier    = (int)Configuration::get('SHOPPING_FLUX_CARRIER');
                 if (isset($matching_carriers[$existing_hash])) {
                     $id_carrier = $matching_carriers[$existing_hash];
@@ -3945,8 +3944,8 @@ class ShoppingFluxExport extends Module
 
         // We go through each carrier comming from ShoppingFlux to find the PrestaShop match
         foreach ($sfCarriers as $sfCarrier) {
-            $carrierReference = isset($actualConfiguration[base64_encode(Tools::safeOutput($sfCarrier))]) ?
-                $actualConfiguration[base64_encode(Tools::safeOutput($sfCarrier))] :
+            $carrierReference = isset($actualConfiguration[$this->toBase64(Tools::safeOutput($sfCarrier))]) ?
+                $actualConfiguration[$this->toBase64(Tools::safeOutput($sfCarrier))] :
                 Configuration::get('SHOPPING_FLUX_CARRIER');
             // Check if the carrier is coherent (existing and active)
             if (!$this->isCarrierConsistent($carrierReference)) {
@@ -4008,5 +4007,15 @@ class ShoppingFluxExport extends Module
     {
         return Tools::strtolower($order->Marketplace) == 'amazon' &&
             (int)$order->AdditionalFields->is_business_order == 1;
+    }
+
+    /**
+     * Mutualise base64_encode() call which is not supporter by validator.prestashop.com
+     * @param  string $str
+     * @return string
+     */
+    protected function toBase64($str)
+    {
+        return base64_encode($str);
     }
 }
