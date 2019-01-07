@@ -1,6 +1,6 @@
 <?php
 /**
- * 2007-2015 PrestaShop
+ * 2007-2019 PrestaShop SA and Contributors
  *
  * NOTICE OF LICENSE
  *
@@ -19,8 +19,8 @@
  * needs please refer to http://www.prestashop.com for more information.
  *
  * @author    PrestaShop SA <contact@prestashop.com>
- * @copyright 2007-2015 PrestaShop SA
- * @license   http://opensource.org/licenses/afl-3.0.php Academic Free License (AFL 3.0)
+ * @copyright 2007-2019 PrestaShop SA and Contributors
+ * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  * International Registered Trademark & Property of PrestaShop SA
  */
 
@@ -1655,7 +1655,6 @@ class ShoppingFluxExport extends Module
                         }
                         
                         try {
-
                             // By default the RelayID is in the "other" field
                             $mondialRelayID = isset($order->ShippingAddress->RelayID) ? $order->ShippingAddress->RelayID : $order->Other;
                             if ((
@@ -1934,10 +1933,9 @@ class ShoppingFluxExport extends Module
         }
     }
     
-
     /**
      * Check Data to avoid errors when creating the order
-     * 
+     *
      * @return string|boolean : true if everything ok, error message if not
      */
     protected function checkData($order, $marketplace)
@@ -2472,16 +2470,16 @@ class ShoppingFluxExport extends Module
 
             // The tax may not be defined for the country (linked to the invoice address)
             // Eg: Switzerland invoice address received in french shop (will depends of PS configuration)
-            $tax_rate = $row['rate'] === NULL ? 0 : $row['rate'];
+            $tax_rate = $row['rate'] === null ? 0 : $row['rate'];
 
-            // disable tax if Amazon business 
+            // disable tax if Amazon business
             if ($this->isAmazonBusiness($order)) {
-                $tax_rate = 0;                
+                $tax_rate = 0;
             }
             
             $id_order_detail = $row['id_order_detail'];
 
-            // Retrive the id_order linked to the order_reference (as there might be multiple orders created 
+            // Retrive the id_order linked to the order_reference (as there might be multiple orders created
             // from the same reference)
             $id_order_from_reference = (int)$row['id_order'];
             if (!in_array($id_order_from_reference, $idOrdersList)) {
@@ -2528,7 +2526,7 @@ class ShoppingFluxExport extends Module
                 // delete tax so that it does not appear in tax details block in invoice
                 Db::getInstance()->execute('
                     DELETE FROM `'._DB_PREFIX_.'order_detail_tax` WHERE id_order_detail='.(int)$id_order_detail);
-            }            
+            }
         }
         
         // Cdiscount fees handling
@@ -2627,7 +2625,7 @@ class ShoppingFluxExport extends Module
         }
         $carrier_tax_rate = $carrier->getTaxesRate($address);
 
-        // disable tax if Amazon business 
+        // disable tax if Amazon business
         if ($this->isAmazonBusiness($order)) {
             $carrier_tax_rate = 0;
         } else {
@@ -2809,7 +2807,7 @@ class ShoppingFluxExport extends Module
      * therefore, we temporarily increase the quantity that will then be decrease by PrestaShop while
      * creating the order. So the final quantity will not change on the shop once the order has been
      * created.
-     * 
+     *
      * @param  Object $productsNode the product node coming from the API
      * @param  string $marketplace name of the markeplace
      * @param  int $idShop associated with the current token
@@ -2950,14 +2948,15 @@ class ShoppingFluxExport extends Module
             $id_warehouse = (int)$aWarehouse['id_warehouse'];
 
             $physicalQuantity = $stockManager->getProductPhysicalQuantities(
-            $idProduct,
-            $idAttribute,
-            $id_warehouse);
+                $idProduct,
+                $idAttribute,
+                $id_warehouse
+            );
 
             SfLogger::getInstance()->log(SF_LOG_ORDERS, '-- Warehouse #'.$id_warehouse.' - Physical quantity: '.$physicalQuantity);
 
             $warehouses[] = array('id_warehouse' => $id_warehouse, 'quantity' => $physicalQuantity);
-            if($physicalQuantity - $quantityOrdered >= 0) {
+            if ($physicalQuantity - $quantityOrdered >= 0) {
                 $selectedWarehouses[] = array('id_warehouse' => $id_warehouse, 'quantity' => $physicalQuantity);
             }
         }
@@ -3004,7 +3003,7 @@ class ShoppingFluxExport extends Module
         $idStockMvtReason = 0; // Will then take the default reason as 0 does not exists
 
         // Retrieve the wholesale price (tax ecluded)
-        $product = new Product($id_product, false, null, $idShop);
+        $product = new Product($idProduct, false, null, $idShop);
         $wholesalePrice = $product->wholesale_price;
         if ($idProductAttribute != 0) {
             $combination = new Combination($idProductAttribute);
@@ -3438,7 +3437,14 @@ class ShoppingFluxExport extends Module
             
             // Loop on shops
             foreach ($shops as &$currentShop) {
-                $res = array_merge($res, $this->getAllTokensOfOneShop($currentShop['id_shop'], $currentShop['id_shop_group'], $putChildrenInValues));
+                $res = array_merge(
+                    $res,
+                    $this->getAllTokensOfOneShop(
+                        $currentShop['id_shop'],
+                        $currentShop['id_shop_group'],
+                        $putChildrenInValues
+                    )
+                );
             }
         }
         if ($returnRawFormat) {
@@ -3661,8 +3667,10 @@ class ShoppingFluxExport extends Module
      */
     public function getPrestashopOrderIdFromSfOrderId($orderIdSf, $orderMarkerplace)
     {
-        $orderExists = Db::getInstance()->getRow('SELECT m.id_order  FROM '._DB_PREFIX_.'message m
-                            WHERE m.message LIKE "%Numéro de commande '.pSQL($orderMarkerplace).' :'.pSQL($orderIdSf).'%"');
+        $orderExists = Db::getInstance()->getRow(
+            'SELECT m.id_order  FROM '._DB_PREFIX_.'message m
+            WHERE m.message LIKE "%Numéro de commande '.pSQL($orderMarkerplace).' :'.pSQL($orderIdSf).'%"'
+        );
         
         return $orderExists['id_order'];
     }
@@ -3774,7 +3782,10 @@ class ShoppingFluxExport extends Module
                     SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Could not add relay information');
                 }
             } else {
-                SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Could not find mondial relay method for carrier ID '.$carrier->id);
+                SfLogger::getInstance()->log(
+                    SF_LOG_ORDERS,
+                    'MondialRelay - Could not find mondial relay method for carrier ID '.$carrier->id
+                );
             }
         }
     }
@@ -3796,7 +3807,10 @@ class ShoppingFluxExport extends Module
         $client = new SoapClient($urlWebService);
         if (!is_object($client)) {
             // Error connecting to webservice
-            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Could not create SOAP client for URL ' . $urlWebService);
+            SfLogger::getInstance()->log(
+                SF_LOG_ORDERS,
+                'MondialRelay - Could not create SOAP client for URL ' . $urlWebService
+            );
             return false;
         }
         $client->soap_defencoding = 'UTF-8';
@@ -3813,9 +3827,14 @@ class ShoppingFluxExport extends Module
 
         $result = $client->WSI2_AdressePointRelais($params);
 
-        if (!isset($result->WSI2_AdressePointRelaisResult->STAT) || $result->WSI2_AdressePointRelaisResult->STAT != 0 ) {
+        if (!isset($result->WSI2_AdressePointRelaisResult->STAT)
+            || $result->WSI2_AdressePointRelaisResult->STAT != 0) {
             // Web service did not return expected data
-            SfLogger::getInstance()->log(SF_LOG_ORDERS, 'MondialRelay - Error '.$result->WSI2_AdressePointRelaisResult->STAT.' getting relay data, id relay = ' . $id_relay);
+            SfLogger::getInstance()->log(
+                SF_LOG_ORDERS,
+                'MondialRelay - Error '.$result->WSI2_AdressePointRelaisResult->STAT.' getting relay data,'.
+                ' id relay = '. $id_relay
+            );
             return false;
         } else {
             return $result->WSI2_AdressePointRelaisResult;
@@ -3876,8 +3895,11 @@ class ShoppingFluxExport extends Module
         $html = '<select name="SHOPPING_FLUX_STATE_MP_EXP">';
         
         foreach (OrderState::getOrderStates($configuration['PS_LANG_DEFAULT']) as $orderState) {
-            $selected = (int) $configuration['SHOPPING_FLUX_STATE_MP_EXP'] === (int) $orderState['id_order_state'] ? 'selected = "selected"' : '';
-            $html .= '<option value="' . $orderState['id_order_state'] . '" ' . $selected . '>' . Tools::safeOutput($orderState['name']) . '</option>';
+            $selected = (int)$configuration['SHOPPING_FLUX_STATE_MP_EXP'] === (int) $orderState['id_order_state'] ?
+                'selected = "selected"' :
+                '';
+            $html .= '<option value="' . $orderState['id_order_state'] . '" ' . $selected . '>'.
+                Tools::safeOutput($orderState['name']) . '</option>';
         }
         
         $html .= '</select>';
@@ -3912,7 +3934,11 @@ class ShoppingFluxExport extends Module
     protected static function changeMarketplaceExpeditedOrderStatut($orderId, $doEchoLog)
     {
         $orderState = Configuration::get('SHOPPING_FLUX_STATE_MP_EXP');
-        SfLogger::getInstance()->log(SF_LOG_ORDERS, 'Marketplace expedited order - Changing order state to ' . $orderState, $doEchoLog);
+        SfLogger::getInstance()->log(
+            SF_LOG_ORDERS,
+            'Marketplace expedited order - Changing order state to ' . $orderState,
+            $doEchoLog
+        );
         
         $order = new Order($orderId);
         $new_history = new OrderHistory();
@@ -3925,9 +3951,9 @@ class ShoppingFluxExport extends Module
     }
     
     /**
-     * Will check if there are inconsistencies in the matches between ShoppingFlux's carriers and PrestaShop's carriers.
-     * An inconsistency may happen when a carrier, that has been matched with a market place's carrier, has been delete 
-     * or disabled.
+     * Will check if there are inconsistencies in the matches between ShoppingFlux's carriers and PrestaShop's
+     * carriers. An inconsistency may happen when a carrier, that has been matched with a market place's carrier,
+     * has been delete or disabled.
      * @return boolean
      */
     protected function checkCarriersInconsistencies()
