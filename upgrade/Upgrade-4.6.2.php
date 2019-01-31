@@ -24,44 +24,32 @@
  * International Registered Trademark & Property of PrestaShop SA
  */
 
-include(dirname(__FILE__).'/../../config/config.inc.php');
-include(dirname(__FILE__).'/../../init.php');
-
-include_once(dirname(__FILE__).'/sfpayment.php');
-
-ini_set('display_errors', 'off');
-
-$sf = Module::getInstanceByName('shoppingfluxexport');
-if (!$sf || !$sf->active) {
-    die("<?xml version='1.0' encoding='utf-8'?><error>Module inactive</error>");
+if (!defined('_PS_VERSION_')) {
+    exit;
 }
 
-if (Tools::getValue('fdg') != '') {
-    $res = $sf->setFDG();
-    
-    if ($res == 'ok') {
-        echo 'Frais de gestion installé';
-    } elseif ($res == 'ko') {
-        echo 'Frais de gestion désinstallé';
+function upgrade_module_4_6_2($object)
+{
+    // Set the default state for market place expedited order's has shipped
+    if (version_compare(_PS_VERSION_, '1.5', '>') && Shop::isFeatureActive()) {
+        foreach (Shop::getShops() as $shop) {
+            Configuration::updateValue(
+                'SHOPPING_FLUX_STATE_MP_EXP',
+                Configuration::get('PS_OS_SHIPPING'),
+                false,
+                null,
+                $shop['id_shop']
+            );
+        }
     } else {
-        echo 'Erreur';
+        Configuration::updateValue(
+            'SHOPPING_FLUX_STATE_MP_EXP',
+            Configuration::get('PS_OS_SHIPPING')
+        );
     }
-    exit;
+
+    // uniformise carrier matching by using lowercase only
+    $object->migrateToNewCarrierMatching();
+
+    return true;
 }
-
-if (Tools::getValue('ref') != '') {
-    $res = $sf->setREF();
-
-    if ($res == 'ok') {
-        echo 'Ref enable';
-    } elseif ($res == 'ko') {
-        echo 'Ref disable';
-    } elseif ($res == 'e') {
-        echo 'Error';
-    }
-    exit;
-}
-
-header('Content-Type:text/xml');
-
-echo $sf->generateFeed();

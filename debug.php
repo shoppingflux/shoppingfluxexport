@@ -1,6 +1,6 @@
 <?php
 /**
- * 2007-2015 PrestaShop
+ * 2007-2019 PrestaShop SA and Contributors
  *
  * NOTICE OF LICENSE
  *
@@ -19,8 +19,8 @@
  * needs please refer to http://www.prestashop.com for more information.
  *
  * @author    PrestaShop SA <contact@prestashop.com>
- * @copyright 2007-2015 PrestaShop SA
- * @license   http://opensource.org/licenses/afl-3.0.php Academic Free License (AFL 3.0)
+ * @copyright 2007-2019 PrestaShop SA and Contributors
+ * @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  * International Registered Trademark & Property of PrestaShop SA
  */
 
@@ -38,7 +38,8 @@ $sf = Module::getInstanceByName('shoppingfluxexport');
 $testHomePage = Tools::getValue('test_homepage');
 $testCurl = Tools::getValue('test_curl');
 
-if ((Tools::getValue('token') == '' || Tools::getValue('token') != $sf->getTokenValue()) && ! ($testHomePage || $testCurl)) {
+if ((Tools::getValue('token') == '' || Tools::getValue('token') != $sf->getTokenValue())
+    && ! ($testHomePage || $testCurl)) {
     die("Invalid Token");
 }
 
@@ -55,7 +56,8 @@ function getRecablage($sf)
 {
     $output = '<fieldset id="recablage">';
     $output .= '<legend>' . $sf->l('Recablage du montant du bloc paiement dans les commandes') . '</legend>';
-    $output .= '<p>Si le montant dans le bloc paiement ne correspond pas au montant total de la commande, ajoutez la ligne suivante au début de la fonction <b>hookbackOfficeTop</b> : </p>';
+    $output .= '<p>Si le montant dans le bloc paiement ne correspond pas au montant total de la commande,';
+    $output .= 'ajoutez la ligne suivante au début de la fonction <b>hookbackOfficeTop</b> : </p>';
     $output .= '<p>SfDebugger::recablageOrderPayment();</p>';
     $output .= '</fieldset>';
     return $output;
@@ -129,6 +131,48 @@ function getConfigForm($sf)
     $output .= '<label>URL test CURL</label>' . $urlBase . '/modules/shoppingfluxexport/debug.php?test_curl=1';
     $output .= '<p style="clear: both"></p>';
     
+    $sfCarriers = array();
+    $cacheCarrierList = Configuration::get('SHOPPING_FLUX_CARRIERS_LIST');
+    $sfCarriers = !empty($cacheCarrierList) ? unserialize($cacheCarrierList) : $sfCarriers;
+    $output .= '<label>SHOPPING_FLUX_CARRIERS_LIST</label>' . print_r($sfCarriers, true);
+    $output .= '<p style="clear: both"></p>';
+
+    if (!empty($sfCarriers)) {
+        $output .= '<label>CARRIER MATCHING</label>';
+        $actualConfiguration = unserialize(Configuration::get('SHOPPING_FLUX_SHIPPING_MATCHING'));
+
+        $displayCarrierConsistency = array();
+        // We go through each carrier comming from ShoppingFlux to find the PrestaShop match
+        foreach ($sfCarriers as $sfCarrier) {
+            $carrierReference = isset($actualConfiguration[base64_encode(Tools::safeOutput($sfCarrier))]) ?
+                $actualConfiguration[base64_encode(Tools::safeOutput($sfCarrier))] :
+                Configuration::get('SHOPPING_FLUX_CARRIER');
+            $carrierMatching = array();
+            $carrierMatching['sfCarrier'] = $sfCarrier;
+            $carrierMatching['carrierReference'] = $carrierReference;
+
+            // Check if the carrier is coherent (existing and active)
+            if ($sf->isCarrierConsistent($carrierReference)) {
+                // Inconsistency detected
+                $carrierMatching['isCarrierConsistent'] = "YES";
+            } else {
+                $carrierMatching['isCarrierConsistent'] = "NO";
+            }
+
+            $displayCarrierConsistency[] = $carrierMatching;
+        }
+
+        $output .= print_r($displayCarrierConsistency, true);
+        $output .= '<p style="clear: both"></p>';
+
+
+        $output .= '<label>DEFAULT CARRIER MATCHING</label>';
+        $isConsistent = $sf->isCarrierConsistent(Configuration::get('SHOPPING_FLUX_CARRIER')) ? "YES" : "NO";
+        $output .= print_r(array('SHOPPING_FLUX_CARRIER (reference)' => Configuration::get('SHOPPING_FLUX_CARRIER'),
+            'isCarrierConsistent' => $isConsistent), true);
+        $output .= '<p style="clear: both"></p>';
+    }
+
     $output .= '</fieldset>';
     return $output;
 }
@@ -152,15 +196,24 @@ function getReplayOrdersForm($sf)
     $link = new Link();
     foreach ($lastOrders as $currentOrder) {
         $orderXml = @simplexml_load_string($currentOrder);
-        $idOrderPs = $sf->getPrestashopOrderIdFromSfOrderId((string) $orderXml->IdOrder, (string) $orderXml->Marketplace);
+        $idOrderPs = $sf->getPrestashopOrderIdFromSfOrderId(
+            (string) $orderXml->IdOrder,
+            (string) $orderXml->Marketplace
+        );
         $exploded = explode('+', (string) $orderXml->OrderDate);
+        $replaced = str_replace('T', ' ', $exploded[0]);
         $output .= '<tr>
                             <td style="padding: 10px; text-align:center;">' . (string) $orderXml->IdOrder . '</td>
-                            <td style="padding: 10px; text-align:center;">' . str_replace('T', ' ', $exploded[0]) . '</td>
+                            <td style="padding: 10px; text-align:center;">' . $replaced . '</td>
                             <td style="padding: 10px; text-align:center;">' . (string) $orderXml->Marketplace . '</td>
-                            <td style="padding: 10px; text-align:center;">' . (float) ($orderXml->TotalAmount) . ' ' . (string) $orderXml->Currency . '</td>
-                            <td style="padding: 10px; text-align:center;"><a href="' . $link->getAdminLink("AdminOrders") . '&id_order=' . $idOrderPs . '&vieworder" target="_blank">' . $idOrderPs . '</a></td>
-                            <td style="padding: 10px; text-align:center;"><a href="' . Tools::safeOutput($_SERVER['REQUEST_URI']) . '&IdOrder=' . (string) $orderXml->IdOrder . '">' . $sf->l('Replay') . '</a></td>
+                            <td style="padding: 10px; text-align:center;">' . (float) ($orderXml->TotalAmount) .
+                            ' ' . (string) $orderXml->Currency . '</td>
+                            <td style="padding: 10px; text-align:center;"><a href="' .
+                            $link->getAdminLink("AdminOrders") . '&id_order=' . $idOrderPs .
+                            '&vieworder" target="_blank">' . $idOrderPs . '</a></td>
+                            <td style="padding: 10px; text-align:center;"><a href="' .
+                            Tools::safeOutput($_SERVER['REQUEST_URI']) . '&IdOrder=' .
+                            (string) $orderXml->IdOrder . '">' . $sf->l('Replay') . '</a></td>
                         </tr>';
     }
     $output .= '</tbody>
@@ -197,7 +250,8 @@ function getLogsConfiguration($sf)
          </span>';
     
     $sf_order_log = '';
-    if ((int) Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG') || Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG') == 'true') {
+    if ((int) Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG')
+        || Configuration::get('SHOPPING_FLUX_ORDERS_DEBUG') == 'true') {
         $sf_order_log = ' checked="checked" ';
     }
     $html .= '<p style="clear: both"></p>';
@@ -208,7 +262,8 @@ function getLogsConfiguration($sf)
     
 
     $sf_order_debug = '';
-    if ((int) Configuration::get('SHOPPING_FLUX_DEBUG_ERRORS') || Configuration::get('SHOPPING_FLUX_DEBUG_ERRORS') == 'true') {
+    if ((int) Configuration::get('SHOPPING_FLUX_DEBUG_ERRORS')
+        || Configuration::get('SHOPPING_FLUX_DEBUG_ERRORS') == 'true') {
         $sf_order_debug = ' checked="checked" ';
     }
     $html .= '<p style="clear: both"></p>';
@@ -353,7 +408,11 @@ function getLogsParsed()
             if (strpos($currentSegment, '>')) {
                 // Has xml
                 $xmlContent = Tools::substr($currentSegment, 0, strrpos($currentSegment, '>') + 1);
-                $textContent = Tools::substr($currentSegment, strrpos($currentSegment, '>') + 1, Tools::strlen($currentSegment));
+                $textContent = Tools::substr(
+                    $currentSegment,
+                    strrpos($currentSegment, '>') + 1,
+                    Tools::strlen($currentSegment)
+                );
             } else {
                 // Has no XML
                 $xmlContent = '';
@@ -409,25 +468,30 @@ function getLogsContentOfToken($sf, $token)
                 <legend>' . $sf->l('Logs du token') . ' : ' . $token . '</legend>';
     $fileName = '/logs/cronexport_' . $token . '.txt';
     if (file_exists(dirname(__FILE__) . $fileName)) {
-        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token'). '&action=viewLog&log=' . $fileName . '">' . $sf->l('Voir') . '</a>';
+        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token'). '&action=viewLog&log='.
+            $fileName . '">' . $sf->l('Voir') . '</a>';
         $html .= '<label>' . $sf->l('Logs de la génération du flux') . '</label>' . $button;
         $html .= '<p style="clear: both"></p>';
     }
     $fileName = '/logs/orders_debug_' . $token . '.txt';
     if (file_exists(dirname(__FILE__) . $fileName)) {
-        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token'). '&action=viewLog&log=' . $fileName . '">' . $sf->l('Voir') . '</a>';
+        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token'). '&action=viewLog&log='.
+        $fileName . '">' . $sf->l('Voir') . '</a>';
         $html .= '<label>' . $sf->l('Logs de la création de commandes sur Prestashop') . '</label>' . $button;
         $html .= '<p style="clear: both"></p>';
     }
     $fileName = '/logs/orders_debug_errors_on_' . $token . '.txt';
     if (file_exists(dirname(__FILE__) . $fileName)) {
-        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token'). '&action=viewLog&type=orderdebugerroron&log=' . $fileName . '">' . $sf->l('Voir') . '</a>';
-        $html .= '<label>' . $sf->l('Logs de la création de commandes sur Prestashop avec erreurs activées') . '</label>' . $button;
+        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token').
+            '&action=viewLog&type=orderdebugerroron&log=' . $fileName . '">' . $sf->l('Voir') . '</a>';
+        $html .= '<label>' . $sf->l('Logs de la création de commandes sur Prestashop avec erreurs activées').
+            '</label>' . $button;
         $html .= '<p style="clear: both"></p>';
     }
     $fileName = '/logs/callWebService_' . $token . '.txt';
     if (file_exists(dirname(__FILE__) . $fileName)) {
-        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token'). '&action=viewLog&type=xml&log=' . $fileName . '">' . $sf->l('Voir') . '</a>';
+        $button = '<a target="_blank" href="./debug.php?token=' . Tools::getValue('token').
+            '&action=viewLog&type=xml&log=' . $fileName . '">' . $sf->l('Voir') . '</a>';
         $html .= '<label>' . $sf->l('Logs des appels au webservice ShoppingFlux') . '</label>' . $button;
         $html .= '<p style="clear: both"></p>';
     }

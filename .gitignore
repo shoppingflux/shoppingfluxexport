@@ -1,1 +1,8 @@
 vendor/
+config*.xml
+config.xml
+*.lock
+logs/cronexport_*.txt
+logs/orders_debug_*.txt
+logs/callWebService_*.txt
+logs/orders_debug_errors_on_*.txt
